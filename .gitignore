@@ -1,0 +1,65 @@
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ── Distribution / packaging ──────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
+# ── PyInstaller ───────────────────────────────────────────────────────────
+# Generated spec files are committed; build artifacts are not.
+*.manifest
+# The .spec file IS committed (it's configuration), so don't ignore it.
+
+# ── Virtual environments ──────────────────────────────────────────────────
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# ── RNV Color Mixer runtime data ──────────────────────────────────────────
+# Auto-saved sessions and user settings should not be committed.
+.sessions/
+sessions/
+*.session.json
+color_mixer_settings.json
+color_mixer_history.json
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS cruft ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor / IDE ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ── Testing / coverage ────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage_report.txt
+htmlcov/
+.hypothesis/
+.tox/
+.nox/
+
+# ── Environment / secrets ─────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local

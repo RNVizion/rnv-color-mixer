@@ -1,0 +1,58 @@
+name: Tests (Windows)
+
+# Runs the locked unittest suite + new pytest suite on Windows. This is
+# the deployment target — the locked test_rnv_color_mixer.py was
+# originally calibrated to the Windows version of PyQt6, so this
+# workflow is the most authoritative gate for production.
+#
+# Coverage measurement is disabled here (Linux job covers that); this
+# workflow's job is to confirm the test suites pass on the actual
+# deployment platform.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # Windows runners come with the necessary native deps for PyQt6 —
+      # no equivalent of the Linux apt-get step is needed.
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Verify locked test file integrity
+        # Same SHA-256 gate as Linux. Use Python rather than PowerShell's
+        # Get-FileHash so the verification logic is identical across OSes.
+        run: |
+          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='38bb08a5bd30faf9145265e1190d83de339eec0223a3225eb6d850ed1049d2af'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
+
+      - name: Run locked unittest suite
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m unittest test_rnv_color_mixer -v
+
+      - name: Run pytest suite
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest tests/ -v --tb=short

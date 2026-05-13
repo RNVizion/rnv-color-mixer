@@ -1,0 +1,8 @@
+GIMP Palette
+Name: Color Mixer Palette
+Columns: 0
+#
+255   0   0	Color 1 (weight: 25)
+  0 255   0	Color 2 (weight: 25)
+  0   0 255	Color 3 (weight: 25)
+210 188 147	Color 4 (weight: 25)

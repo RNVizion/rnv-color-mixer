@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<palette name="Color Mixer Palette" version="1.0">
+  <colors count="4">
+    <color id="1" name="Color 1">
+      <hex>#ff0000</hex>
+      <rgb>
+        <r>255</r>
+        <g>0</g>
+        <b>0</b>
+      </rgb>
+      <weight>25</weight>
+    </color>
+    <color id="2" name="Color 2">
+      <hex>#00ff00</hex>
+      <rgb>
+        <r>0</r>
+        <g>255</g>
+        <b>0</b>
+      </rgb>
+      <weight>25</weight>
+    </color>
+    <color id="3" name="Color 3">
+      <hex>#0000ff</hex>
+      <rgb>
+        <r>0</r>
+        <g>0</g>
+        <b>255</b>
+      </rgb>
+      <weight>25</weight>
+    </color>
+    <color id="4" name="Color 4">
+      <hex>#d2bc93</hex>
+      <rgb>
+        <r>210</r>
+        <g>188</g>
+        <b>147</b>
+      </rgb>
+      <weight>25</weight>
+    </color>
+  </colors>
+</palette>

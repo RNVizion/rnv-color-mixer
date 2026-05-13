@@ -1,0 +1,46 @@
+{
+  "name": "Color Mixer Palette",
+  "version": "1.0",
+  "colors": [
+    {
+      "name": "Color 1",
+      "hex": "#ff0000",
+      "rgb": {
+        "r": 255,
+        "g": 0,
+        "b": 0
+      },
+      "weight": 25
+    },
+    {
+      "name": "Color 2",
+      "hex": "#00ff00",
+      "rgb": {
+        "r": 0,
+        "g": 255,
+        "b": 0
+      },
+      "weight": 25
+    },
+    {
+      "name": "Color 3",
+      "hex": "#0000ff",
+      "rgb": {
+        "r": 0,
+        "g": 0,
+        "b": 255
+      },
+      "weight": 25
+    },
+    {
+      "name": "Color 4",
+      "hex": "#d2bc93",
+      "rgb": {
+        "r": 210,
+        "g": 188,
+        "b": 147
+      },
+      "weight": 25
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# RNV Color Mixer — Test Dependencies
+# Install with: pip install -r requirements-test.txt
+#
+# Production dependencies (already required to run the app):
+#   PyQt6>=6.5
+#   Pillow>=10.0
+#
+# Test-only dependencies below.
+
+pytest>=7.4
+pytest-qt>=4.2
+pytest-timeout>=2.2
+coverage>=7.3
+hypothesis>=6.90

@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plist version="1.0">
+  <dict>
+    <key>Colors</key>
+    <array>
+      <dict>
+        <key>Name</key>
+        <string>Color 1</string>
+        <key>Red</key>
+        <real>1.0</real>
+        <key>Green</key>
+        <real>0.0</real>
+        <key>Blue</key>
+        <real>0.0</real>
+      </dict>
+      <dict>
+        <key>Name</key>
+        <string>Color 2</string>
+        <key>Red</key>
+        <real>0.0</real>
+        <key>Green</key>
+        <real>1.0</real>
+        <key>Blue</key>
+        <real>0.0</real>
+      </dict>
+      <dict>
+        <key>Name</key>
+        <string>Color 3</string>
+        <key>Red</key>
+        <real>0.0</real>
+        <key>Green</key>
+        <real>0.0</real>
+        <key>Blue</key>
+        <real>1.0</real>
+      </dict>
+      <dict>
+        <key>Name</key>
+        <string>Color 4</string>
+        <key>Red</key>
+        <real>0.8235294117647058</real>
+        <key>Green</key>
+        <real>0.7372549019607844</real>
+        <key>Blue</key>
+        <real>0.5764705882352941</real>
+      </dict>
+    </array>
+  </dict>
+</plist>

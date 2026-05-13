@@ -1,0 +1,234 @@
+
+QMainWindow {
+    color: #E0E0E0;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+}
+
+QMainWindow > QWidget {
+    background-color: transparent;
+}
+
+QWidget {
+    background-color: transparent;
+    color: #E0E0E0;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+}
+
+QFrame, QScrollArea, QLabel {
+    background-color: transparent;
+}
+
+QPushButton {
+    background-color: #1A1A1A;
+    color: #E0E0E0;
+    border: 1px solid #333333;
+    padding: 2px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+}
+
+QPushButton:hover {
+    background-color: #333333;
+    border-color: #333333;
+}
+
+QPushButton:pressed {
+    background-color: #444444;
+    color: #000000;
+    border-color: #333333;
+}
+
+QLineEdit {
+    background-color: rgba(0, 0, 0, 171);
+    color: #E0E0E0;
+    border: 1px solid #333333;
+    padding: 4px;
+    border-radius: 3px;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+    min-height: 16px;
+    selection-background-color: #d2bc93;
+    selection-color: #000000;
+}
+
+QLineEdit:focus {
+    border-color: #d2bc93;
+}
+
+QLabel {
+    color: #E0E0E0;
+    background-color: transparent;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+}
+
+QSlider::groove:horizontal {
+    border: 1px solid #333333;
+    height: 8px;
+    background: #1A1A1A;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #E0E0E0;
+    border: 1px solid #333333;
+    width: 18px;
+    border-radius: 9px;
+    margin: -5px 0;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #F0F0F0;
+}
+
+QScrollArea {
+    background-color: transparent;
+    border: 1px solid rgba(51, 51, 51, 100);
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+}
+
+QScrollArea::viewport {
+    background-color: transparent;
+}
+
+QScrollArea QWidget {
+    background-color: transparent;
+}
+
+QScrollArea::corner {
+    background-color: transparent;
+}
+
+QScrollBar:vertical {
+    background-color: rgba(51, 51, 51, 100);
+    width: 15px;
+    border: none;
+}
+
+QScrollBar::handle:vertical {
+    background-color: rgba(80, 80, 80, 150);
+    min-height: 20px;
+    border-radius: 7px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: rgba(100, 100, 100, 200);
+}
+
+QScrollBar::sub-page:vertical {
+    background-color: transparent;
+}
+
+QScrollBar::add-page:vertical {
+    background-color: transparent;
+}
+
+QScrollBar:horizontal {
+    background-color: rgba(51, 51, 51, 100);
+    height: 15px;
+    border: none;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: rgba(80, 80, 80, 150);
+    min-width: 20px;
+    border-radius: 7px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: rgba(100, 100, 100, 200);
+}
+
+QScrollBar::sub-page:horizontal {
+    background-color: transparent;
+}
+
+QScrollBar::add-page:horizontal {
+    background-color: transparent;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+    border: none;
+    background: none;
+}
+
+QStatusBar {
+    background-color: rgba(26, 26, 26, 200);
+    color: #E0E0E0;
+    border-top: 1px solid #333333;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 9px;
+}
+
+QStatusBar QLabel {
+    background-color: transparent;
+    color: #E0E0E0;
+    padding: 2px 4px;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 9px;
+}
+
+QCheckBox {
+    color: #E0E0E0;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+}
+
+QCheckBox::indicator {
+    width: 13px;
+    height: 13px;
+    background-color: rgba(0, 0, 0, 100);
+    border: 1px solid #555555;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #d2bc93;
+    border-color: #d2bc93;
+}
+
+QSplitter::handle {
+    background-color: #333333;
+}
+
+QSplitter::handle:horizontal {
+    width: 3px;
+}
+
+QSplitter::handle:vertical {
+    height: 3px;
+}
+
+QComboBox {
+    background-color: rgba(26, 26, 26, 191);
+    color: #E0E0E0;
+    border: 1px solid #333333;
+    padding: 4px;
+    border-radius: 3px;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-size: 10px;
+}
+
+QComboBox:hover {
+    border-color: #d2bc93;
+}
+
+QComboBox QAbstractItemView {
+    background-color: rgba(26, 26, 26, 191);
+    color: #E0E0E0;
+    selection-background-color: #d2bc93;
+    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #333333;
+    color: #d2bc93;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background-color: #d2bc93;
+    color: #000000;
+}

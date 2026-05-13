@@ -1,0 +1,7 @@
+# HSV Color Palette
+# Format: H(0-360) S(0-100) V(0-100) Weight Name
+#
+   0.0 100.0 100.0  25 # Color 1
+ 120.0 100.0 100.0  25 # Color 2
+ 240.0 100.0 100.0  25 # Color 3
+  39.0  30.0  82.4  25 # Color 4

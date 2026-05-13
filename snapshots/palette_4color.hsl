@@ -1,0 +1,7 @@
+# HSL Color Palette
+# Format: H(0-360) S(0-100) L(0-100) Weight Name
+#
+   0.0 100.0  50.0  25 # Color 1
+ 120.0 100.0  50.0  25 # Color 2
+ 240.0 100.0  50.0  25 # Color 3
+  39.0  41.2  70.0  25 # Color 4

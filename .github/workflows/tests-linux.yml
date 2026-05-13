@@ -1,0 +1,99 @@
+name: Tests (Linux)
+
+# Runs the full dual-suite (locked unittest + Phase 1-9 pytest) under
+# coverage on Ubuntu. The locked test_rnv_color_mixer.py is the gate
+# of last resort — if it ever fails, the build fails. Phase 9 weak-test
+# upgrades mean failures here will now have meaningful diagnostics
+# (most tests assert on observable behavior, not just "doesn't crash").
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # PyQt6 needs these system libs on Ubuntu even with the offscreen
+      # platform plugin — the QtGui/QtWidgets shared objects link
+      # against them at import time.
+      - name: Install system dependencies for PyQt6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1 \
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libdbus-1-3 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-xfixes0 \
+            libxcb-xkb1
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Production deps (PyQt6 + Pillow are imported by the app)
+          pip install -r requirements.txt
+          # Test deps (pytest-timeout was added in Phase 9.4)
+          pip install -r requirements-test.txt
+
+      - name: Verify locked test file integrity
+        # The locked file SHA-256 must never change. If this gate fails,
+        # the locked file was modified — that's a Phase 9 invariant
+        # violation and the build should fail loudly.
+        run: |
+          python -c "
+          import hashlib
+          with open('test_rnv_color_mixer.py', 'rb') as f:
+              digest = hashlib.sha256(f.read()).hexdigest()
+          expected = '38bb08a5bd30faf9145265e1190d83de339eec0223a3225eb6d850ed1049d2af'
+          if digest != expected:
+              print(f'LOCKED FILE INTEGRITY VIOLATION')
+              print(f'  expected: {expected}')
+              print(f'  actual:   {digest}')
+              raise SystemExit(1)
+          print(f'Locked file SHA-256 matches: {digest}')
+          "
+
+      - name: Run dual-suite with coverage
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python run_tests.py
+
+      - name: Coverage threshold check
+        # Phase 8.10 established 70.4% as the production line. If
+        # coverage drops below this, fail the build.
+        run: |
+          coverage report --fail-under=70
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-linux
+          path: |
+            htmlcov/
+            coverage_report.txt
+            .coverage
+          retention-days: 14

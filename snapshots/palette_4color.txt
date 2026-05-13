@@ -1,0 +1,7 @@
+Color Mixer Palette
+============================================================
+
+Color  1: #ff0000  RGB(255,   0,   0)  Weight:  25
+Color  2: #00ff00  RGB(  0, 255,   0)  Weight:  25
+Color  3: #0000ff  RGB(  0,   0, 255)  Weight:  25
+Color  4: #d2bc93  RGB(210, 188, 147)  Weight:  25

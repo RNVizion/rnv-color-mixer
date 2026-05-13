@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "name": "Color Mixer Palette",
+  "colors": [
+    {
+      "name": "Color 1",
+      "color": {
+        "model": "rgb",
+        "r": 1.0,
+        "g": 0.0,
+        "b": 0.0,
+        "a": 1.0
+      },
+      "weight": 25
+    },
+    {
+      "name": "Color 2",
+      "color": {
+        "model": "rgb",
+        "r": 0.0,
+        "g": 1.0,
+        "b": 0.0,
+        "a": 1.0
+      },
+      "weight": 25
+    },
+    {
+      "name": "Color 3",
+      "color": {
+        "model": "rgb",
+        "r": 0.0,
+        "g": 0.0,
+        "b": 1.0,
+        "a": 1.0
+      },
+      "weight": 25
+    },
+    {
+      "name": "Color 4",
+      "color": {
+        "model": "rgb",
+        "r": 0.8235294117647058,
+        "g": 0.7372549019607844,
+        "b": 0.5764705882352941,
+        "a": 1.0
+      },
+      "weight": 25
+    }
+  ]
+}

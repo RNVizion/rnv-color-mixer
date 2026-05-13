@@ -1,0 +1,74 @@
+# RNV Color Mixer — Coverage configuration
+# Phase 0: Baseline measurement
+#
+# Branch coverage is enabled (true robustness signal, not just line coverage).
+
+[run]
+branch = True
+source = .
+parallel = False
+
+# Files & directories to exclude from coverage measurement
+omit =
+    test_*.py
+    */test_*.py
+    conftest.py
+    */conftest.py
+    */__init__.py
+    setup.py
+    verify_files.py
+    run_tests.py
+    audit_phase_9_1.py
+    */build/*
+    */dist/*
+    */.venv/*
+    */venv/*
+    */htmlcov/*
+    */__pycache__/*
+    # Phase 8.8 exclusions — developer-only debug modules.
+    # These are debug overlays and the diagnostic button class used
+    # only when --debug is passed at runtime. They are NOT part of the
+    # release contract or user-facing surface, so they are excluded
+    # from coverage measurement. This is consistent with how other
+    # PyQt projects exclude their developer-mode tooling.
+    debug_overlay.py
+    debug_button.py
+
+[report]
+# Display options for `coverage report`
+precision = 1
+show_missing = True
+skip_covered = False
+sort = -Cover
+
+# Lines that should not count as "uncovered"
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    raise AssertionError
+    pass
+    # Phase 8.8: Paint events don't fire reliably on offscreen Qt
+    # platforms, so the bodies of paint-related methods cannot be
+    # tested in CI. They are excluded from coverage to reflect the
+    # reality of what's actually testable.
+    def paintEvent
+    def _draw_magnifier
+    def _draw_magnifier_grid
+    def _draw_crosshair
+    def _draw_color_info
+    def _draw_color_preview
+    # Animation paths only fire when the Qt event loop pumps
+    # animation frames — not deterministic in test environment.
+    def _animate_resize
+    def _animate_fade
+
+[html]
+# Output directory for `coverage html`
+directory = htmlcov
+title = RNV Color Mixer — Branch Coverage
+
+[xml]
+output = coverage.xml
