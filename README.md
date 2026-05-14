@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 ![Tests](https://img.shields.io/badge/tests-886-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-71%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-72%25-brightgreen)
 
 [![Tests (Linux)](https://img.shields.io/github/actions/workflow/status/RNVizion/rnv-color-mixer/tests-linux.yml?branch=main&label=Tests%20%28Linux%29&logo=linux)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-linux.yml)
 [![Tests (Windows)](https://img.shields.io/github/actions/workflow/status/RNVizion/rnv-color-mixer/tests-windows.yml?branch=main&label=Tests%20%28Windows%29&logo=windows)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-windows.yml)
@@ -233,7 +233,7 @@ The project carries 886 tests across two harnesses:
 |---|---|---|
 | `unittest` | 356 | Locked byte-integrity suite (`test_rnv_color_mixer.py`) |
 | `pytest` | 530 | Modern suite — pytest-qt for Qt threading, hypothesis property tests |
-| **Total** | **886** | **~72% TOTAL coverage** with branch coverage enabled |
+| **Total** | **886** | **~72% local coverage**, branch coverage enabled |
 
 **Run the full suite:**
 
@@ -261,10 +261,16 @@ This runs both harnesses sequentially and produces a combined coverage report.
 | `ui/about_dialog.py` | 89% |
 | `core/color_fine_tune.py` | 88% |
 
-CI gates on a 70% TOTAL coverage threshold. The locked test file
-(`test_rnv_color_mixer.py`) has its SHA-256 verified on every CI run,
-preventing accidental modification — see [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md)
-for documented platform-specific test skips.
+CI measures coverage at ~69% (slightly lower than local) because a small
+number of tests are skipped on CI runners for platform-specific reasons —
+they exercise real display servers, Qt threading paths that crash on
+offscreen environments, or generate platform-specific byte output. The
+70% local coverage target will be restored as the skipped tests are
+refactored in a future release. See [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md)
+for the full list of documented skips and planned fixes.
+
+The locked test file (`test_rnv_color_mixer.py`) has its SHA-256 verified
+on every CI run, preventing accidental modification.
 
 ---
 
@@ -350,5 +356,5 @@ Built by [RNVizion](https://github.com/RNVizion)
 ---
 
 <p align="center">
-  Built with PyQt6 · 886 tests · 72% coverage · Cross-platform CI
+  Built with PyQt6 · 886 tests · ~72% local coverage · Cross-platform CI
 </p>
