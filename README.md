@@ -123,28 +123,37 @@ rnv-color-mixer
 Use `pip install -e .` instead for an editable install that picks up
 code changes without reinstalling.
 
-### Building a standalone Windows executable
+### Building a standalone executable
 
-The project ships with a PyInstaller spec file and a convenience batch
-script for building a distributable Windows `.exe`:
+The project ships with a PyInstaller spec file and convenience wrapper
+scripts for both Windows and Linux:
 
 ```bash
 pip install pyinstaller
 
-# Windows (recommended):
+# Windows:
 build_windows.bat
+
+# Linux (first run: chmod +x build_linux.sh):
+./build_linux.sh
 
 # Or invoke PyInstaller directly (any platform):
 pyinstaller RNV_Color_Mixer.spec
 ```
 
-The build output lands in `dist/RNV_Color_Mixer/`. Zip that folder and
-share it — end users can run `RNV_Color_Mixer.exe` without installing
-Python or any dependencies.
+The build output lands in `dist/RNV_Color_Mixer/`. On Windows, zip the
+folder and share it — end users can run `RNV_Color_Mixer.exe` without
+installing Python or any dependencies. On Linux, tar the folder
+(`tar -czf RNV_Color_Mixer-linux.tar.gz -C dist RNV_Color_Mixer`) and
+distribute that.
 
 The build uses **one-folder mode** rather than one-file mode. One-file
 builds unpack to a temp directory on every launch, adding ~3 seconds
 to startup; one-folder is larger on disk but launches instantly.
+
+Note: Linux binaries built with PyInstaller are tied to the glibc
+version of the build host. For maximum compatibility, build on the
+oldest distro you want to support (e.g. Ubuntu 22.04 LTS).
 
 ---
 
@@ -180,6 +189,7 @@ rnv-color-mixer/
 ├── py.typed                 PEP 561 type-hint marker
 ├── RNV_Color_Mixer.spec     PyInstaller build specification
 ├── build_windows.bat        Windows build convenience script
+├── build_linux.sh           Linux build convenience script
 ├── clean_python_cache.bat   Cache cleaner (Windows)
 ├── clean_python_cache.sh    Cache cleaner (macOS / Linux)
 ├── .github/workflows/       GitHub Actions CI (Linux + Windows)
@@ -293,6 +303,15 @@ unexpected behavior.
   `[tool.mypy]` config block in `pyproject.toml` for static type checking.
 
 For deeper implementation details, see [`docs/INTERNALS.md`](docs/INTERNALS.md).
+
+---
+
+## Related projects
+
+Part of a suite of color and design tools by [@RNVizion](https://github.com/RNVizion):
+
+- **[RNV Color Picker](https://github.com/RNVizion/rnv-color-picker)** — Professional color extraction and palette management for designers and developers
+- **[RNV Color Palette Manager](https://github.com/RNVizion/rnv-color-palette-manager)** — A professional desktop application for creating, managing, and exporting color palettes
 
 ---
 
