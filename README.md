@@ -1,12 +1,17 @@
 # RNV Color Mixer
 
-[![Tests (Linux)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-linux.yml/badge.svg)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-linux.yml)
-[![Tests (Windows)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-windows.yml/badge.svg)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-windows.yml)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![PyQt6](https://img.shields.io/badge/PyQt6-6.5+-41CD52.svg)](https://www.riverbankcomputing.com/software/pyqt/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+> Bringing real-world paint mixing to the digital palette.
 
-*Bringing real-world paint mixing to the digital palette.*
+![Python](https://img.shields.io/badge/python-3.10+-blue?logo=python&logoColor=white)
+![PyQt6](https://img.shields.io/badge/PyQt-6-41CD52)
+![Version](https://img.shields.io/badge/version-3.3.3-orange)
+![License](https://img.shields.io/badge/license-MIT-yellow)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+![Tests](https://img.shields.io/badge/tests-886-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-71%25-brightgreen)
+
+[![Tests (Linux)](https://img.shields.io/github/actions/workflow/status/RNVizion/rnv-color-mixer/tests-linux.yml?branch=main&label=Tests%20%28Linux%29&logo=linux)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-linux.yml)
+[![Tests (Windows)](https://img.shields.io/github/actions/workflow/status/RNVizion/rnv-color-mixer/tests-windows.yml?branch=main&label=Tests%20%28Windows%29&logo=windows)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-windows.yml)
 
 A professional desktop color-mixing application for artists, designers, and
 color enthusiasts. Simulates real-world paint mixing behavior using color
@@ -86,6 +91,19 @@ Built with Python 3.10+ and PyQt6.
 - Three visual themes: Dark mode, Light mode, and Image mode (with custom background)
 - Custom tooltip system with full CSS control (bypasses native OS tooltip rendering)
 - Embedded Montserrat Black font for consistent typography
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Python 3.10+ |
+| GUI | PyQt6 6.5+ |
+| Image processing | Pillow |
+| Testing | pytest, pytest-qt, hypothesis, unittest |
+| Coverage | coverage.py (with branch coverage) |
+| Build | PyInstaller (Windows + Linux) |
 
 ---
 
@@ -192,6 +210,7 @@ rnv-color-mixer/
 ├── build_linux.sh           Linux build convenience script
 ├── clean_python_cache.bat   Cache cleaner (Windows)
 ├── clean_python_cache.sh    Cache cleaner (macOS / Linux)
+├── KNOWN_ISSUES.md          Documented platform-specific test skips
 ├── .github/workflows/       GitHub Actions CI (Linux + Windows)
 ├── tests/                   Suite 2 — pytest test files
 ├── snapshots/               Reference data for byte-locked tests
@@ -206,12 +225,17 @@ For a deeper module-by-module breakdown, see [`docs/INTERNALS.md`](docs/INTERNAL
 
 ---
 
-## Development
+## Testing
 
-**Run the test suite:**
+The project carries 886 tests across two harnesses:
 
-The project ships with a unified test runner that executes both test
-suites under coverage and merges the results into a single report:
+| Harness | Tests | Notes |
+|---|---|---|
+| `unittest` | 356 | Locked byte-integrity suite (`test_rnv_color_mixer.py`) |
+| `pytest` | 530 | Modern suite — pytest-qt for Qt threading, hypothesis property tests |
+| **Total** | **886** | **~72% TOTAL coverage** with branch coverage enabled |
+
+**Run the full suite:**
 
 ```bash
 # One-time setup
@@ -223,48 +247,70 @@ python run_tests.py
 # Other modes
 python run_tests.py --report     # regenerate report from existing data
 python run_tests.py --summary    # gaps view (skip 100%-covered files)
-python run_tests.py --no-merge   # debug: leave per-suite .coverage.* files
 ```
 
-Two suites run back-to-back:
+This runs both harnesses sequentially and produces a combined coverage report.
 
-- **Suite 1** — `test_rnv_color_mixer.py` at the project root: **356 unittest
-  tests** covering color math, palette formats, sessions, settings.
-  This file is **byte-locked** — its SHA-256 is verified by CI before
-  every test run. Modifications to it are rejected at the CI gate.
-- **Suite 2** — `tests/`: **530 pytest tests** (with pytest-qt and
-  hypothesis) covering app lifecycle, threading, snapshots, property-based
-  color-math invariants, and integration scenarios. Plus 25 documented
-  skips for tests that exercise platform-specific behavior incompatible
-  with the default test environment (full UIHandler construction with
-  real background images, async ColorHistory writes on Windows). See
-  the inline `@pytest.mark.skip` notes in `tests/` for individual rationale.
+**Coverage highlights** — modules above 85%:
 
-Combined: **886 tests, 25 documented skips, 0 failures.**
+| Module | Coverage |
+|---|---|
+| `utils/dialog_helper.py` | 95% |
+| `core/color_math.py` | 92% |
+| `core/color_harmony.py` | 92% |
+| `ui/about_dialog.py` | 89% |
+| `core/color_fine_tune.py` | 88% |
 
-Branch coverage is enabled in `.coveragerc`; CI gates on a 70% TOTAL
-coverage threshold.
+CI gates on a 70% TOTAL coverage threshold. The locked test file
+(`test_rnv_color_mixer.py`) has its SHA-256 verified on every CI run,
+preventing accidental modification — see [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md)
+for documented platform-specific test skips.
 
-**Continuous integration:**
+---
 
-Two GitHub Actions workflows run on every push and pull request:
+## Architecture Highlights
 
-- **`tests-linux.yml`** — full dual-suite under coverage on Ubuntu,
-  with the 70% threshold enforced via `coverage report --fail-under=70`.
-- **`tests-windows.yml`** — locked unittest suite + pytest suite on
-  Windows (the deployment target).
+**Centralized config (`utils/config.py`)** — every color in the app comes
+from one file. Theme dicts (`DARK_THEME_COLORS`, `LIGHT_THEME_COLORS`,
+`IMAGE_MODE_COLORS`) are referenced by key throughout the codebase. Any
+hardcoded color elsewhere is a bug.
 
-Both workflows verify the locked file's SHA-256 hash *before* running
-any tests; an integrity violation fails the build immediately.
+**Signal lifecycle management (`utils/signal_manager.py`)** — every Qt
+signal connection is tracked via `SignalConnectionManager` and disconnected
+on widget close, eliminating the leak-then-crash class of PyQt bugs common
+in long-running applications.
 
-**Verify project integrity:**
+**Multi-tier caching (`utils/pixmap_cache.py`)** — LRU cache for zoomed
+pixmaps keeps the canvas responsive when zooming into large images
+repeatedly. Hit-rate metrics exposed via `get_stats()`.
 
-```bash
-python verify_files.py
-```
+**Async file I/O (`utils/async_file_ops.py`)** — palette exports, JSON
+saves, and crash-recovery autosaves run on `QThread` workers with progress
+signals. UI never blocks, even on large palette exports.
 
-This script confirms every expected file is present, that version constants
-are defined, and that no stale Python cache files would cause import issues.
+**Custom tooltip system** — implemented as a `_ThemedToolTip` widget with
+`WA_TranslucentBackground`, because native Qt tooltips on Windows ignore
+CSS border-radius. Restored via stable widget-name keys (not `id(widget)`
+memory addresses, which change between storage and retrieval).
+
+**Type-annotated codebase** — PEP 604 modern syntax (`X | None` over
+legacy `Optional[X]`). Ships with a `py.typed` marker (PEP 561) and a
+`[tool.mypy]` config block for static type checking.
+
+For deeper implementation details, see [`docs/INTERNALS.md`](docs/INTERNALS.md).
+
+---
+
+## Related Projects
+
+Part of the RNVizion suite of color tools:
+
+- **[RNV Color Picker](https://github.com/RNVizion/rnv-color-picker)** — Professional color extraction and palette management for designers and developers
+- **[RNV Color Palette Manager](https://github.com/RNVizion/rnv-color-palette-manager)** — A professional desktop application for creating, managing, and exporting color palettes
+
+---
+
+## Development notes
 
 **Clean Python cache files:**
 
@@ -280,59 +326,29 @@ Stale `__pycache__` directories can cause confusing import errors after
 updating files — run the appropriate script for your OS if you see
 unexpected behavior.
 
----
+**Verify project integrity:**
 
-## Architecture notes
+```bash
+python verify_files.py
+```
 
-- **Theme system** is centralized in `utils/config.py` via the `ThemeManager`
-  class. Dark and Image modes share the same palette (Image mode overlays a
-  background image); Light mode inverts for print work.
-- **Signal management** uses a tracked-connection pattern via
-  `utils/signal_manager.py` to prevent memory leaks in long-running sessions.
-  Widgets can inherit from `SignalMixin` for per-object tracking.
-- **Qt tooltips** are implemented as a custom `_ThemedToolTip` widget with
-  `WA_TranslucentBackground`, because native Qt tooltips on Windows ignore
-  CSS border-radius.
-- **Error handling** is centralized in `utils/error_handler.py` with three
-  complementary patterns: `safe_execute()` function, `@safe_method` decorator,
-  and `ErrorContext` context manager.
-- **Image sampling** uses a `QPixmap` LRU cache (`utils/pixmap_cache.py`) to
-  avoid re-rendering at repeated zoom levels.
-- **Type-annotated codebase** using PEP 604 modern syntax (`X | None` over
-  legacy `Optional[X]`). Ships with a `py.typed` marker (PEP 561) and a
-  `[tool.mypy]` config block in `pyproject.toml` for static type checking.
-
-For deeper implementation details, see [`docs/INTERNALS.md`](docs/INTERNALS.md).
-
----
-
-## Related projects
-
-Part of a suite of color and design tools by [@RNVizion](https://github.com/RNVizion):
-
-- **[RNV Color Picker](https://github.com/RNVizion/rnv-color-picker)** — Professional color extraction and palette management for designers and developers
-- **[RNV Color Palette Manager](https://github.com/RNVizion/rnv-color-palette-manager)** — A professional desktop application for creating, managing, and exporting color palettes
+This script confirms every expected file is present, that version constants
+are defined, and that no stale Python cache files would cause import issues.
 
 ---
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE) for full text.
+[MIT](LICENSE) — free to use, modify, and distribute.
 
 ---
 
-## Credits
+## Author
 
-Built with Python, PyQt6, and Pillow. Uses custom implementations of:
-
-- Kubelka-Munk theory for paint mixing simulation
-- CIE LAB color space for perceptually uniform blending
-- Traditional RYB color model for artist-style mixing
+Built by [RNVizion](https://github.com/RNVizion)
 
 ---
 
-## Links
-
-- **Repository:** [github.com/RNVizion/rnv-color-mixer](https://github.com/RNVizion/rnv-color-mixer)
-- **Report an issue:** [github.com/RNVizion/rnv-color-mixer/issues](https://github.com/RNVizion/rnv-color-mixer/issues)
-- **Author:** [@RNVizion](https://github.com/RNVizion)
+<p align="center">
+  Built with PyQt6 · 886 tests · 72% coverage · Cross-platform CI
+</p>
