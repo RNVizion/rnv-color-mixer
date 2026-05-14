@@ -1,0 +1,86 @@
+# Git attributes for RNV Color Mixer
+# -----------------------------------------------------------------------------
+# This file controls how git handles line endings, binary files, and merges
+# for specific paths in the repo. It applies on every clone and checkout
+# regardless of the developer's local git config.
+#
+# Why this exists:
+#   The locked test file (test_rnv_color_mixer.py) and the byte-locked
+#   palette snapshots are integrity-gated by SHA-256 hashes in CI. Any
+#   automatic line-ending conversion by git (e.g. LF -> CRLF on Windows)
+#   would change those hashes and break the gate. The rules below pin the
+#   line endings explicitly so the hashes stay stable across all platforms.
+# -----------------------------------------------------------------------------
+
+
+# === Default: auto-normalize text files ===
+# Lets git decide LF vs CRLF for most files based on the OS, but stores
+# everything internally as LF. This is the standard cross-platform setup.
+* text=auto
+
+
+# === Byte-locked files (force LF, never convert) ===
+# These files have SHA-256 hashes verified by CI as an integrity gate.
+# Any conversion would change the hash and fail the build.
+test_rnv_color_mixer.py        text eol=lf
+
+
+# === Snapshot files (treat as binary, never touch) ===
+# Snapshot tests compare exact bytes. Even text-format snapshots like
+# .css or .json must not have their line endings adjusted.
+snapshots/**                   binary
+
+
+# === Platform-specific scripts ===
+# Shell scripts must always have LF endings (CRLF breaks them on Unix).
+*.sh                           text eol=lf
+
+# Batch and PowerShell scripts must always have CRLF endings on Windows.
+*.bat                          text eol=crlf
+*.cmd                          text eol=crlf
+*.ps1                          text eol=crlf
+
+
+# === Known binary file types ===
+# Explicitly mark binaries so git never tries to diff or convert them.
+*.png                          binary
+*.jpg                          binary
+*.jpeg                         binary
+*.gif                          binary
+*.ico                          binary
+*.ttf                          binary
+*.otf                          binary
+*.woff                         binary
+*.woff2                        binary
+*.pdf                          binary
+*.zip                          binary
+*.tar.gz                       binary
+
+# Palette format snapshots that are actually binary (ASE, ACO, ACB, CLR).
+*.ase                          binary
+*.aco                          binary
+*.acb                          binary
+*.clr                          binary
+*.afpalette                    binary
+*.swatches                     binary
+
+
+# === Python source ===
+# Standard text handling — LF in repo, native on checkout.
+*.py                           text
+
+
+# === Documentation ===
+*.md                           text
+*.txt                          text
+*.rst                          text
+
+
+# === Config files ===
+*.toml                         text
+*.yml                          text
+*.yaml                         text
+*.ini                          text
+*.cfg                          text
+*.gitignore                    text
+*.gitattributes                text

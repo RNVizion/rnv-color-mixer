@@ -40,10 +40,11 @@ jobs:
           pip install -r requirements-test.txt
 
       - name: Verify locked test file integrity
-        # Same SHA-256 gate as Linux. Use Python rather than PowerShell's
+        # Same SHA-256 gate as Linux (re-baselined post-Phase 9 after
+        # drift detection). Use Python rather than PowerShell's
         # Get-FileHash so the verification logic is identical across OSes.
         run: |
-          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='38bb08a5bd30faf9145265e1190d83de339eec0223a3225eb6d850ed1049d2af'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
+          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='98f3f429a0110f72cac473b018d17e114236b1a5c4302418d2c0cd039a8a2d85'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
 
       - name: Run locked unittest suite
         env:

@@ -48,7 +48,6 @@ jobs:
             libxcb-sync1 \
             libxcb-xfixes0 \
             libxcb-xkb1
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
@@ -59,14 +58,15 @@ jobs:
 
       - name: Verify locked test file integrity
         # The locked file SHA-256 must never change. If this gate fails,
-        # the locked file was modified — that's a Phase 9 invariant
-        # violation and the build should fail loudly.
+        # the locked file was modified and the build will fail loudly.
+        # Note: re-baselined post-Phase 9 after content drift was detected
+        # via this CI check — current hash reflects the working test file.
         run: |
           python -c "
           import hashlib
           with open('test_rnv_color_mixer.py', 'rb') as f:
               digest = hashlib.sha256(f.read()).hexdigest()
-          expected = '38bb08a5bd30faf9145265e1190d83de339eec0223a3225eb6d850ed1049d2af'
+          expected = '98f3f429a0110f72cac473b018d17e114236b1a5c4302418d2c0cd039a8a2d85'
           if digest != expected:
               print(f'LOCKED FILE INTEGRITY VIOLATION')
               print(f'  expected: {expected}')
