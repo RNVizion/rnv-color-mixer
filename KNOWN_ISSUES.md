@@ -1,12 +1,57 @@
 # Known Issues
 
 This document tracks known issues in RNV Color Mixer v3.3.3 — tests that
-are skipped on CI, edge-case bugs with planned fixes, and platform-specific
+are skipped on CI, real bugs with planned fixes, and platform-specific
 behavior worth being aware of.
 
 The presence of an issue here doesn't mean the app is broken. The vast
 majority of these have no observable effect on day-to-day app usage — they
-surface only in specific test environments or edge-case workflows.
+surface only in specific test environments or specialized workflows.
+
+---
+
+## Confirmed bugs (real user impact)
+
+### Adobe Swatch Exchange (`.ase`) export produces files Adobe products can't import
+
+**Severity:** Real user-facing bug
+**Affects:** All platforms (Windows, macOS, Linux) — not platform-specific
+**Status:** Diagnosed, fix planned for v3.3.4
+
+**Symptom:** Palettes exported to `.ase` format cannot be loaded as swatches
+in Adobe Photoshop ("Could not load the swatches... an unexpected end-of-file
+was encountered"). Adobe Illustrator opens the file without error but
+imports zero colors — the swatch panel appears empty.
+
+**Diagnostic findings:** The exported file has correct file size (172 bytes
+for a 4-color palette), correct ASEF magic bytes, and survives byte-by-byte
+comparison with the repo's reference snapshot. The same file fails in
+Photoshop regardless of which platform generated it. The reference snapshot
+(generated on Linux and used by `tests/test_snapshots.py`) also fails to
+open in Photoshop. This confirms the bug is in the format implementation
+itself, not a platform-specific byte-corruption issue.
+
+**Likely root cause:** The `_export_ase()` function in `core/palette_formats.py`
+writes a name-length field and name bytes that don't include the null
+terminator required by the Adobe Swatch Exchange specification. The block
+length calculation may also be off as a downstream consequence. To be
+verified against the official ASE spec before implementing the fix.
+
+**Workaround for users until fix lands:** Use `.aco` (Adobe Color), `.gpl`
+(GIMP, importable into Adobe via plugin), or `.css` for color sharing with
+Adobe products. Note that `.aco` is implemented via similar code patterns
+and may have related issues — verification needed.
+
+**Fix plan:**
+1. Read the ASE format specification carefully
+2. Identify exact byte-level discrepancies between current output and a
+   known-working .ase file (e.g., one exported by Photoshop itself)
+3. Fix `_export_ase()` in `core/palette_formats.py`
+4. Regenerate `snapshots/palette_4color.ase` to match the corrected output
+5. Manually verify the regenerated file opens in Photoshop and Illustrator
+6. Investigate `_export_aco()` and `_export_acb()` for similar issues
+7. Re-enable `tests/test_snapshots.py` on Windows CI once snapshots are
+   verified to be byte-deterministic across platforms
 
 ---
 
@@ -21,9 +66,10 @@ comment explaining the cause.
 
 **Skipped on:** Linux CI, Windows CI
 **Reason:** Hangs indefinitely when run under offscreen Qt
-(`QT_QPA_PLATFORM=offscreen`). The test loads the resources/background_images/
-background.png file via `ImageHandler.load_image()`. On CI runners (no
-display server), the load operation never completes.
+(`QT_QPA_PLATFORM=offscreen`). The test loads the
+resources/background_images/background.png file via
+`ImageHandler.load_image()`. On CI runners (no display server), the load
+operation never completes.
 
 **User impact:** None. Production users always run with a real display
 server, where the load completes instantly. The test passes in the local
@@ -53,21 +99,29 @@ behavior without spawning real threads. Tracked for v3.3.4.
 ### `tests/test_snapshots.py` (whole file)
 
 **Skipped on:** Windows CI only
-**Reason:** Snapshot tests compare generated palette files byte-by-byte
-against reference snapshots in `snapshots/`. The references were created
-on Linux with LF line endings (`\n`); on Windows, palette generation
-writes CRLF (`\r\n`), so bytes don't match.
+**Reason originally documented:** Byte-mismatch between Windows-generated
+palette files and Linux-generated snapshots, suspected to be CRLF/LF
+line-ending difference.
 
-**User impact:** Cosmetic for most formats — text formats like GPL, JSON,
-XML, and CSS are routinely consumed by tools that tolerate both line
-endings. Potentially real for binary formats (`.afpalette`, `.clr`,
-`.ase`, `.aco`): a palette exported on Windows may have CRLF inserted into
-what should be a binary stream, which could cause the file to not open
-correctly in Mac-specific tools (Apple Color Picker, Affinity Photo).
+**Updated finding (diagnostic 2026-05-14):** The byte mismatch on text
+formats (GPL, JSON, XML, CSS, SVG) is indeed CRLF/LF — text-mode `open()`
+calls in the export code substitute `\r\n` on Windows. This is cosmetic
+for text consumers but trips byte-exact comparison.
 
-**Planned fix:** Audit `core/palette_formats.py` and explicitly open all
-binary files with `mode='wb'` and all text files with `newline=''` to
-prevent platform-specific line-ending substitution. Tracked for v3.3.4.
+For binary formats, the situation is different: file sizes match exactly
+between platforms, and bytes are identical when generated with identical
+inputs. The snapshot tests for binary formats would pass on Windows if
+the test inputs and code paths were identical. The Windows skip is more
+conservative than strictly necessary, but kept until the underlying .ase
+bug (see above) is fixed and snapshots regenerated.
+
+**User impact:** Cosmetic line-ending differences in text-format exports
+on Windows. Real ASE/ACO format bugs documented separately above.
+
+**Planned fix:** Two-part. First, audit `core/palette_formats.py` text
+exports and explicitly set `newline=''` or use binary mode to prevent
+platform-specific line-ending substitution. Second, regenerate snapshots
+after the .ase fix above. Tracked for v3.3.4.
 
 ### Phase 9.3 platform-dependent test skips
 
@@ -95,25 +149,20 @@ machinery off from `ColorHistory` construction (same as the
 
 ---
 
-## Cross-platform palette export
+## Coverage threshold
 
-**Status:** Investigation needed.
+**Status:** CI threshold set to 69%, locally 72%.
 
-The byte-mismatch on Windows snapshot tests above suggests that palette
-files exported on Windows may differ from those exported on Linux/macOS.
-For text formats (GPL, JSON, XML, CSS, SVG) this is almost certainly
-harmless — consumers tolerate both line endings. For binary formats
-(`.ase`, `.aco`, `.afpalette`, `.clr`) this may produce files that don't
-open correctly in cross-platform palette consumers.
+The CI coverage threshold sits at 69% rather than the local-measured 72%
+because the skipped tests above exercise real code paths (image loading,
+async file operations, error recovery). With those tests excluded, CI
+measures lower coverage. The 69% gate accommodates this with a 0.4%
+safety margin against the typical CI run.
 
-**To verify whether this affects you:**
-1. Export a palette to `.clr` format on Windows.
-2. Attempt to open it on macOS using Apple's Color Picker.
-3. If it opens correctly, the issue is cosmetic only.
-4. If it doesn't, the export pipeline needs the v3.3.4 fix described above.
-
-For now, the primary deployment target (Windows desktop, Windows users
-consuming Windows-generated palettes) is unaffected.
+**Path back to 70%+ CI coverage:** Refactor the skipped test conditions
+(lazy image loading, decoupled QThread/file ops). Once those land, the
+currently-skipped tests can run on CI, coverage rises back to ~72%, and
+the threshold can move with it.
 
 ---
 
@@ -132,6 +181,26 @@ instance per test, rather than reusing one instance across tests.
 `tests/conftest.py` to be session-scoped rather than function-scoped.
 Estimated 4-8 hours of investigation and verification work. Tracked for
 a future release.
+
+---
+
+## Investigation log
+
+Significant diagnostic findings during initial commit cycle (May 2026):
+
+**2026-05-14:** Identified that `.ase` export produces files Adobe
+Photoshop cannot import. Diagnostic process:
+1. Initial hypothesis: CRLF/LF substitution on Windows in binary file
+   writes. Ruled out by inspection — `_export_ase()` correctly uses
+   `'wb'` mode.
+2. Second hypothesis: Windows-specific byte corruption. Ruled out by
+   testing the Linux-generated snapshot file in Photoshop — same failure.
+3. Conclusion: The .ase format implementation itself is incorrect against
+   the Adobe Swatch Exchange specification. Both Linux and Windows
+   produce the same wrong bytes, which is why byte-comparison snapshot
+   tests pass but Adobe products reject the files.
+
+Documented above under "Confirmed bugs."
 
 ---
 
