@@ -409,7 +409,7 @@ class PaletteFormats:
             f.write("#\n")
             for i, (color, weight) in enumerate(colors):
                 h, l, s = ColorMath.rgb_to_hsl(color)
-                f.write(f"{h*360:6.1f} {s*100:5.1f} {l*100:5.1f} {weight:3d} # Color {i+1}\n")
+                f.write(f"{h*360:8.3f} {s*100:7.3f} {l*100:7.3f} {weight:3d} # Color {i+1}\n")
 
     @staticmethod
     def _export_txt(path: str, colors: list[tuple[tuple[int, int, int], int]]) -> None:
@@ -726,7 +726,7 @@ class PaletteFormats:
                                 s = float(parts[1]) / 100.0
                                 l = float(parts[2]) / 100.0
                                 weight = int(parts[3]) if len(parts) > 3 else 50
-                                rgb = ColorMath.hsl_to_rgb((h, s, l))
+                                rgb = ColorMath.hsl_to_rgb((h, l, s))
                                 colors.append((rgb, weight))
                             except (ValueError, IndexError):
                                 continue
