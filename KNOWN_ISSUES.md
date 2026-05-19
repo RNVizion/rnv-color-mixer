@@ -12,46 +12,37 @@ surface only in specific test environments or specialized workflows.
 
 ## Confirmed bugs (real user impact)
 
-### Adobe Swatch Exchange (`.ase`) export produces files Adobe products can't import
+### Hex and `.colors` import returns 0 colors for files exported by this app
 
-**Severity:** Real user-facing bug
-**Affects:** All platforms (Windows, macOS, Linux) — not platform-specific
-**Status:** Diagnosed, fix planned for v3.3.4
+**Severity:** Real user-facing bug, narrow scope
+**Affects:** All platforms
+**Status:** Discovered during 2026-05-19 audit, fix planned
 
-**Symptom:** Palettes exported to `.ase` format cannot be loaded as swatches
-in Adobe Photoshop ("Could not load the swatches... an unexpected end-of-file
-was encountered"). Adobe Illustrator opens the file without error but
-imports zero colors — the swatch panel appears empty.
+**Symptom:** Exporting a palette to `.hex` or `.colors` format and then
+importing the same file back into the app produces an empty palette. The
+file on disk is correctly formed and human-readable; the bug is in the
+import parser.
 
-**Diagnostic findings:** The exported file has correct file size (172 bytes
-for a 4-color palette), correct ASEF magic bytes, and survives byte-by-byte
-comparison with the repo's reference snapshot. The same file fails in
-Photoshop regardless of which platform generated it. The reference snapshot
-(generated on Linux and used by `tests/test_snapshots.py`) also fails to
-open in Photoshop. This confirms the bug is in the format implementation
-itself, not a platform-specific byte-corruption issue.
+**Root cause:** `_export_hex()` and `_export_colors()` write data lines
+that begin with `#RRGGBB`, while the corresponding importers
+(`_import_hex()` and `_import_colors()`) skip any line beginning with `#`
+on the assumption that all `#` lines are comments. Every data line gets
+treated as a comment and discarded, leaving only the comments — which
+have no parseable hex content — as input. The result is an empty color
+list.
 
-**Likely root cause:** The `_export_ase()` function in `core/palette_formats.py`
-writes a name-length field and name bytes that don't include the null
-terminator required by the Adobe Swatch Exchange specification. The block
-length calculation may also be off as a downstream consequence. To be
-verified against the official ASE spec before implementing the fix.
+**Workaround for users until fix lands:** Edit the exported file in a
+text editor and prefix each data line with a non-`#` character (e.g., a
+space) before importing. Or use `.json`, `.gpl`, or `.ase` for
+round-trip-safe storage.
 
-**Workaround for users until fix lands:** Use `.aco` (Adobe Color), `.gpl`
-(GIMP, importable into Adobe via plugin), or `.css` for color sharing with
-Adobe products. Note that `.aco` is implemented via similar code patterns
-and may have related issues — verification needed.
-
-**Fix plan:**
-1. Read the ASE format specification carefully
-2. Identify exact byte-level discrepancies between current output and a
-   known-working .ase file (e.g., one exported by Photoshop itself)
-3. Fix `_export_ase()` in `core/palette_formats.py`
-4. Regenerate `snapshots/palette_4color.ase` to match the corrected output
-5. Manually verify the regenerated file opens in Photoshop and Illustrator
-6. Investigate `_export_aco()` and `_export_acb()` for similar issues
-7. Re-enable `tests/test_snapshots.py` on Windows CI once snapshots are
-   verified to be byte-deterministic across platforms
+**Fix plan:** Refactor the comment-detection logic in both importers to
+distinguish between true comment lines (starting with `#` followed by
+non-hex characters or whitespace) and hex data lines (starting with
+`#RRGGBB`). A shared regex helper such as
+`re.compile(r'^(#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3}))(?![0-9A-Fa-f])')`
+can be used by both importers. Round-trip tests should be added to
+prevent regression.
 
 ---
 
@@ -94,7 +85,7 @@ normal app usage.
 
 **Planned fix:** Refactor `utils/async_file_ops.py` to decouple QThread
 lifecycle from filesystem operations, allowing the tests to verify
-behavior without spawning real threads. Tracked for v3.3.4.
+behavior without spawning real threads.
 
 ### `tests/test_snapshots.py` (whole file)
 
@@ -104,24 +95,32 @@ palette files and Linux-generated snapshots, suspected to be CRLF/LF
 line-ending difference.
 
 **Updated finding (diagnostic 2026-05-14):** The byte mismatch on text
-formats (GPL, JSON, XML, CSS, SVG) is indeed CRLF/LF — text-mode `open()`
-calls in the export code substitute `\r\n` on Windows. This is cosmetic
-for text consumers but trips byte-exact comparison.
+formats (GPL, JSON, XML, CSS, SVG, HEX, HSV, HSL, .colors, .afpalette,
+.clr) is indeed CRLF/LF — text-mode `open()` calls in the export code
+substitute `\r\n` on Windows. This is cosmetic for text consumers but
+trips byte-exact comparison.
 
-For binary formats, the situation is different: file sizes match exactly
-between platforms, and bytes are identical when generated with identical
-inputs. The snapshot tests for binary formats would pass on Windows if
-the test inputs and code paths were identical. The Windows skip is more
-conservative than strictly necessary, but kept until the underlying .ase
-bug (see above) is fixed and snapshots regenerated.
+For binary formats (ASE, ACO, ACB, swatches, txt), the situation is
+different: file sizes match exactly between platforms, and bytes are
+identical when generated with identical inputs. These five binary-format
+tests pass on Windows locally even today.
+
+**Updated finding (2026-05-19):** With the ASE and ACO export fixes
+landed (see Resolved section below), the binary-format snapshots are now
+correct against the official Adobe specifications. The Windows skip is
+more conservative than strictly necessary for binary formats, but kept
+in place until the CRLF/LF issue is also resolved — otherwise enabling
+the suite would surface 11 newline-related failures on Windows.
 
 **User impact:** Cosmetic line-ending differences in text-format exports
-on Windows. Real ASE/ACO format bugs documented separately above.
+on Windows. No effect on file readability or correctness in consuming
+applications.
 
-**Planned fix:** Two-part. First, audit `core/palette_formats.py` text
-exports and explicitly set `newline=''` or use binary mode to prevent
-platform-specific line-ending substitution. Second, regenerate snapshots
-after the .ase fix above. Tracked for v3.3.4.
+**Planned fix:** Audit `core/palette_formats.py` text exports and
+explicitly set `newline=''` or use binary mode with manual `\n`
+delimiters to prevent platform-specific line-ending substitution. Once
+landed, regenerate text-format snapshots and re-enable the whole suite
+on Windows CI.
 
 ### Phase 9.3 platform-dependent test skips
 
@@ -145,7 +144,7 @@ existing code paths; the code itself works correctly at runtime.
 **Planned fix:** Refactor `UIHandler` to lazy-load the background image
 on first access (rather than at construction), and split QThread
 machinery off from `ColorHistory` construction (same as the
-`AsyncFileOps` refactor mentioned above). Tracked for v3.3.4.
+`AsyncFileOps` refactor mentioned above).
 
 ---
 
@@ -186,21 +185,169 @@ a future release.
 
 ## Investigation log
 
-Significant diagnostic findings during initial commit cycle (May 2026):
+Significant diagnostic findings during ongoing development (May 2026):
 
 **2026-05-14:** Identified that `.ase` export produces files Adobe
 Photoshop cannot import. Diagnostic process:
+
 1. Initial hypothesis: CRLF/LF substitution on Windows in binary file
    writes. Ruled out by inspection — `_export_ase()` correctly uses
    `'wb'` mode.
 2. Second hypothesis: Windows-specific byte corruption. Ruled out by
    testing the Linux-generated snapshot file in Photoshop — same failure.
-3. Conclusion: The .ase format implementation itself is incorrect against
-   the Adobe Swatch Exchange specification. Both Linux and Windows
-   produce the same wrong bytes, which is why byte-comparison snapshot
-   tests pass but Adobe products reject the files.
+3. Conclusion: The .ase format implementation itself was incorrect
+   against the Adobe Swatch Exchange specification. Both Linux and
+   Windows produced the same wrong bytes, which is why byte-comparison
+   snapshot tests passed but Adobe products rejected the files.
 
-Documented above under "Confirmed bugs."
+Resolution documented below under "Resolved Issues."
+
+**2026-05-19:** Extended investigation to `.aco` (same failure mode as
+.ase) and identified a separate precision bug in `.aco` import from
+Photoshop-written files. Diagnostic process:
+
+1. Generated reference `.aco` and `.ase` files from Photoshop's own
+   "Save Swatches" export to use as ground truth.
+2. Compared byte-by-byte against the app's exports.
+3. For ASE, found two compounding bugs: missing null terminator on
+   UTF-16BE names, plus block length constant off by 2.
+4. For ACO export, found name length field was written as 2-byte uint16
+   instead of 4-byte uint32 per spec.
+5. For ACO import, found that floor division (`X // 257`) lost one unit
+   per channel on files using Photoshop's non-canonical 16-bit encoding.
+   Rounding (`round(X / 257)`) recovers the original values without
+   affecting round-trips of canonically-encoded files.
+
+End-to-end verification in Photoshop confirmed each fix produces/accepts
+files Photoshop handles correctly. Resolution details under "Resolved
+Issues" below.
+
+**2026-05-19 (audit):** Survey of palette format parity across the three
+RNV projects (Color Mixer, Color Picker, Color Palette Manager)
+identified a fourth bug: `_import_hsl()` was passing `(h, s, l)` to a
+function expecting `(h, l, s)`, silently corrupting HSL palette imports.
+Other two projects had already fixed this independently; Color Mixer was
+the holdout. Resolved.
+
+Also discovered during the same audit: `_import_hex()` and
+`_import_colors()` reject lines starting with `#`, but the corresponding
+exporters write data lines starting with `#`. Documented above as the
+sole remaining open user-facing bug.
+
+---
+
+## Resolved Issues
+
+Resolved issues are retained below as a diagnostic record. Each entry
+documents the original symptom, root cause, and fix so the rationale
+remains accessible after the code change is no longer fresh in memory.
+
+### Adobe Swatch Exchange (`.ase`) export rejected by Photoshop/Illustrator
+
+**Status:** Resolved 2026-05-19.
+
+**Original symptom:** Files exported as `.ase` were rejected by Photoshop
+with "unexpected end-of-file" and loaded as empty palettes in
+Illustrator.
+
+**Root cause:** Two compounding bugs in `_export_ase()`:
+
+1. Color name UTF-16BE strings were not null-terminated. The ASE spec
+   requires names to end with `0x0000` and the name length field to
+   count characters including the terminator.
+2. The block length constant was `22` instead of `20`, declaring every
+   color block two bytes longer than its actual content. Adobe parsers
+   misaligned when reading the next block, eventually hit EOF, and
+   rejected the file.
+
+**Fix:** Append `b'\x00\x00'` to encoded name bytes, update name length
+calculation accordingly, and correct the block length constant from 22
+to 20. The two changes compound: with both applied, the block length
+declared in the file matches the actual block content byte-for-byte.
+
+**Verification:** Photoshop accepts exports and displays all colors with
+correct names. Snapshot regenerated from 172 bytes to 180 bytes (the
+8-byte increase is two null-terminator bytes per color × 4 colors).
+
+### Adobe Color (`.aco`) export rejected by Photoshop
+
+**Status:** Resolved 2026-05-19.
+
+**Original symptom:** Files exported as `.aco` were rejected by Photoshop
+with "unexpected end-of-file".
+
+**Root cause:** The ACO V2 name length field is a 4-byte unsigned integer
+per the published spec (confirmed against Cyotek's reverse engineering
+and Larry Tesler's ACO documentation). The exporter was writing a 2-byte
+unsigned integer, causing Photoshop to misinterpret the name length as a
+massive number (because the next two bytes were read as the high half of
+a uint32), then attempt to read megabytes of name data before hitting
+EOF.
+
+**Fix:** Change `struct.pack('>H', len(name))` to
+`struct.pack('>I', len(name))` in the V2 section of `_export_aco()`.
+
+**Verification:** Photoshop accepts exports and displays all colors with
+correct names. Snapshot regenerated to 168 bytes (was 160).
+
+### Adobe Color (`.aco`) import showed colors off by 1 per channel
+
+**Status:** Resolved 2026-05-19.
+
+**Original symptom:** Importing an `.aco` file written by Photoshop
+showed each color channel one value lower than Photoshop's color picker
+displayed for the same swatch. For example, RGB(210, 188, 147) in
+Photoshop's color picker appeared as RGB(209, 187, 146) in the app after
+import.
+
+**Root cause:** Photoshop encodes 8-bit color values into 16-bit storage
+using a non-canonical scaling — for example, 210 encodes to `0xD2D1`
+(53969), not the canonical `X * 257 = 53970`. The import used floor
+division (`X // 257`), which on these non-canonical values produces
+`X - 1`. Files written with the canonical `X * 257` encoding (including
+this app's own exports) round-tripped correctly under floor division,
+which masked the issue against any test that didn't involve
+Photoshop-written files.
+
+**Fix:** Replace floor division with rounding:
+`round(X / 257)` per channel. Photoshop's non-canonical values round to
+the intended 8-bit value, and canonical `X * 257` values continue to
+produce identical results under both methods (so self-written file
+round-trips are unchanged).
+
+**Verification:** Photoshop reference files now display matching color
+values in the app's color picker. Round-trip of self-written ACO files
+preserved exactly.
+
+### HSL import silently corrupted color values
+
+**Status:** Resolved 2026-05-19.
+
+**Original symptom:** Importing a `.hsl` palette file produced colors
+substantially different from what was exported. Example: brand gold
+(210, 188, 147) round-tripped as (178, 127, 31) — a different color
+family entirely.
+
+**Root cause:** `_import_hsl()` passed `(h, s, l)` to
+`ColorMath.hsl_to_rgb()`, but that function unpacks tuples in `(h, l, s)`
+order (it wraps Python's `colorsys.hls_to_rgb`, which uses HLS
+convention rather than HSL). Saturation and lightness were silently
+swapped on every import, with no error or warning.
+
+The bug was caught by cross-project comparison: RNV Color Picker and RNV
+Color Palette Manager had already fixed this independently (both
+contained comments explaining the `(h, l, s)` requirement), and the
+audit revealed Color Mixer as the lone holdout.
+
+**Fix:** Pass `(h, l, s)` to match the function's actual unpacking
+order. The fix matches the existing correct implementations in the two
+sibling projects.
+
+**Verification:** Round-trip drift on the test palette is now within ±1
+per channel, the inherent precision limit of the `.hsl` text format's
+one-decimal-place output. Increasing decimal precision in the export
+was tested and made drift slightly worse on some values; one decimal
+place is empirically the sweet spot for this format.
 
 ---
 
