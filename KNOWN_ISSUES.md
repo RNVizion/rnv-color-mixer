@@ -12,37 +12,7 @@ surface only in specific test environments or specialized workflows.
 
 ## Confirmed bugs (real user impact)
 
-### Hex and `.colors` import returns 0 colors for files exported by this app
-
-**Severity:** Real user-facing bug, narrow scope
-**Affects:** All platforms
-**Status:** Discovered during 2026-05-19 audit, fix planned
-
-**Symptom:** Exporting a palette to `.hex` or `.colors` format and then
-importing the same file back into the app produces an empty palette. The
-file on disk is correctly formed and human-readable; the bug is in the
-import parser.
-
-**Root cause:** `_export_hex()` and `_export_colors()` write data lines
-that begin with `#RRGGBB`, while the corresponding importers
-(`_import_hex()` and `_import_colors()`) skip any line beginning with `#`
-on the assumption that all `#` lines are comments. Every data line gets
-treated as a comment and discarded, leaving only the comments — which
-have no parseable hex content — as input. The result is an empty color
-list.
-
-**Workaround for users until fix lands:** Edit the exported file in a
-text editor and prefix each data line with a non-`#` character (e.g., a
-space) before importing. Or use `.json`, `.gpl`, or `.ase` for
-round-trip-safe storage.
-
-**Fix plan:** Refactor the comment-detection logic in both importers to
-distinguish between true comment lines (starting with `#` followed by
-non-hex characters or whitespace) and hex data lines (starting with
-`#RRGGBB`). A shared regex helper such as
-`re.compile(r'^(#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3}))(?![0-9A-Fa-f])')`
-can be used by both importers. Round-trip tests should be added to
-prevent regression.
+*No open user-facing bugs at this time.*
 
 ---
 
@@ -224,15 +194,20 @@ Issues" below.
 
 **2026-05-19 (audit):** Survey of palette format parity across the three
 RNV projects (Color Mixer, Color Picker, Color Palette Manager)
-identified a fourth bug: `_import_hsl()` was passing `(h, s, l)` to a
-function expecting `(h, l, s)`, silently corrupting HSL palette imports.
-Other two projects had already fixed this independently; Color Mixer was
-the holdout. Resolved.
+identified additional bugs:
 
-Also discovered during the same audit: `_import_hex()` and
-`_import_colors()` reject lines starting with `#`, but the corresponding
-exporters write data lines starting with `#`. Documented above as the
-sole remaining open user-facing bug.
+1. `_import_hsl()` was passing `(h, s, l)` to a function expecting
+   `(h, l, s)`, silently corrupting HSL palette imports. Other two
+   projects had already fixed this independently; Color Mixer was the
+   holdout. Resolved.
+2. `_import_hex()` and `_import_colors()` rejected every line starting
+   with `#`, including the data lines (which begin with `#RRGGBB`).
+   Self-export-then-import returned 0 colors. Cross-project comparison
+   showed Color Picker used a `_HEX_DATA_LINE` regex helper that
+   correctly distinguished data lines from comments, and Palette Manager
+   used a different-but-functional inline comment check. Color Mixer was
+   the only project where both importers were broken. Ported the Color
+   Picker regex approach to Color Mixer for both methods. Resolved.
 
 ---
 
@@ -348,6 +323,46 @@ per channel, the inherent precision limit of the `.hsl` text format's
 one-decimal-place output. Increasing decimal precision in the export
 was tested and made drift slightly worse on some values; one decimal
 place is empirically the sweet spot for this format.
+
+### Hex and `.colors` import returned 0 colors for files exported by this app
+
+**Status:** Resolved 2026-05-19.
+
+**Original symptom:** Exporting a palette to `.hex` or `.colors` format
+and importing the same file back into the app produced an empty palette.
+The files on disk were correctly formed and human-readable; the bug was
+in the import parsers.
+
+**Root cause:** `_import_hex()` and `_import_colors()` skipped every
+line starting with `#`, on the assumption that all `#` lines were
+comments. The corresponding exporters write data lines that begin with
+`#RRGGBB`, so every data line was treated as a comment and discarded,
+leaving only the actual comment lines — which have no parseable hex
+content — as input. The result was an empty color list.
+
+**Fix:** Added a module-level `_HEX_DATA_LINE` regex helper:
+
+```python
+_HEX_DATA_LINE = re.compile(
+    r'^(#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3}))(?![0-9A-Fa-f])'
+)
+```
+
+Both importers use the regex to classify each line: if it matches, the
+line is a data line and gets parsed; if not, the line is a comment or
+header and gets skipped. The trailing inline `# Comment` text within a
+data line is stripped before splitting fields, so it doesn't interfere
+with parsing.
+
+The fix matches the existing implementation in RNV Color Picker. RNV
+Color Palette Manager uses a different (but also correct) inline check
+that distinguishes pure-`#` and `# `-prefixed lines from data lines.
+Cross-project verification confirmed all three projects now round-trip
+both formats cleanly.
+
+**Verification:** Round-trip test for both `.hex` and `.colors` produces
+colors identical to the originals — `(255, 0, 0)`, `(0, 255, 0)`,
+`(0, 0, 255)`, and `(210, 188, 147)` all round-trip exactly.
 
 ---
 
