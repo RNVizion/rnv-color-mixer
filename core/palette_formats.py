@@ -9,6 +9,14 @@ import json
 import struct
 import os
 import re
+# Pattern matching a hex-color token at the start of a line.
+# Used by .hex and .colors importers to distinguish data lines
+# (which begin with #RRGGBB) from comment lines (which begin with
+# # followed by text or whitespace). The negative lookahead prevents
+# matching against longer-than-6-digit hex sequences.
+_HEX_DATA_LINE = re.compile(
+    r'^(#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3}))(?![0-9A-Fa-f])'
+)
 import xml.etree.ElementTree as ET
 from core.color_math import ColorMath
 
@@ -640,25 +648,42 @@ class PaletteFormats:
 
     @staticmethod
     def _import_colors(path: str) -> list[tuple[tuple[int, int, int], int]]:
-        """Import .colors format."""
+        """Import .colors format.
+
+        Each data line is `#RRGGBB R G B Weight [# Comment]`. Lines beginning
+        with `#` followed by space/text (no hex) are comments. Falls back to
+        decoding from the hex prefix alone if the trailing R/G/B/weight fields
+        are missing or malformed.
+        """
         colors = []
         try:
             with open(path, 'r') as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#'):
-                        parts = line.split()
-                        if len(parts) >= 5:
-                            try:
-                                hex_color = parts[0]
-                                r, g, b = int(parts[1]), int(parts[2]), int(parts[3])
-                                weight = int(parts[4])
-                                colors.append(((r, g, b), weight))
-                            except (ValueError, IndexError):
-                                continue
+                    if not line:
+                        continue
+                    m = _HEX_DATA_LINE.match(line)
+                    if not m:
+                        continue  # comment, header, or non-hex line — skip
+                    # Drop trailing inline comment, then split remaining fields
+                    rest = line[m.end():].split('#', 1)[0].strip()
+                    parts = rest.split()
+                    if len(parts) >= 4:
+                        try:
+                            r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
+                            weight = int(parts[3])
+                            colors.append(((r, g, b), weight))
+                            continue
+                        except (ValueError, IndexError):
+                            pass
+                    # Fallback: decode RGB from the hex prefix alone
+                    try:
+                        rgb = ColorMath.hex_to_rgb(m.group(1))
+                        colors.append((rgb, 50))
+                    except ValueError:
+                        pass
         except Exception as e:
             logger.error(f"Error importing .colors: {e}")
-        
         return colors
 
     @staticmethod
@@ -669,20 +694,23 @@ class PaletteFormats:
             with open(path, 'r') as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#'):
-                        parts = line.split()
-                        if parts:
-                            hex_color = parts[0]
-                            if hex_color.startswith('#') and len(hex_color) == 7:
-                                try:
-                                    rgb = ColorMath.hex_to_rgb(hex_color)
-                                    weight = int(parts[1]) if len(parts) > 1 else 50
-                                    colors.append((rgb, weight))
-                                except (ValueError, IndexError):
-                                    continue
+                    if not line:
+                        continue
+                    # A line is a data line if it begins with #RRGGBB or #RGB.
+                    # Any other line starting with # is a comment.
+                    if not _HEX_DATA_LINE.match(line):
+                        continue
+                    parts = line.split()
+                    if parts:
+                        hex_color = parts[0]
+                        try:
+                            rgb = ColorMath.hex_to_rgb(hex_color)
+                            weight = int(parts[1]) if len(parts) > 1 else 50
+                            colors.append((rgb, weight))
+                        except (ValueError, IndexError):
+                            continue
         except Exception as e:
             logger.error(f"Error importing HEX: {e}")
-        
         return colors
 
     @staticmethod
