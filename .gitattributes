@@ -25,12 +25,6 @@
 test_rnv_color_mixer.py        text eol=lf
 
 
-# === Snapshot files (treat as binary, never touch) ===
-# Snapshot tests compare exact bytes. Even text-format snapshots like
-# .css or .json must not have their line endings adjusted.
-snapshots/**                   binary
-
-
 # === Platform-specific scripts ===
 # Shell scripts must always have LF endings (CRLF breaks them on Unix).
 *.sh                           text eol=lf
@@ -84,3 +78,10 @@ snapshots/**                   binary
 *.cfg                          text
 *.gitignore                    text
 *.gitattributes                text
+
+# === Snapshot files: ALWAYS binary, never any conversion ===
+# This rule MUST be the last in the file so it overrides any specific
+# extension rules (e.g. *.txt text) for files within snapshots/.
+# Snapshot tests compare exact bytes; line-ending conversion would
+# break byte equality across platforms.
+snapshots/** 				binary   
