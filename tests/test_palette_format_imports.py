@@ -56,7 +56,8 @@ SNAPSHOT_COLOR_COUNT = 4
 # Formats that round-trip cleanly (first colour and count both preserved)
 CLEAN_FORMATS = (
     "gpl", "ase", "aco", "json", "xml", "css",
-    "hsv", "txt", "afpalette", "clr", "swatches",
+    "hsv", "hsl", "txt", "afpalette", "clr", "swatches",
+    "hex", "colors",
 )
 
 # Formats with documented quirks — import without crashing, return a list,
@@ -110,56 +111,9 @@ class TestPaletteImportCleanRoundTrip:
 @pytest.mark.snapshot
 class TestPaletteImportQuirkyFormats:
     """Documented behaviour of importers that don't cleanly invert their
-    own exporter. These tests verify "doesn't crash, returns a list" —
-    if a parser is fixed in a future release, the assertion at the bottom
-    of the relevant test will need tightening."""
+        own exporter on the test palette. Currently SVG only — its importer
+        extracts every fill colour in the file, not just palette swatches."""
 
-    def test_colors_import_does_not_crash(self, snapshots_dir):
-        """`.colors` importer currently returns [] for our exported XML —
-        likely a schema mismatch between exporter and importer. Test
-        documents this; if fixed, replace with the strict round-trip
-        assertions used for clean formats."""
-        snap = snapshots_dir / "palette_4color.colors"
-        result = PaletteFormats.import_palette(str(snap))
-        assert isinstance(result, list)
-        # KNOWN QUIRK as of v3.3.3: empty list returned. If this assertion
-        # ever fails, the importer was fixed — promote to CLEAN_FORMATS.
-        assert result == [], (
-            "`.colors` importer behaviour changed — likely a fix. Move "
-            "'colors' to CLEAN_FORMATS and remove this test."
-        )
-
-    def test_hex_import_does_not_crash(self, snapshots_dir):
-        """`.hex` importer skips too many header lines and ends up with
-        an empty result on our exported file."""
-        snap = snapshots_dir / "palette_4color.hex"
-        result = PaletteFormats.import_palette(str(snap))
-        assert isinstance(result, list)
-        # KNOWN QUIRK as of v3.3.3
-        assert result == [], (
-            "`.hex` importer behaviour changed — likely a fix. Move "
-            "'hex' to CLEAN_FORMATS and remove this test."
-        )
-
-    def test_hsl_import_returns_4_entries_with_known_color_drift(
-        self, snapshots_dir
-    ):
-        """`.hsl` importer returns the right COUNT but the first colour
-        is parsed as (255, 255, 255) instead of (255, 0, 0). Likely a
-        column-order issue in the parser (saturation read as hue, etc.)."""
-        snap = snapshots_dir / "palette_4color.hsl"
-        result = PaletteFormats.import_palette(str(snap))
-        assert isinstance(result, list)
-        assert len(result) == SNAPSHOT_COLOR_COUNT, (
-            "`.hsl` count drift — was 4 entries, parser may have changed."
-        )
-        # Document the actual buggy output. If this changes, parser fix
-        # likely; promote to CLEAN_FORMATS.
-        first_color = result[0][0] if isinstance(result[0], tuple) else result[0]
-        assert first_color == (255, 255, 255), (
-            "`.hsl` first colour is no longer (255,255,255) — parser may "
-            "have been fixed. Re-evaluate against the snapshot palette."
-        )
 
     def test_svg_import_returns_more_than_palette_colors(self, snapshots_dir):
         """`.svg` importer extracts every fill colour referenced in the
