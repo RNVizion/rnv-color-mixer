@@ -57,41 +57,6 @@ normal app usage.
 lifecycle from filesystem operations, allowing the tests to verify
 behavior without spawning real threads.
 
-### `tests/test_snapshots.py` (whole file)
-
-**Skipped on:** Windows CI only
-**Reason originally documented:** Byte-mismatch between Windows-generated
-palette files and Linux-generated snapshots, suspected to be CRLF/LF
-line-ending difference.
-
-**Updated finding (diagnostic 2026-05-14):** The byte mismatch on text
-formats (GPL, JSON, XML, CSS, SVG, HEX, HSV, HSL, .colors, .afpalette,
-.clr) is indeed CRLF/LF — text-mode `open()` calls in the export code
-substitute `\r\n` on Windows. This is cosmetic for text consumers but
-trips byte-exact comparison.
-
-For binary formats (ASE, ACO, ACB, swatches, txt), the situation is
-different: file sizes match exactly between platforms, and bytes are
-identical when generated with identical inputs. These five binary-format
-tests pass on Windows locally even today.
-
-**Updated finding (2026-05-19):** With the ASE and ACO export fixes
-landed (see Resolved section below), the binary-format snapshots are now
-correct against the official Adobe specifications. The Windows skip is
-more conservative than strictly necessary for binary formats, but kept
-in place until the CRLF/LF issue is also resolved — otherwise enabling
-the suite would surface 11 newline-related failures on Windows.
-
-**User impact:** Cosmetic line-ending differences in text-format exports
-on Windows. No effect on file readability or correctness in consuming
-applications.
-
-**Planned fix:** Audit `core/palette_formats.py` text exports and
-explicitly set `newline=''` or use binary mode with manual `\n`
-delimiters to prevent platform-specific line-ending substitution. Once
-landed, regenerate text-format snapshots and re-enable the whole suite
-on Windows CI.
-
 ### Phase 9.3 platform-dependent test skips
 
 **Skipped on:** Both CI runners (already documented inline via
@@ -208,6 +173,26 @@ identified additional bugs:
    used a different-but-functional inline comment check. Color Mixer was
    the only project where both importers were broken. Ported the Color
    Picker regex approach to Color Mixer for both methods. Resolved.
+
+**2026-05-20:** Investigated CRLF/LF line-ending divergence in
+text-format palette exports. Diagnostic process:
+
+1. Initial trigger: `tests/test_snapshots.py` failing on Linux CI after
+   Adobe binary format fixes landed, despite previously passing.
+2. Discovered 11 text-format snapshots had Windows CRLF endings
+   committed to the repo, while Linux CI produced LF on export.
+3. Root cause located in `palette_formats.py` itself — Python's
+   text-mode `open()` substitutes `\n` for `\r\n` on Windows, affecting
+   all 12 text-format export methods.
+4. Initial fix (2026-05-19): converted 11 of 12 text-format snapshots
+   to LF as a stopgap so Linux CI would pass; Windows CI continued to
+   deselect `test_snapshots.py`. (One snapshot — txt — was missed in
+   the normalization.)
+5. Real fix (today): audited all 12 export methods, applied
+   `newline='\n'` to text-mode `open()` calls and switched ElementTree
+   exports to binary mode with explicit file objects. Converted the
+   missed txt snapshot. All 19 snapshot tests now pass on both
+   platforms. Windows CI deselect removed. Resolved.
 
 ---
 
@@ -363,6 +348,51 @@ both formats cleanly.
 **Verification:** Round-trip test for both `.hex` and `.colors` produces
 colors identical to the originals — `(255, 0, 0)`, `(0, 255, 0)`,
 `(0, 0, 255)`, and `(210, 188, 147)` all round-trip exactly.
+
+### Text-format palette exports produced CRLF line endings on Windows
+
+**Status:** Resolved 2026-05-20.
+
+**Original symptom:** Text-format palette exports (`gpl`, `json`, `xml`,
+`css`, `svg`, `hex`, `hsv`, `hsl`, `colors`, `afpalette`, `clr`, `txt`)
+produced Windows CRLF line endings on Windows but LF on Linux. The
+byte-level mismatch caused `tests/test_snapshots.py` to fail on Windows
+CI, which is why the whole test file had been deselected via
+`--ignore=tests/test_snapshots.py` in the Windows workflow.
+
+**Root cause:** Python's text-mode `open(path, 'w')` performs universal
+newline translation — `\n` characters in the program's output are
+substituted for `\r\n` on Windows. Twelve `_export_*` methods in
+`core/palette_formats.py` used text mode, all of them affected. The
+two ElementTree-based methods (`_export_xml`, `_export_clr`) had the
+same underlying issue because `tree.write(path, ...)` opens the file
+internally in text mode.
+
+**Fix:** Three patterns of change, depending on how the method writes
+to the file:
+
+1. **Plain text mode with `f.write()`** (8 methods: gpl, colors, css,
+   svg, hex, hsv, hsl, txt): change `open(path, 'w')` to
+   `open(path, 'w', newline='\n')`. The explicit `newline` argument
+   disables universal newline translation.
+2. **Text mode with `json.dump()`** (2 methods: json, affinity): same
+   fix — add `newline='\n'` to the `open()` call. `json.dump` writes
+   `\n` characters directly; the text-mode translation was the
+   intermediate culprit.
+3. **ElementTree `tree.write()`** (2 methods: xml, clr): open the file
+   manually in binary mode and pass the file object to `tree.write()`:
+   `with open(path, 'wb') as f: tree.write(f, encoding='utf-8',
+   xml_declaration=True)`. When given a binary file object, ElementTree
+   writes raw bytes without text-mode translation.
+
+The txt snapshot file (`snapshots/palette_4color.txt`) was missed in
+the 2026-05-19 normalization and was converted to LF as part of this
+fix.
+
+**Verification:** Diagnostic script confirmed all 12 text-format
+exports produce LF only after the fix. All 19 snapshot tests pass on
+both Windows and Linux. Removed `--ignore=tests/test_snapshots.py`
+from the Windows CI workflow.
 
 ---
 
