@@ -30,19 +30,28 @@ from PyQt6.QtWidgets import QMainWindow, QWidget
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.integration
-@pytest.mark.skip(
-    reason="UIHandler() construction loads and PNG-encodes an ~8MP "
-    "background image via PIL, exceeding test timeouts on real "
-    "environments. These tests are kept as a record of intent for "
-    "a future refactor that decouples UIHandler from the background "
-    "image load. Phase 9.3 finding."
-)
 class TestUIHandlerThemeChain:
     """`UIHandler.apply_theme(main_window)` is the dispatcher for the
     full theme application pipeline. It calls `_apply_themed_mode` for
     dark/light, `_apply_image_mode` for image (which fails gracefully
     without resources/), then `_apply_slot_themes`. Each step is a
     separate code path."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_from_image_resources(self, monkeypatch):
+        """Force image mode unavailable for all tests in this class so
+        the default theme is consistently dark, regardless of whether
+        background.png exists on the developer's machine."""
+        def _no_image_resources(self):
+            self.image_mode_available = False
+            return False
+
+        import utils.config as config_module
+        monkeypatch.setattr(
+            config_module.ThemeManager,
+            'detect_image_resources',
+            _no_image_resources
+        )
 
     def test_apply_theme_with_dark_mode_emits_signal_and_styles_window(
         self, qtbot

@@ -40,16 +40,33 @@ class UIHandler(QObject):
         super().__init__()
         self.theme_manager = config.ThemeManager()
         self.theme_manager.detect_image_resources()
+        # Background image is lazy-loaded on first access; see background_pixmap
+        # property below. The underlying PNG is ~8MB and PIL load + QPixmap encode
+        # takes >10s, so deferring this work makes construction cheap (useful for
+        # tests and for users who never enter Image Mode).
         self._background_pixmap: QPixmap | None = None
-        # Load background image once at startup if available
-        if self.theme_manager.image_mode_available:
-            self._background_pixmap = self._load_background_image()
-        
+        self._background_image_load_attempted = False
+
         # Debouncing timer for background resize (prevents excessive scaling)
         from PyQt6.QtCore import QTimer
         self._resize_debounce_timer = QTimer()
         self._resize_debounce_timer.setSingleShot(True)
         self._resize_pending_window = None
+
+    @property
+    def background_pixmap(self) -> QPixmap | None:
+        """The background image used in Image Mode.
+
+        Lazy-loaded on first access. If image resources are unavailable at
+        first access, returns None and does not retry on subsequent accesses
+        (matches the pre-refactor behavior where the check ran once at
+        construction time).
+        """
+        if not self._background_image_load_attempted:
+            self._background_image_load_attempted = True
+            if self.theme_manager.image_mode_available:
+                self._background_pixmap = self._load_background_image()
+        return self._background_pixmap
 
     def initialize_theme(self, main_window: QMainWindow, status_callback: Callable[[str], None] | None = None) -> None:
         """Initialize theme based on available resources."""
@@ -196,8 +213,8 @@ class UIHandler(QObject):
             app.setPalette(palette)
             logger.success("Set transparent palette for Image Mode")
             
-            # SECOND: Show background image
-            bg_image = self._background_pixmap
+            # SECOND: Show background image (triggers lazy-load on first access)
+            bg_image = self.background_pixmap
             if bg_image and not bg_image.isNull() and hasattr(main_window, 'background_label'):
                 from PyQt6.QtCore import Qt
                 
@@ -255,7 +272,6 @@ class UIHandler(QObject):
                     
                     pixmap = QPixmap()
                     if pixmap.loadFromData(buffer.getvalue()):
-                        self._background_pixmap = pixmap
                         logger.info(f"Loaded background image: {img.width}x{img.height}")
                         return pixmap
                     else:
@@ -361,7 +377,7 @@ class UIHandler(QObject):
             
             if self.theme_manager.is_image_mode():
                 # Update background label
-                bg_image = self._background_pixmap
+                bg_image = self.background_pixmap
                 if bg_image and not bg_image.isNull() and hasattr(main_window, "background_label"):
                     from PyQt6.QtCore import Qt
                     scaled_bg = bg_image.scaled(

@@ -196,14 +196,7 @@ class TestColorSlotLineFill:
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.integration
-@pytest.mark.skip(
-    reason="UIHandler() construction loads and PNG-encodes an ~8MP "
-    "background image via PIL, which exceeds reasonable test timeouts "
-    "on real environments (>10s per construction). These five tests "
-    "are kept here as a record of intent for a future refactor that "
-    "decouples UIHandler from the background-image load, but they "
-    "are skipped at runtime. Phase 9.3 finding."
-)
+
 class TestUIHandlerLineFill:
     """UIHandler at 44% — manages theming for the main window. Uncovered
     range 167-270 is `_apply_image_mode` and `_load_background_image`,
@@ -213,11 +206,22 @@ class TestUIHandlerLineFill:
         from ui_handler import UIHandler
         h = UIHandler()
         assert h is not None
-
-    def test_is_dark_mode_default_is_true(self):
+    def test_is_dark_mode_default_is_true(self, monkeypatch):
+        """Default theme is Dark when no image resources are available."""
+        # Isolate from environment: force image mode unavailable
+        def _no_image_resources(self):
+            self.image_mode_available = False
+            return False
+    
+        import utils.config as config_module
+        monkeypatch.setattr(
+            config_module.ThemeManager,
+            'detect_image_resources',
+            _no_image_resources
+        )
+    
         from ui_handler import UIHandler
         h = UIHandler()
-        # Default theme is Dark
         assert h.is_dark_mode() is True
         assert h.is_image_mode() is False
 
