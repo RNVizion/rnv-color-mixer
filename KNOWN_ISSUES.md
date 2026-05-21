@@ -57,46 +57,67 @@ normal app usage.
 lifecycle from filesystem operations, allowing the tests to verify
 behavior without spawning real threads.
 
-### Phase 9.3 platform-dependent test skips
+### `ColorHistory` async-write tests
 
-**Skipped on:** Both CI runners (already documented inline via
+**Skipped on:** Both CI runners (annotated inline via
 `@pytest.mark.skip` decorators).
 
-These are 21 tests across three classes that were added in Phase 9.3 but
-proved incompatible with the default test environment:
-
-- 15 `UIHandler` tests skipped in `tests/test_core_module_apis.py` and
-  `tests/test_lifecycle_handlers.py` — `UIHandler()` construction loads
-  and PNG-encodes the ~8 MB background image via PIL, exceeding
-  reasonable test timeouts (>10s per test).
-- 6 `ColorHistory` tests skipped in `tests/test_error_recovery_paths.py`
-  — constructor + `add_color()` + `save()` chain spawns a QThread for
-  async filesystem writes that crashes Python natively on Windows.
+Six tests in `tests/test_error_recovery_paths.py` exercise the
+`ColorHistory` constructor + `add_color()` + `save()` chain. The save
+path spawns a QThread for async filesystem writes, and the test harness's
+interaction with that thread crashes Python natively on Windows.
 
 **User impact:** None. These tests were attempts to extend coverage on
 existing code paths; the code itself works correctly at runtime.
 
-**Planned fix:** Refactor `UIHandler` to lazy-load the background image
-on first access (rather than at construction), and split QThread
-machinery off from `ColorHistory` construction (same as the
-`AsyncFileOps` refactor mentioned above).
+**Planned fix:** Split QThread machinery off from `ColorHistory`
+construction. Same architectural pattern as the `AsyncFileOps` refactor
+listed above — both classes mix lifecycle management of background
+threads into operations that conceptually shouldn't require them.
+
+---
+
+## Cross-project audit findings
+
+The three RNV projects (Color Mixer, Color Picker, Color Palette
+Manager) share a substantial amount of code structure, including
+`palette_formats.py`, theme management, and the background image used
+for Image Mode. As of 2026-05-21, all three projects use the same
+16000×9038 background image (~95 MB on disk).
+
+A timing diagnostic confirmed that PIL's pipeline for opening, decoding,
+resizing, and re-encoding this image takes ~2 seconds in isolation
+across all three projects. This is moderate latency — noticeable but
+acceptable for production app startup. Color Picker and Color Palette
+Manager were audited for the same eager-load anti-pattern that affected
+Color Mixer; both already structure their image-loading in ways that
+don't block testing. No corresponding refactor is planned for those
+projects at this time.
+
+Earlier cross-project comparisons also surfaced bugs that Color Mixer
+inherited and the other two projects had already fixed independently:
+the HSL channel swap and the hex/`.colors` comment-handling issue
+documented under Resolved Issues below. The audit pattern continues to
+be valuable as a bug-finding tool.
 
 ---
 
 ## Coverage threshold
 
-**Status:** CI threshold set to 69%, locally 72%.
+**Status:** CI threshold set to 69%, locally measured higher after the
+2026-05-21 UIHandler refactor (the 15 newly-enabled tests added
+meaningful coverage on theme application and slot styling code paths).
 
-The CI coverage threshold sits at 69% rather than the local-measured 72%
-because the skipped tests above exercise real code paths (image loading,
-async file operations, error recovery). With those tests excluded, CI
-measures lower coverage. The 69% gate accommodates this with a 0.4%
-safety margin against the typical CI run.
+The CI coverage threshold was set to 69% during the period when the
+UIHandler and ColorHistory tests were skipped. With UIHandler tests
+now back in the suite, CI coverage should rise — the threshold has not
+yet been moved to reflect this; the conservative 69% gate remains in
+place pending one or two CI runs to confirm the new baseline.
 
-**Path back to 70%+ CI coverage:** Refactor the skipped test conditions
-(lazy image loading, decoupled QThread/file ops). Once those land, the
-currently-skipped tests can run on CI, coverage rises back to ~72%, and
-the threshold can move with it.
+**Path back to 72%+ CI coverage:** Refactor the remaining skipped
+tests (decoupled QThread/file ops in `ColorHistory` and
+`AsyncFileOpsErrorPaths`). Once those land, coverage rises further and
+the threshold can move accordingly.
 
 ---
 
@@ -193,6 +214,28 @@ text-format palette exports. Diagnostic process:
    exports to binary mode with explicit file objects. Converted the
    missed txt snapshot. All 19 snapshot tests now pass on both
    platforms. Windows CI deselect removed. Resolved.
+
+**2026-05-21:** Investigated UIHandler construction cost as the cause
+of 15 skipped tests. Diagnostic process:
+
+1. The pre-existing skip decorators on `TestUIHandlerLineFill` and
+   `TestUIHandlerThemeChain` cited ">10s per construction" as the
+   reason for skipping. The measurement was old and unverified.
+2. Wrote a standalone PIL timing diagnostic that measures the bare
+   open + decode + resize + encode pipeline on the production image.
+   Ran in all three RNV projects (same image file shared across all
+   three). Result: ~2 seconds per load, not >10 seconds.
+3. The original 10-second figure most likely reflected pytest's
+   instrumented execution (coverage tracking, assertion rewriting,
+   subprocess overhead) on top of the bare PIL work — not the PIL
+   work itself. Either figure is enough to make 15 tests skipped at
+   default timeouts; the smaller number doesn't change the conclusion.
+4. Cross-project audit confirmed Color Picker and Color Palette
+   Manager already structure their image-loading in ways compatible
+   with testing, so no corresponding refactor was needed in those
+   projects.
+
+Resolution documented below under "Resolved Issues."
 
 ---
 
@@ -393,6 +436,74 @@ fix.
 exports produce LF only after the fix. All 19 snapshot tests pass on
 both Windows and Linux. Removed `--ignore=tests/test_snapshots.py`
 from the Windows CI workflow.
+
+### UIHandler eagerly loaded background image, slowing 15 tests
+
+**Status:** Resolved 2026-05-21.
+
+**Original symptom:** Fifteen tests (5 in `TestUIHandlerLineFill`,
+10 in `TestUIHandlerThemeChain`) were skipped at runtime with
+`@pytest.mark.skip` decorators citing slow `UIHandler()` construction.
+The decorators noted that constructing a `UIHandler` triggered a
+PIL-based load of the 16000×9038 background image, which took long
+enough to make repeated construction across many tests impractical.
+
+**Root cause:** `UIHandler.__init__` called `_load_background_image()`
+unconditionally whenever `theme_manager.image_mode_available` was True.
+The expensive PIL pipeline (open + decode + resize + re-encode to PNG
+bytes for QPixmap) ran at construction time, even though the result was
+only used in Image Mode. Tests that needed a `UIHandler` for any reason
+paid the load cost even when they did not exercise Image Mode at all.
+
+A timing diagnostic (run 2026-05-21) measured ~2 seconds per load on
+the production image file across all three RNV projects. This is less
+than the ">10s" figure cited in the original skip decorators, which
+appears to have included pytest's instrumented-execution overhead on
+top of the bare PIL work. Either way, the cost was enough to make
+repeated construction impractical for the affected tests.
+
+**Fix:** Replaced the eager load with a `background_pixmap` property:
+
+```python
+@property
+def background_pixmap(self) -> QPixmap | None:
+    if not self._background_image_load_attempted:
+        self._background_image_load_attempted = True
+        if self.theme_manager.image_mode_available:
+            self._background_pixmap = self._load_background_image()
+    return self._background_pixmap
+```
+
+The `_background_image_load_attempted` flag ensures one-shot semantics
+— the load runs at most once per UIHandler instance, on first access
+to the property, regardless of whether the load succeeded. This matches
+the pre-refactor behavior where the eager load also happened at most
+once at construction time.
+
+Internal call sites (`_apply_image_mode`, `_debounced_resize`) were
+updated to use `self.background_pixmap` (property) instead of
+`self._background_pixmap` (private attribute). The `cleanup()` method
+still nulls the private attribute since that's teardown, not access.
+
+**Side benefit:** Production app construction is now faster for users
+who never enter Image Mode — the ~2-second image work only happens when
+something actually needs the pixmap. For users who never enter Image
+Mode at all, the work never happens.
+
+**Test fixes alongside the refactor:** Both `TestUIHandlerLineFill` and
+`TestUIHandlerThemeChain` contained assertions that assumed "default
+theme is dark." On developer machines where
+`resources/background_images/background.png` exists,
+`detect_image_resources()` auto-promotes the default theme to `'image'`,
+so this assumption fails. Added a `monkeypatch` (per-test for one
+cluster, an autouse class-level fixture for the other) that forces
+`image_mode_available = False` for the affected tests, isolating their
+assertions from environment state.
+
+**Verification:** All 15 newly-enabled tests pass —
+`TestUIHandlerLineFill` 5/5 in 3.45s, `TestUIHandlerThemeChain` 10/10
+in 0.95s. Full pytest suite: 551 passed, 10 skipped in 4 minutes, no
+regressions.
 
 ---
 
