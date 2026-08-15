@@ -1,21 +1,21 @@
 
 QMainWindow {
     background-color: #000000;
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
 
 QWidget {
     background-color: #000000;
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
 
 QPushButton {
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 2px;
     border-radius: 4px;
@@ -36,8 +36,8 @@ QPushButton:pressed {
 }
 
 QLineEdit {
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -53,7 +53,7 @@ QLineEdit:focus {
 }
 
 QLabel {
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
@@ -61,12 +61,12 @@ QLabel {
 QSlider::groove:horizontal {
     border: 1px solid #333333;
     height: 8px;
-    background: #1A1A1A;
+    background: #1a1a1a;
     border-radius: 4px;
 }
 
 QSlider::handle:horizontal {
-    background: #E0E0E0;
+    background: #e0e0e0;
     border: 1px solid #333333;
     width: 18px;
     border-radius: 9px;
@@ -74,7 +74,7 @@ QSlider::handle:horizontal {
 }
 
 QSlider::handle:horizontal:hover {
-    background: #F0F0F0;
+    background: #f0f0f0;
 }
 
 QScrollArea {
@@ -137,23 +137,23 @@ QScrollBar::add-line, QScrollBar::sub-line {
 }
 
 QStatusBar {
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border-top: 1px solid #333333;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 9px;
 }
 
 QStatusBar QLabel {
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     padding: 2px 4px;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 9px;
 }
 
 QCheckBox {
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
@@ -161,7 +161,7 @@ QCheckBox {
 QCheckBox::indicator {
     width: 13px;
     height: 13px;
-    background-color: #1A1A1A;
+    background-color: #1a1a1a;
     border: 1px solid #333333;
 }
 
@@ -183,8 +183,8 @@ QSplitter::handle:vertical {
 }
 
 QComboBox {
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -197,8 +197,8 @@ QComboBox:hover {
 }
 
 QComboBox QAbstractItemView {
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     selection-background-color: #d2bc93;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
 }
