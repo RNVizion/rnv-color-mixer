@@ -95,77 +95,77 @@ class ThemeManager:
     DARK_THEME = {
         'name': 'Dark',
         'window_bg': '#000000',
-        'text_color': '#E0E0E0',
+        'text_color': '#e0e0e0',
         'border_color': '#333333',
         'hover_color': '#444444',
-        'button_bg': '#1A1A1A',
-        'button_text': '#E0E0E0',
+        'button_bg': '#1a1a1a',
+        'button_text': '#e0e0e0',
         'button_hover_bg': '#333333',
         'button_pressed_bg': '#d2bc93',
         'button_pressed_text': '#000000',
         'button_pressed_border': '#d2bc93',
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
         'checkbox_border': '#333333',
-        'canvas_bg': '#0A0A0A',
+        'canvas_bg': '#0a0a0a',
         'scroll_area_bg': '#000000',
-        'input_bg': '#1A1A1A',
-        'input_text': '#E0E0E0',
-        'slot_border': '#E0E0E0',
+        'input_bg': '#1a1a1a',
+        'input_text': '#e0e0e0',
+        'slot_border': '#e0e0e0',
         'slot_border_width': 2,
-        'label_bg': '#1A1A1A',
+        'label_bg': '#1a1a1a',
         'label_border': '#333333',
-        'tooltip_bg': '#2A2A2A',
+        'tooltip_bg': '#2a2a2a',
         'tooltip_border': '#d2bc93',
         'text_disabled': '#555555',
         'accent': '#d2bc93',
         'accent_hover': '#dcc9a3',
         'accent_on': '#000000',
-        'panel_bg': '#1A1A1A',
-        'panel_secondary': '#2A2A2A',
-        'panel_hover': '#3A3A3A',
-        'tab_selected_bg': '#0A0A0A',
-        'scrollbar_bg': '#1A1A1A',
+        'panel_bg': '#1a1a1a',
+        'panel_secondary': '#2a2a2a',
+        'panel_hover': '#3a3a3a',
+        'tab_selected_bg': '#0a0a0a',
+        'scrollbar_bg': '#1a1a1a',
         'scrollbar_handle': '#333333',
         'scrollbar_hover': '#d2bc93',
-        'slider_handle': '#E0E0E0',
+        'slider_handle': '#e0e0e0',
         'text_hint': '#888888',
         'menu_disabled': '#666666',
     }
     
     LIGHT_THEME = {
         'name': 'Light',
-        'window_bg': '#F5F5F5',
+        'window_bg': '#f5f5f5',
         'text_color': '#000000',
-        'border_color': '#CCCCCC',
-        'hover_color': '#E0E0E0',
-        'button_bg': '#FFFFFF',
+        'border_color': '#cccccc',
+        'hover_color': '#e0e0e0',
+        'button_bg': '#ffffff',
         'button_text': '#000000',
         'button_hover_bg': '#333333',
         'button_pressed_bg': '#b19145',
-        'button_pressed_text': '#FFFFFF',
+        'button_pressed_text': '#ffffff',
         'button_pressed_border': '#b19145',
         'checkbox_bg': 'rgba(255, 255, 255, 200)',
         'checkbox_border': 'gray',
-        'canvas_bg': '#FFFFFF',
-        'scroll_area_bg': '#FFFFFF',
-        'input_bg': '#FFFFFF',
+        'canvas_bg': '#ffffff',
+        'scroll_area_bg': '#ffffff',
+        'input_bg': '#ffffff',
         'input_text': '#000000',
         'slot_border': '#000000',
         'slot_border_width': 1,
         'label_bg': 'white',
         'label_border': 'black',
-        'tooltip_bg': '#FFFFFF',
+        'tooltip_bg': '#ffffff',
         'tooltip_border': '#b19145',
-        'text_disabled': '#AAAAAA',
+        'text_disabled': '#aaaaaa',
         'accent': '#b19145',
         'accent_hover': '#c4a458',
-        'accent_on': '#FFFFFF',
-        'panel_bg': '#F5F5F5',
-        'panel_secondary': '#FFFFFF',
-        'panel_hover': '#EEEEEE',
-        'tab_selected_bg': '#FFFFFF',
-        'scrollbar_bg': '#F5F5F5',
-        'scrollbar_handle': '#CCCCCC',
+        'accent_on': '#ffffff',
+        'panel_bg': '#f5f5f5',
+        'panel_secondary': '#ffffff',
+        'panel_hover': '#eeeeee',
+        'tab_selected_bg': '#ffffff',
+        'scrollbar_bg': '#f5f5f5',
+        'scrollbar_handle': '#cccccc',
         'scrollbar_hover': '#b19145',
         'slider_handle': '#666666',
         'text_hint': '#888888',
@@ -176,39 +176,39 @@ class ThemeManager:
     IMAGE_THEME = {
         'name': 'Image',
         'window_bg': '#000000',
-        'text_color': '#E0E0E0',
+        'text_color': '#e0e0e0',
         'border_color': '#333333',
         'hover_color': '#444444',
-        'button_bg': '#1A1A1A',
-        'button_text': '#E0E0E0',
+        'button_bg': '#1a1a1a',
+        'button_text': '#e0e0e0',
         'button_hover_bg': '#333333',
         'button_pressed_bg': '#d2bc93',
         'button_pressed_text': '#000000',
         'button_pressed_border': '#d2bc93',
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
         'checkbox_border': '#333333',
-        'canvas_bg': '#0A0A0A',
+        'canvas_bg': '#0a0a0a',
         'scroll_area_bg': '#000000',
-        'input_bg': '#1A1A1A',
-        'input_text': '#E0E0E0',
-        'slot_border': '#E0E0E0',
+        'input_bg': '#1a1a1a',
+        'input_text': '#e0e0e0',
+        'slot_border': '#e0e0e0',
         'slot_border_width': 2,
-        'label_bg': '#1A1A1A',
+        'label_bg': '#1a1a1a',
         'label_border': '#333333',
-        'tooltip_bg': '#2A2A2A',
+        'tooltip_bg': '#2a2a2a',
         'tooltip_border': '#d2bc93',
         'text_disabled': '#555555',
         'accent': '#d2bc93',
         'accent_hover': '#dcc9a3',
         'accent_on': '#000000',
-        'panel_bg': '#1A1A1A',
-        'panel_secondary': '#2A2A2A',
-        'panel_hover': '#3A3A3A',
-        'tab_selected_bg': '#0A0A0A',
-        'scrollbar_bg': '#1A1A1A',
+        'panel_bg': '#1a1a1a',
+        'panel_secondary': '#2a2a2a',
+        'panel_hover': '#3a3a3a',
+        'tab_selected_bg': '#0a0a0a',
+        'scrollbar_bg': '#1a1a1a',
         'scrollbar_handle': '#333333',
         'scrollbar_hover': '#d2bc93',
-        'slider_handle': '#E0E0E0',
+        'slider_handle': '#e0e0e0',
         'text_hint': '#888888',
         'menu_disabled': '#666666',
     }
@@ -331,21 +331,21 @@ EMBEDDED_FONT_DATA = ""
 DARK_STYLESHEET = f"""
 QMainWindow {{
     background-color: #000000;
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QWidget {{
     background-color: #000000;
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QPushButton {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 2px;
     border-radius: 4px;
@@ -366,8 +366,8 @@ QPushButton:pressed {{
 }}
 
 QLineEdit {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -383,7 +383,7 @@ QLineEdit:focus {{
 }}
 
 QLabel {{
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -391,12 +391,12 @@ QLabel {{
 QSlider::groove:horizontal {{
     border: 1px solid #333333;
     height: 8px;
-    background: #1A1A1A;
+    background: #1a1a1a;
     border-radius: 4px;
 }}
 
 QSlider::handle:horizontal {{
-    background: #E0E0E0;
+    background: #e0e0e0;
     border: 1px solid #333333;
     width: 18px;
     border-radius: 9px;
@@ -404,7 +404,7 @@ QSlider::handle:horizontal {{
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: #F0F0F0;
+    background: #f0f0f0;
 }}
 
 QScrollArea {{
@@ -467,23 +467,23 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 }}
 
 QStatusBar {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border-top: 1px solid #333333;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QStatusBar QLabel {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     padding: 2px 4px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -491,7 +491,7 @@ QCheckBox {{
 QCheckBox::indicator {{
     width: 13px;
     height: 13px;
-    background-color: #1A1A1A;
+    background-color: #1a1a1a;
     border: 1px solid #333333;
 }}
 
@@ -513,8 +513,8 @@ QSplitter::handle:vertical {{
 }}
 
 QComboBox {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -527,8 +527,8 @@ QComboBox:hover {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     selection-background-color: #d2bc93;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
@@ -546,23 +546,23 @@ QComboBox QAbstractItemView::item:selected {{
 
 LIGHT_STYLESHEET = f"""
 QMainWindow {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
     color: #000000;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QWidget {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
     color: #000000;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QPushButton {{
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #000000;
-    border: 1px solid #CCCCCC;
+    border: 1px solid #cccccc;
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
@@ -572,26 +572,26 @@ QPushButton {{
 
 QPushButton:hover {{
     background-color: #333333;
-    border-color: #CCCCCC;
+    border-color: #cccccc;
 }}
 
 QPushButton:pressed {{
     background-color: #444444;
-    color: #FFFFFF;
-    border-color: #CCCCCC;
+    color: #ffffff;
+    border-color: #cccccc;
 }}
 
 QLineEdit {{
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #000000;
-    border: 1px solid #CCCCCC;
+    border: 1px solid #cccccc;
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: #b19145;
-    selection-color: #FFFFFF;
+    selection-color: #ffffff;
 }}
 
 QLineEdit:focus {{
@@ -605,9 +605,9 @@ QLabel {{
 }}
 
 QSlider::groove:horizontal {{
-    border: 1px solid #CCCCCC;
+    border: 1px solid #cccccc;
     height: 8px;
-    background: #FFFFFF;
+    background: #ffffff;
     border-radius: 4px;
 }}
 
@@ -624,19 +624,19 @@ QSlider::handle:horizontal:hover {{
 }}
 
 QScrollArea {{
-    background-color: #FFFFFF;
-    border: 1px solid #CCCCCC;
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QScrollBar:vertical {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
     width: 15px;
     border: none;
 }}
 
 QScrollBar::handle:vertical {{
-    background-color: #CCCCCC;
+    background-color: #cccccc;
     min-height: 20px;
     border-radius: 7px;
 }}
@@ -646,21 +646,21 @@ QScrollBar::handle:vertical:hover {{
 }}
 
 QScrollBar::sub-page:vertical {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
 }}
 
 QScrollBar::add-page:vertical {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
 }}
 
 QScrollBar:horizontal {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
     height: 15px;
     border: none;
 }}
 
 QScrollBar::handle:horizontal {{
-    background-color: #CCCCCC;
+    background-color: #cccccc;
     min-width: 20px;
     border-radius: 7px;
 }}
@@ -670,11 +670,11 @@ QScrollBar::handle:horizontal:hover {{
 }}
 
 QScrollBar::sub-page:horizontal {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
 }}
 
 QScrollBar::add-page:horizontal {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
 }}
 
 QScrollBar::add-line, QScrollBar::sub-line {{
@@ -683,15 +683,15 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 }}
 
 QStatusBar {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
     color: #000000;
-    border-top: 1px solid #CCCCCC;
+    border-top: 1px solid #cccccc;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QStatusBar QLabel {{
-    background-color: #F5F5F5;
+    background-color: #f5f5f5;
     color: #000000;
     padding: 2px 4px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
@@ -707,8 +707,8 @@ QCheckBox {{
 QCheckBox::indicator {{
     width: 13px;
     height: 13px;
-    background-color: #FFFFFF;
-    border: 1px solid #CCCCCC;
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
 }}
 
 QCheckBox::indicator:checked {{
@@ -717,7 +717,7 @@ QCheckBox::indicator:checked {{
 }}
 
 QSplitter::handle {{
-    background-color: #CCCCCC;
+    background-color: #cccccc;
 }}
 
 QSplitter::handle:horizontal {{
@@ -729,9 +729,9 @@ QSplitter::handle:vertical {{
 }}
 
 QComboBox {{
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #000000;
-    border: 1px solid #CCCCCC;
+    border: 1px solid #cccccc;
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
@@ -743,27 +743,27 @@ QComboBox:hover {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #000000;
     selection-background-color: #b19145;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
-    background-color: #EEEEEE;
+    background-color: #eeeeee;
     color: #b19145;
 }}
 
 QComboBox QAbstractItemView::item:selected {{
     background-color: #b19145;
-    color: #FFFFFF;
+    color: #ffffff;
 }}
 """
 
 # NEW: Image Mode Stylesheet (modified from Dark theme to allow background image)
 IMAGE_STYLESHEET = f"""
 QMainWindow {{
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -774,7 +774,7 @@ QMainWindow > QWidget {{
 
 QWidget {{
     background-color: transparent;
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -784,8 +784,8 @@ QFrame, QScrollArea, QLabel {{
 }}
 
 QPushButton {{
-    background-color: #1A1A1A;
-    color: #E0E0E0;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 2px;
     border-radius: 4px;
@@ -807,7 +807,7 @@ QPushButton:pressed {{
 
 QLineEdit {{
     background-color: rgba(0, 0, 0, 171);
-    color: #E0E0E0;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -823,7 +823,7 @@ QLineEdit:focus {{
 }}
 
 QLabel {{
-    color: #E0E0E0;
+    color: #e0e0e0;
     background-color: transparent;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
@@ -832,12 +832,12 @@ QLabel {{
 QSlider::groove:horizontal {{
     border: 1px solid #333333;
     height: 8px;
-    background: #1A1A1A;
+    background: #1a1a1a;
     border-radius: 4px;
 }}
 
 QSlider::handle:horizontal {{
-    background: #E0E0E0;
+    background: #e0e0e0;
     border: 1px solid #333333;
     width: 18px;
     border-radius: 9px;
@@ -845,7 +845,7 @@ QSlider::handle:horizontal {{
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: #F0F0F0;
+    background: #f0f0f0;
 }}
 
 QScrollArea {{
@@ -921,7 +921,7 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 
 QStatusBar {{
     background-color: rgba(26, 26, 26, 200);
-    color: #E0E0E0;
+    color: #e0e0e0;
     border-top: 1px solid #333333;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
@@ -929,14 +929,14 @@ QStatusBar {{
 
 QStatusBar QLabel {{
     background-color: transparent;
-    color: #E0E0E0;
+    color: #e0e0e0;
     padding: 2px 4px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
-    color: #E0E0E0;
+    color: #e0e0e0;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -967,7 +967,7 @@ QSplitter::handle:vertical {{
 
 QComboBox {{
     background-color: rgba(26, 26, 26, 191);
-    color: #E0E0E0;
+    color: #e0e0e0;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -981,7 +981,7 @@ QComboBox:hover {{
 
 QComboBox QAbstractItemView {{
     background-color: rgba(26, 26, 26, 191);
-    color: #E0E0E0;
+    color: #e0e0e0;
     selection-background-color: #d2bc93;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}

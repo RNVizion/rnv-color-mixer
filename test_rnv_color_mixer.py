@@ -1599,7 +1599,7 @@ class TestConfigExtended(unittest.TestCase):
 
     # ── Corrected canvas_bg for LIGHT ────────────────────────────────────────
     def test_light_canvas_bg_is_white(self):
-        self.assertEqual(self.tm.LIGHT_THEME["canvas_bg"],"#FFFFFF")
+        self.assertEqual(self.tm.LIGHT_THEME["canvas_bg"],"#ffffff")
 
     # ── Scrollbar hover split: dict=gold (dialogs), stylesheet=neutral (main) ─
     def test_light_theme_dict_scrollbar_hover_is_gold(self):
