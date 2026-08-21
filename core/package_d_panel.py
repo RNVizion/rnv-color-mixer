@@ -164,6 +164,36 @@ def _theme_colors(is_dark: bool) -> dict:
     return _tm.get_current_theme()
 
 
+def _style_tip(panel, widget, tail: str) -> None:
+    """Paint a tip label in the accent, and register it for re-theming.
+
+    These four labels were written as f"color: {{...}}", which emits the
+    literal text `color: {...}`; Qt discards the declaration and the label
+    falls back to the inherited body colour. Measured live before the fix:
+    #e0e0e0 in dark, #000000 in light -- legible, and never gold.
+    """
+    tips = panel.__dict__.setdefault("_themed_tips", [])
+    entry = (widget, tail)
+    if entry not in tips:
+        tips.append(entry)
+    accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_text"]
+    widget.setStyleSheet(f"color: {accent}; " + tail)
+
+
+def _section_header_style(accent: str) -> str:
+    return (f"font-weight: bold; font-size: {config.FONT_SIZES['medium']}px; "
+            f"color: {accent}; padding-top: 10px; padding-bottom: 5px;")
+
+
+def _style_harmony_description(panel) -> None:
+    accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_text"]
+    r, g, b = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
+    panel.harmony_description.setStyleSheet(
+        f"color: {accent}; font-size: {config.FONT_SIZES['small']}px; "
+        f"padding: 8px; background-color: rgba({r}, {g}, {b}, 0.1); "
+        f"border-radius: 4px;")
+
+
 class PackageDPanel(QDialog):
     """Control panel for all Package D features."""
     
@@ -454,7 +484,7 @@ class PackageDPanel(QDialog):
         
         # Info label
         info = QLabel(" Tip: Double-click to load   = User preset (can delete)")
-        info.setStyleSheet(f"color: {{config.ThemeManager().DARK_THEME['accent']}}; font-size: {config.FONT_SIZES['small']}px;")
+        _style_tip(self, info, f"font-size: {config.FONT_SIZES['small']}px;")
         layout.addWidget(info)
         
         # Initial population
@@ -518,12 +548,7 @@ class PackageDPanel(QDialog):
         
         # Description of selected harmony
         self.harmony_description = QLabel("")
-        _acc = config.ThemeManager.DARK_THEME['accent']
-        _r, _g, _b = int(_acc[1:3], 16), int(_acc[3:5], 16), int(_acc[5:7], 16)
-        self.harmony_description.setStyleSheet(
-            f"color: {_acc}; font-size: {config.FONT_SIZES['small']}px; "
-            f"padding: 8px; background-color: rgba({_r}, {_g}, {_b}, 0.1); border-radius: 4px;"
-        )
+        _style_harmony_description(self)
         layout.addWidget(self.harmony_description)
         
         # Preview area
@@ -554,7 +579,7 @@ class PackageDPanel(QDialog):
         
         # Tip
         tip = QLabel(" Tip: Select a base color, choose a harmony type, and apply!")
-        tip.setStyleSheet(f"color: {{config.ThemeManager().DARK_THEME['accent']}}; font-size: {config.FONT_SIZES['small']}px;")
+        _style_tip(self, tip, f"font-size: {config.FONT_SIZES['small']}px;")
         layout.addWidget(tip)
         
         # No stretch at end - let the preview list take available space
@@ -631,7 +656,7 @@ class PackageDPanel(QDialog):
         
         # Info tip
         tip = QLabel(" Tip: Double-click a session to load it quickly")
-        tip.setStyleSheet(f"color: {{config.ThemeManager().DARK_THEME['accent']}}; font-size: {config.FONT_SIZES['small']}px; margin-top: 5px;")
+        _style_tip(self, tip, f"font-size: {config.FONT_SIZES['small']}px; margin-top: 5px;")
         tip.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(tip)
         
@@ -706,7 +731,7 @@ class PackageDPanel(QDialog):
             shortcut_layout.setContentsMargins(0, 2, 0, 2)
             
             key_label = QLabel(shortcut)
-            _t_k = _theme_colors(True)
+            _t_k = _theme_colors(getattr(self, '_is_dark', True))
             key_label.setStyleSheet(f"""
                 background-color: {_t_k['accent']};
                 color: {_t_k['accent_on']};
@@ -809,7 +834,7 @@ class PackageDPanel(QDialog):
         
         # Info tip — placed ABOVE the stretch so nothing sits below the logo
         tip = QLabel(" Tip: Use keyboard shortcuts for fastest workflow!")
-        tip.setStyleSheet(f"color: {{config.ThemeManager().DARK_THEME['accent']}}; font-size: {config.FONT_SIZES['small']}px; margin-top: 5px;")
+        _style_tip(self, tip, f"font-size: {config.FONT_SIZES['small']}px; margin-top: 5px;")
         tip.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tip.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(tip)
@@ -1109,11 +1134,12 @@ class PackageDPanel(QDialog):
     def _create_section_header(self, text: str) -> QLabel:
         """Create a section header label."""
         header = QLabel(text)
-        _t_h = _theme_colors(True)
+        self.__dict__.setdefault('_themed_headers', []).append(header)
+        _t_h = _theme_colors(getattr(self, '_is_dark', True))
         header.setStyleSheet(f"""
             font-weight: bold;
             font-size: {config.FONT_SIZES['medium']}px;
-            color: {_t_h['accent']};
+            color: {_t_h['accent_text']};
             padding-top: 10px;
             padding-bottom: 5px;
         """)
@@ -1546,7 +1572,7 @@ class PackageDPanel(QDialog):
                         "your first custom color palette!"
                     )
                     item.setFlags(Qt.ItemFlag.NoItemFlags)  # Not selectable
-                    item.setForeground(QColor(_theme_colors(True)['accent']))  # Gold text
+                    item.setForeground(QColor(_theme_colors(getattr(self, '_is_dark', True))['accent_text']))  # Gold text
                     self.presets_list.addItem(item)
                     self.delete_preset_btn.setEnabled(False)
                     
@@ -2462,13 +2488,29 @@ class PackageDPanel(QDialog):
         bg_hover    = t['panel_hover']
         accent_on   = t['accent_on']
         accent_hov  = t['accent_hover']
+        accent_text = t['accent_text']
         pressed_bg  = t['button_pressed_bg']
         disabled    = t['text_disabled']
 
         label_style = (
             f"font-weight: bold; font-size: {config.FONT_SIZES['medium']}px; "
-            f"color: {accent}; margin-top: 15px; margin-bottom: 5px;"
+            f"color: {accent_text}; margin-top: 15px; margin-bottom: 5px;"
         )
+        for _tip_widget, _tip_tail in getattr(self, '_themed_tips', []):
+            try:
+                _tip_widget.setStyleSheet(f"color: {accent_text}; " + _tip_tail)
+            except RuntimeError:
+                pass
+        if hasattr(self, 'harmony_description'):
+            try:
+                _style_harmony_description(self)
+            except RuntimeError:
+                pass
+        for _hdr in getattr(self, '_themed_headers', []):
+            try:
+                _hdr.setStyleSheet(_section_header_style(accent_text))
+            except RuntimeError:
+                pass
         for attr in ('_shortcuts_label', '_export_label', '_palette_label', '_picker_label'):
             widget = getattr(self, attr, None)
             if widget:
@@ -2605,7 +2647,7 @@ class PackageDPanel(QDialog):
                 height: 0px;
             }}
             QLabel[class="section-header"] {{
-                color: {accent}; font-weight: bold;
+                color: {accent_text}; font-weight: bold;
             }}
             /* Primary action buttons inherit standard QPushButton styling */
         """)
@@ -2627,6 +2669,7 @@ class PackageDPanel(QDialog):
         hover_bg      = t['panel_hover']
         accent_col    = t['accent']
         accent_on_col = t['accent_on']
+        accent_text_col = t['accent_text']
 
         list_ss = f"""
                 QListWidget {{
@@ -2642,7 +2685,7 @@ class PackageDPanel(QDialog):
                 }}
                 QListWidget::item:hover {{
                     background-color: {hover_bg};
-                    color: {accent_col};
+                    color: {accent_text_col};
                 }}
                 QListWidget::item:selected,
                 QListWidget::item:selected:active,
@@ -2731,6 +2774,7 @@ class PackageDPanel(QDialog):
 
     def set_theme(self, is_dark: bool) -> None:
         """Apply theme to the dialog — all colors sourced from ThemeManager."""
+        self._is_dark = bool(is_dark)
         t = _theme_colors(is_dark)
 
         # Apply all widget-level theme styles (labels, checkboxes, buttons, stylesheet)

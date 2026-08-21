@@ -66,7 +66,7 @@ jobs:
           import hashlib
           with open('test_rnv_color_mixer.py', 'rb') as f:
               digest = hashlib.sha256(f.read()).hexdigest()
-          expected = '0b3e4d6c216f82df7e3d29dd167a58b9e2d7d996c03c1fb0d44c1c63bc0df454'
+          expected = '58e6313c8622cb93d777bdf69f4cd0cea7030f84f06f20f151c054c8c665ec9f'
           if digest != expected:
               print(f'LOCKED FILE INTEGRITY VIOLATION')
               print(f'  expected: {expected}')
@@ -90,7 +90,7 @@ jobs:
           #   - TestAsyncFileOpsErrorPaths (pytest):
           #       Qt threading + filesystem ops crash Python natively
           #       (SIGABRT) on offscreen Linux.
-          coverage run --data-file=.coverage.unittest --branch -m unittest test_rnv_color_mixer -v -k "not test_load_real_image_if_available"
+          coverage run --data-file=.coverage.unittest --branch -m pytest test_rnv_color_mixer.py -v --deselect "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"
           coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths
           coverage combine .coverage.unittest .coverage.pytest
           coverage report -m

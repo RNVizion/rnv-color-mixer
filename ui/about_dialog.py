@@ -130,7 +130,7 @@ class AboutDialog(QDialog):
         
         _t = config.ThemeManager.DARK_THEME if self._is_dark else config.ThemeManager.LIGHT_THEME
         version_label = QLabel(f"Version {app_info['version']}")
-        version_label.setStyleSheet(f"font-size: 14px; color: {_t['accent']}; border: none; background: transparent;")
+        version_label.setStyleSheet(f"font-size: 14px; color: {_t['accent_text']}; border: none; background: transparent;")
         text_layout.addWidget(version_label)
         
         desc_label = QLabel(app_info['description'])
@@ -384,7 +384,7 @@ practical tools for artists and designers.</p>
 
 <hr>
 
-<p style="text-align: center; color: {_t['accent']};">
+<p style="text-align: center; color: {_t['accent_text']};">
 <b>RNV Color Mixer</b><br>
 Bringing real-world paint mixing to the digital palette<br>
 © 2026 RNV Development. All rights reserved.
@@ -538,12 +538,12 @@ Bringing real-world paint mixing to the digital palette<br>
                 }}
                 QTabBar::tab:selected {{
                     background-color: {_l['window_bg']};
-                    color: {_l['accent']};
+                    color: {_l['accent_text']};
                     border-bottom: 2px solid {_l['accent']};
                 }}
                 QTabBar::tab:hover:!selected {{
-                    background-color: {_l['hover_color']};
-                    color: {_l['accent']};
+                    background-color: {_l['panel_hover']};
+                    color: {_l['accent_text']};
                 }}
                 QLabel {{
                     color: {_l['text_color']};
@@ -577,7 +577,7 @@ Bringing real-world paint mixing to the digital palette<br>
                 QPushButton:hover {{
                     background-color: {_l['panel_hover']};
                     border-color: {_l['accent']};
-                    color: {_l['accent']};
+                    color: {_l['accent_text']};
                 }}
                 QPushButton:pressed {{
                     background-color: {_l['accent']};

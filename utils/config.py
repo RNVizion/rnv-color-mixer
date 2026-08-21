@@ -9,7 +9,7 @@ cached QPalette objects for fast theme switching.
 
 import os
 import base64
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 # Import logger
 try:
@@ -89,6 +89,76 @@ UI_DIR = os.path.join(BASE_DIR, "ui")
 UTILS_DIR = os.path.join(BASE_DIR, "utils")
 
 # Theme Manager - From Color Picker (Superior Dark Theme System)
+
+# ---------------------------------------------------------------- brand gold
+# Mirrored from RNVizion/rnv-brand engine/brand.py. Do not hand-write a gold
+# here: derive it, so that a change to the base carries.
+#
+# The register holds TWO golds and derives the rest. Each mode renders the
+# registered gold plus ONE derivative:
+#
+#   light   BRAND_DARK_GOLD          fills, borders, pressed
+#           BRAND_DARK_GOLD_DEEP     text, and hover (which moves DEEPER on a
+#                                    light ground -- away from it, not toward)
+#   dark    BRAND_GOLD               fills, borders, pressed, text
+#           BRAND_GOLD_HOVER         hover (lighter, again away from the ground)
+#
+# Pressed returns to the accent in both modes. On light that is forced -- no
+# darker pressed shade keeps black legible on it. On dark the register records
+# the question as OPEN and permits either; this app takes the accent, which is
+# what holds the count at two and matches rnv-color-picker and
+# rnv-text-transformer.
+#
+# COVERAGE BOUNDARY: BRAND_DARK_GOLD_DEEP carries text down to #e8e8e8 and no
+# further. Below that, gold does not carry text -- a ruling, not a gap. Going
+# darker does not help: -29 clears #d0d0d0 and then fails black-on-fill at
+# 3.0219, the same exclusion one step down.
+
+
+def _to_rgb(hex_color: str) -> tuple[int, int, int]:
+    h = hex_color.lstrip("#")
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+def lighten(hex_color: str, step: int) -> str:
+    """Shift every channel by the same number of 8-bit steps.
+
+    Uniform per-channel, which holds hue exactly -- BRAND_DARK_GOLD and its
+    derivative both measure 42.4 degrees. Non-uniform steps do not, which is
+    why the hand-written variants this replaces all drifted in hue.
+    """
+    r, g, b = _to_rgb(hex_color)
+    return "#%02x%02x%02x" % tuple(
+        max(0, min(255, c + step)) for c in (r, g, b))
+
+
+BRAND_GOLD: Final[str] = "#d2bc93"                       # registered
+BRAND_DARK_GOLD: Final[str] = "#8c7337"             # registered
+
+# Derived. Steps published in rnv-brand engine/brand.py, rev 17.
+BRAND_DARK_GOLD_DEEP: Final[str] = lighten(BRAND_DARK_GOLD, -14)   # #7e6529
+BRAND_GOLD_HOVER: Final[str] = lighten(BRAND_GOLD, 13)             # #dfc9a0
+
+# Aliases. Named so every rendered hex has a key, even where it repeats.
+BRAND_DARK_GOLD_HOVER: Final[str] = BRAND_DARK_GOLD_DEEP
+BRAND_DARK_GOLD_PRESSED: Final[str] = BRAND_DARK_GOLD
+BRAND_GOLD_PRESSED: Final[str] = BRAND_GOLD
+
+BRAND_GOLD_RGB: Final[tuple[int, int, int]] = _to_rgb(BRAND_GOLD)
+BRAND_DARK_GOLD_RGB: Final[tuple[int, int, int]] = _to_rgb(BRAND_DARK_GOLD)
+
+# Declarative provenance, read by tests/test_brand_mirror.py. A classification
+# that lives only in a test drifts from the thing it classifies.
+GOLD_PROVENANCE: Final[dict[str, str]] = {
+    "BRAND_GOLD": "register",
+    "BRAND_DARK_GOLD": "register",
+    "BRAND_DARK_GOLD_DEEP": "derived",
+    "BRAND_GOLD_HOVER": "derived",
+    "BRAND_DARK_GOLD_HOVER": "alias",
+    "BRAND_DARK_GOLD_PRESSED": "alias",
+    "BRAND_GOLD_PRESSED": "alias",
+}
+
 class ThemeManager:
     """Manages application themes with Dark Mode, Light Mode, and Image Mode"""
     
@@ -101,9 +171,9 @@ class ThemeManager:
         'button_bg': '#1a1a1a',
         'button_text': '#e0e0e0',
         'button_hover_bg': '#333333',
-        'button_pressed_bg': '#d2bc93',
+        'button_pressed_bg': BRAND_GOLD_PRESSED,
         'button_pressed_text': '#000000',
-        'button_pressed_border': '#d2bc93',
+        'button_pressed_border': BRAND_GOLD,
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
         'checkbox_border': '#333333',
         'canvas_bg': '#0a0a0a',
@@ -115,10 +185,11 @@ class ThemeManager:
         'label_bg': '#1a1a1a',
         'label_border': '#333333',
         'tooltip_bg': '#2a2a2a',
-        'tooltip_border': '#d2bc93',
+        'tooltip_border': BRAND_GOLD,
         'text_disabled': '#555555',
-        'accent': '#d2bc93',
-        'accent_hover': '#dcc9a3',
+        'accent': BRAND_GOLD,
+        'accent_text': BRAND_GOLD,
+        'accent_hover': BRAND_GOLD_HOVER,
         'accent_on': '#000000',
         'panel_bg': '#1a1a1a',
         'panel_secondary': '#2a2a2a',
@@ -126,7 +197,7 @@ class ThemeManager:
         'tab_selected_bg': '#0a0a0a',
         'scrollbar_bg': '#1a1a1a',
         'scrollbar_handle': '#333333',
-        'scrollbar_hover': '#d2bc93',
+        'scrollbar_hover': BRAND_GOLD,
         'slider_handle': '#e0e0e0',
         'text_hint': '#888888',
         'menu_disabled': '#666666',
@@ -141,9 +212,9 @@ class ThemeManager:
         'button_bg': '#ffffff',
         'button_text': '#000000',
         'button_hover_bg': '#333333',
-        'button_pressed_bg': '#b19145',
+        'button_pressed_bg': BRAND_DARK_GOLD_PRESSED,
         'button_pressed_text': '#ffffff',
-        'button_pressed_border': '#b19145',
+        'button_pressed_border': BRAND_DARK_GOLD,
         'checkbox_bg': 'rgba(255, 255, 255, 200)',
         'checkbox_border': 'gray',
         'canvas_bg': '#ffffff',
@@ -155,10 +226,11 @@ class ThemeManager:
         'label_bg': 'white',
         'label_border': 'black',
         'tooltip_bg': '#ffffff',
-        'tooltip_border': '#b19145',
+        'tooltip_border': BRAND_DARK_GOLD,
         'text_disabled': '#aaaaaa',
-        'accent': '#b19145',
-        'accent_hover': '#c4a458',
+        'accent': BRAND_DARK_GOLD,
+        'accent_text': BRAND_DARK_GOLD_DEEP,
+        'accent_hover': BRAND_DARK_GOLD_HOVER,
         'accent_on': '#ffffff',
         'panel_bg': '#f5f5f5',
         'panel_secondary': '#ffffff',
@@ -166,7 +238,7 @@ class ThemeManager:
         'tab_selected_bg': '#ffffff',
         'scrollbar_bg': '#f5f5f5',
         'scrollbar_handle': '#cccccc',
-        'scrollbar_hover': '#b19145',
+        'scrollbar_hover': BRAND_DARK_GOLD,
         'slider_handle': '#666666',
         'text_hint': '#888888',
         'menu_disabled': '#999999',
@@ -182,9 +254,9 @@ class ThemeManager:
         'button_bg': '#1a1a1a',
         'button_text': '#e0e0e0',
         'button_hover_bg': '#333333',
-        'button_pressed_bg': '#d2bc93',
+        'button_pressed_bg': BRAND_GOLD_PRESSED,
         'button_pressed_text': '#000000',
-        'button_pressed_border': '#d2bc93',
+        'button_pressed_border': BRAND_GOLD,
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
         'checkbox_border': '#333333',
         'canvas_bg': '#0a0a0a',
@@ -196,10 +268,11 @@ class ThemeManager:
         'label_bg': '#1a1a1a',
         'label_border': '#333333',
         'tooltip_bg': '#2a2a2a',
-        'tooltip_border': '#d2bc93',
+        'tooltip_border': BRAND_GOLD,
         'text_disabled': '#555555',
-        'accent': '#d2bc93',
-        'accent_hover': '#dcc9a3',
+        'accent': BRAND_GOLD,
+        'accent_text': BRAND_GOLD,
+        'accent_hover': BRAND_GOLD_HOVER,
         'accent_on': '#000000',
         'panel_bg': '#1a1a1a',
         'panel_secondary': '#2a2a2a',
@@ -207,7 +280,7 @@ class ThemeManager:
         'tab_selected_bg': '#0a0a0a',
         'scrollbar_bg': '#1a1a1a',
         'scrollbar_handle': '#333333',
-        'scrollbar_hover': '#d2bc93',
+        'scrollbar_hover': BRAND_GOLD,
         'slider_handle': '#e0e0e0',
         'text_hint': '#888888',
         'menu_disabled': '#666666',
@@ -374,12 +447,12 @@ QLineEdit {{
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
-    selection-background-color: #d2bc93;
+    selection-background-color: {BRAND_GOLD};
     selection-color: #000000;
 }}
 
 QLineEdit:focus {{
-    border-color: #d2bc93;
+    border-color: {BRAND_GOLD};
 }}
 
 QLabel {{
@@ -496,8 +569,8 @@ QCheckBox::indicator {{
 }}
 
 QCheckBox::indicator:checked {{
-    background-color: #d2bc93;
-    border-color: #d2bc93;
+    background-color: {BRAND_GOLD};
+    border-color: {BRAND_GOLD};
 }}
 
 QSplitter::handle {{
@@ -523,23 +596,23 @@ QComboBox {{
 }}
 
 QComboBox:hover {{
-    border-color: #d2bc93;
+    border-color: {BRAND_GOLD};
 }}
 
 QComboBox QAbstractItemView {{
     background-color: #1a1a1a;
     color: #e0e0e0;
-    selection-background-color: #d2bc93;
+    selection-background-color: {BRAND_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
     background-color: #333333;
-    color: #d2bc93;
+    color: {BRAND_GOLD};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
-    background-color: #d2bc93;
+    background-color: {BRAND_GOLD};
     color: #000000;
 }}
 """
@@ -590,12 +663,12 @@ QLineEdit {{
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
-    selection-background-color: #b19145;
+    selection-background-color: {BRAND_DARK_GOLD};
     selection-color: #ffffff;
 }}
 
 QLineEdit:focus {{
-    border-color: #b19145;
+    border-color: {BRAND_DARK_GOLD};
 }}
 
 QLabel {{
@@ -712,8 +785,8 @@ QCheckBox::indicator {{
 }}
 
 QCheckBox::indicator:checked {{
-    background-color: #b19145;
-    border-color: #b19145;
+    background-color: {BRAND_DARK_GOLD};
+    border-color: {BRAND_DARK_GOLD};
 }}
 
 QSplitter::handle {{
@@ -739,23 +812,23 @@ QComboBox {{
 }}
 
 QComboBox:hover {{
-    border-color: #b19145;
+    border-color: {BRAND_DARK_GOLD};
 }}
 
 QComboBox QAbstractItemView {{
     background-color: #ffffff;
     color: #000000;
-    selection-background-color: #b19145;
+    selection-background-color: {BRAND_DARK_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
     background-color: #eeeeee;
-    color: #b19145;
+    color: {BRAND_DARK_GOLD_DEEP};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
-    background-color: #b19145;
+    background-color: {BRAND_DARK_GOLD};
     color: #ffffff;
 }}
 """
@@ -814,12 +887,12 @@ QLineEdit {{
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
-    selection-background-color: #d2bc93;
+    selection-background-color: {BRAND_GOLD};
     selection-color: #000000;
 }}
 
 QLineEdit:focus {{
-    border-color: #d2bc93;
+    border-color: {BRAND_GOLD};
 }}
 
 QLabel {{
@@ -949,8 +1022,8 @@ QCheckBox::indicator {{
 }}
 
 QCheckBox::indicator:checked {{
-    background-color: #d2bc93;
-    border-color: #d2bc93;
+    background-color: {BRAND_GOLD};
+    border-color: {BRAND_GOLD};
 }}
 
 QSplitter::handle {{
@@ -976,23 +1049,23 @@ QComboBox {{
 }}
 
 QComboBox:hover {{
-    border-color: #d2bc93;
+    border-color: {BRAND_GOLD};
 }}
 
 QComboBox QAbstractItemView {{
     background-color: rgba(26, 26, 26, 191);
     color: #e0e0e0;
-    selection-background-color: #d2bc93;
+    selection-background-color: {BRAND_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
     background-color: #333333;
-    color: #d2bc93;
+    color: {BRAND_GOLD};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
-    background-color: #d2bc93;
+    background-color: {BRAND_GOLD};
     color: #000000;
 }}
 """

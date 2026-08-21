@@ -842,7 +842,7 @@ class TestConfig(unittest.TestCase):
     def test_image_keys(self):  self._keys(self.tm.IMAGE_THEME, ["window_bg","text_color","border_color","tooltip_border"])
 
     def test_dark_brand_gold(self):   self.assertEqual(self.tm.DARK_THEME["tooltip_border"],  "#d2bc93")
-    def test_light_brand_gold(self):  self.assertEqual(self.tm.LIGHT_THEME["tooltip_border"], "#b19145")
+    def test_light_brand_gold(self):  self.assertEqual(self.tm.LIGHT_THEME["tooltip_border"], "#8c7337")
     def test_image_brand_gold(self):  self.assertEqual(self.tm.IMAGE_THEME["tooltip_border"], "#d2bc93")
 
     def test_cycle_dark_to_light(self):
@@ -870,7 +870,7 @@ class TestConfig(unittest.TestCase):
     def test_package_d_width(self):     self.assertGreater(config.PACKAGE_D_WIDTH,0)
     def test_font_sizes(self):          [self.assertIn(k,config.FONT_SIZES) for k in ["small","normal","large"]]
     def test_dark_ss_brand_gold(self):  self.assertIn("#d2bc93",config.DARK_STYLESHEET)
-    def test_light_ss_brand_gold(self): self.assertIn("#b19145",config.LIGHT_STYLESHEET)
+    def test_light_ss_brand_gold(self): self.assertIn("#8c7337",config.LIGHT_STYLESHEET)
     def test_stylesheets_nonempty(self):
         for ss in [config.DARK_STYLESHEET,config.LIGHT_STYLESHEET,config.IMAGE_STYLESHEET]:
             self.assertGreater(len(ss),100)
@@ -1604,13 +1604,13 @@ class TestConfigExtended(unittest.TestCase):
     # ── Scrollbar hover split: dict=gold (dialogs), stylesheet=neutral (main) ─
     def test_light_theme_dict_scrollbar_hover_is_gold(self):
         # Dialogs use the theme dict → must stay gold
-        self.assertEqual(self.tm.LIGHT_THEME["scrollbar_hover"],"#b19145")
+        self.assertEqual(self.tm.LIGHT_THEME["scrollbar_hover"],"#8c7337")
 
     def test_light_stylesheet_scrollbar_hover_is_neutral(self):
         # Main window uses LIGHT_STYLESHEET → must NOT be gold
         import re
         hits=re.findall(
-            r"handle:(?:vertical|horizontal):hover\s*\{\{[^}]*background-color:\s*([^;]+);",
+            r"handle:(?:vertical|horizontal):hover\s*\{[^}]*background-color:\s*([^;]+);",
             config.LIGHT_STYLESHEET)
         for v in hits:
             self.assertNotIn("b19145",v.lower(),
@@ -1625,7 +1625,7 @@ class TestConfigExtended(unittest.TestCase):
     def test_get_stylesheet_light(self):
         self.tm.current_theme="light"
         ss=config.get_stylesheet(self.tm)
-        self.assertIn("F5F5F5",ss)
+        self.assertIn("f5f5f5",ss)
 
     def test_get_stylesheet_image(self):
         self.tm.current_theme="image"

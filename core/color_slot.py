@@ -286,6 +286,7 @@ class ColorSlot(QWidget, SignalMixin):
         _ct = config.ThemeManager.DARK_THEME if use_dark else config.ThemeManager.LIGHT_THEME
         accent      = _ct['accent']
         accent_text = _ct['accent_on']
+        accent_text_role = _ct['accent_text']
         base_hex    = _ct['input_bg']
         text_hex    = _ct['text_color']
         window_hex  = _ct['window_bg']    # dialog/panel bg
@@ -323,7 +324,7 @@ class ColorSlot(QWidget, SignalMixin):
             QPushButton:hover {{
                 background-color: {_ct['panel_hover']};
                 border-color: {accent};
-                color: {accent if use_dark else accent};
+                color: {accent_text_role};
             }}
             QPushButton:pressed {{
                 background-color: {accent};

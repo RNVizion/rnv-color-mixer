@@ -43,9 +43,11 @@ except ImportError:
 # =============================================================================
 
 # Colors - created once, used forever
+from utils.config import BRAND_GOLD, BRAND_GOLD_RGB
+
 _OVERLAY_COLOR = QColor(0, 0, 0, 50)
-_GOLD_BRAND = QColor('#d2bc93')
-_GOLD_TRANSPARENT = QColor(191, 177, 69, 50)
+_GOLD_BRAND = QColor(BRAND_GOLD)
+_GOLD_TRANSPARENT = QColor(*BRAND_GOLD_RGB, 50)
 _INFO_BG = QColor(0, 0, 0, 180)
 
 # Pens - pre-created with correct settings

@@ -44,12 +44,12 @@ QLineEdit {
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
     min-height: 16px;
-    selection-background-color: #b19145;
+    selection-background-color: #8c7337;
     selection-color: #ffffff;
 }
 
 QLineEdit:focus {
-    border-color: #b19145;
+    border-color: #8c7337;
 }
 
 QLabel {
@@ -166,8 +166,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background-color: #b19145;
-    border-color: #b19145;
+    background-color: #8c7337;
+    border-color: #8c7337;
 }
 
 QSplitter::handle {
@@ -193,22 +193,22 @@ QComboBox {
 }
 
 QComboBox:hover {
-    border-color: #b19145;
+    border-color: #8c7337;
 }
 
 QComboBox QAbstractItemView {
     background-color: #ffffff;
     color: #000000;
-    selection-background-color: #b19145;
+    selection-background-color: #8c7337;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
 }
 
 QComboBox QAbstractItemView::item:hover {
     background-color: #eeeeee;
-    color: #b19145;
+    color: #7e6529;
 }
 
 QComboBox QAbstractItemView::item:selected {
-    background-color: #b19145;
+    background-color: #8c7337;
     color: #ffffff;
 }
