@@ -159,7 +159,7 @@ class ColorFineTuneDialog(QDialog):
         # Title
         title = QLabel("Adjustments")
         _t = config.ThemeManager.DARK_THEME if self._is_dark else config.ThemeManager.LIGHT_THEME
-        title.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {_t['accent_text']};")
+        title.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {_t['accent_ink']};")
         layout.addWidget(title)
         
         # Create each slider
@@ -206,7 +206,7 @@ class ColorFineTuneDialog(QDialog):
         value_label = QLabel(str(default))
         value_label.setFixedWidth(40)
         value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        value_label.setStyleSheet(f"font-weight: bold; color: {_t['accent_text']};")
+        value_label.setStyleSheet(f"font-weight: bold; color: {_t['accent_ink']};")
         self.value_labels[key] = value_label
         label_row.addWidget(value_label)
         
@@ -443,7 +443,7 @@ class ColorFineTuneDialog(QDialog):
                 QPushButton:pressed {{
                     background-color: {_d['accent']};
                     border-color: {_d['accent']};
-                    color: {_d['accent_on']};
+                    color: {_d['accent_text']};
                 }}
             """)
         else:
@@ -494,12 +494,12 @@ class ColorFineTuneDialog(QDialog):
                 QPushButton:hover {{
                     background-color: {_l['panel_hover']};
                     border-color: {_l['accent']};
-                    color: {_l['accent_text']};
+                    color: {_l['accent_ink']};
                 }}
                 QPushButton:pressed {{
                     background-color: {_l['accent']};
                     border-color: {_l['accent']};
-                    color: {_l['accent_on']};
+                    color: {_l['accent_text']};
                 }}
             """)
     

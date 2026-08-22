@@ -285,8 +285,8 @@ class ColorSlot(QWidget, SignalMixin):
         use_dark = self.is_dark or self.is_image_mode
         _ct = config.ThemeManager.DARK_THEME if use_dark else config.ThemeManager.LIGHT_THEME
         accent      = _ct['accent']
-        accent_text = _ct['accent_on']
-        accent_text_role = _ct['accent_text']
+        accent_text = _ct['accent_text']
+        accent_ink = _ct['accent_ink']
         base_hex    = _ct['input_bg']
         text_hex    = _ct['text_color']
         window_hex  = _ct['window_bg']    # dialog/panel bg
@@ -324,7 +324,7 @@ class ColorSlot(QWidget, SignalMixin):
             QPushButton:hover {{
                 background-color: {_ct['panel_hover']};
                 border-color: {accent};
-                color: {accent_text_role};
+                color: {accent_ink};
             }}
             QPushButton:pressed {{
                 background-color: {accent};
@@ -621,7 +621,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::item:selected {{
                     background-color: {_m['accent']};
-                    color: {_m['accent_on']};
+                    color: {_m['accent_text']};
                 }}
                 QMenu::item:disabled {{
                     color: {_m['menu_disabled']};
@@ -648,7 +648,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::item:selected {{
                     background-color: {_m['accent']};
-                    color: {_m['accent_on']};
+                    color: {_m['accent_text']};
                 }}
                 QMenu::item:disabled {{
                     color: {_m['menu_disabled']};
@@ -701,7 +701,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::item:selected {{
                     background-color: {_m['accent']};
-                    color: {_m['accent_on']};
+                    color: {_m['accent_text']};
                 }}
                 QMenu::separator {{
                     height: 1px;
@@ -724,7 +724,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::item:selected {{
                     background-color: {_m['accent']};
-                    color: {_m['accent_on']};
+                    color: {_m['accent_text']};
                 }}
                 QMenu::separator {{
                     height: 1px;

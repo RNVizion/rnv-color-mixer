@@ -140,7 +140,7 @@ class UIHandler(QObject):
                 
                 # Brand accent color for highlight/selection — sourced from theme dict
                 accent_color   = QColor(theme['accent'])
-                accent_on_text = QColor(theme['accent_on'])
+                accent_text_col = QColor(theme['accent_text'])
 
                 # Set colors for all states
                 for color_group in [QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive]:
@@ -154,7 +154,7 @@ class UIHandler(QObject):
                     palette.setColor(color_group, QPalette.ColorRole.BrightText, text_color)
                     # Brand gold for text selection and focus highlight — replaces system blue
                     palette.setColor(color_group, QPalette.ColorRole.Highlight, accent_color)
-                    palette.setColor(color_group, QPalette.ColorRole.HighlightedText, accent_on_text)
+                    palette.setColor(color_group, QPalette.ColorRole.HighlightedText, accent_text_col)
                     palette.setColor(color_group, QPalette.ColorRole.Link, accent_color)
                 
                 # Disabled state

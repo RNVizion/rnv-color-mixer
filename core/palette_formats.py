@@ -678,7 +678,7 @@ class PaletteFormats:
                         continue
                     m = _HEX_DATA_LINE.match(line)
                     if not m:
-                        continue  # comment, header, or non-hex line — skip
+                        continue  # comment, header, or non-hex line â€” skip
                     # Drop trailing inline comment, then split remaining fields
                     rest = line[m.end():].split('#', 1)[0].strip()
                     parts = rest.split()

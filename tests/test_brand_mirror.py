@@ -27,7 +27,7 @@ RETIRED = {
     "#bfb145": "the magnifier grid pen; neither brand gold, invisible as a tuple",
 }
 
-GOLD_KEYS = ("accent", "accent_hover", "accent_text", "tooltip_border",
+GOLD_KEYS = ("accent", "accent_hover", "accent_ink", "tooltip_border",
              "scrollbar_hover", "button_pressed_bg", "button_pressed_border")
 
 
@@ -158,7 +158,7 @@ def test_hover_moves_away_from_the_ground():
 
 
 def test_light_text_gold_clears_every_ground_it_draws_on():
-    deep = PALETTES["LIGHT"]["accent_text"]
+    deep = PALETTES["LIGHT"]["accent_ink"]
     for ground in ("#ffffff", "#f5f5f5", "#eeeeee", "#e8e8e8"):
         ratio = contrast(deep, ground)
         assert ratio >= 4.5, f"{deep} on {ground} = {ratio:.4f}"
@@ -166,7 +166,7 @@ def test_light_text_gold_clears_every_ground_it_draws_on():
 
 def test_dark_reuses_its_accent_for_text():
     for name in ("DARK", "IMAGE"):
-        assert PALETTES[name]["accent_text"] == PALETTES[name]["accent"], name
+        assert PALETTES[name]["accent_ink"] == PALETTES[name]["accent"], name
 
 
 def test_white_on_the_light_fill_clears():

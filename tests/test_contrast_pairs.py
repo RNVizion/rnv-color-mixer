@@ -251,8 +251,8 @@ def test_dialog_button_pressed_fills_with_the_ACCENT_not_the_derivative():
     """
     light = config.ThemeManager.LIGHT_THEME
     assert light["button_pressed_bg"] == light["accent"] == config.BRAND_DARK_GOLD
-    assert light["accent_text"] == config.BRAND_DARK_GOLD_DEEP
-    assert light["accent_text"] != light["accent"], (
+    assert light["accent_ink"] == config.BRAND_DARK_GOLD_DEEP
+    assert light["accent_ink"] != light["accent"], (
         "light must spend its derivative on TEXT and keep the accent as the fill")
     for name in ("DARK", "IMAGE"):
         palette = getattr(config.ThemeManager, name + "_THEME")
@@ -269,7 +269,7 @@ def test_four_gold_values_in_the_whole_app():
 def test_gold_text_never_lands_below_the_coverage_floor():
     """Below #e8e8e8 gold does not carry text. That is a ruling, not a gap --
     so assert nothing tries."""
-    deep = config.ThemeManager.LIGHT_THEME["accent_text"]
+    deep = config.ThemeManager.LIGHT_THEME["accent_ink"]
     for _, fg, bg in _pairs("LIGHT"):
         if fg != deep.lower():
             continue

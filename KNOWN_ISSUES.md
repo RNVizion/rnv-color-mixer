@@ -75,6 +75,39 @@ construction. Same architectural pattern as the `AsyncFileOps` refactor
 listed above — both classes mix lifecycle management of background
 threads into operations that conceptually shouldn't require them.
 
+### `FileWriterThread` signal tests — intermittent SIGABRT, deliberately not skipped
+
+**Runs on:** both CI runners, and green there.
+
+Measured 22 Aug 2026 on offscreen Linux:
+`tests/test_threading.py::TestColorHistoryThreading::test_save_async_emits_finished_with_success_true`
+aborts Python natively (`Fatal Python error: Aborted`) in roughly one run
+in thirty, and much more readily when the machine is under load. It did so
+on an **untouched checkout of `main`** as well as on a modified tree, so it
+is the thread lifecycle and the environment, not any particular change.
+
+That last point is the reason this entry exists. The abort surfaces during
+whatever work happens to be in flight, and it reads exactly like a
+regression in that work. It is not one.
+
+Same root cause as the two entries above. `qtbot.waitSignal` returns the
+instant `finished` fires; the `thread` local then goes out of scope at the
+end of the test, and Qt can find itself destroying a `QThread` that has not
+finished unwinding. `test_file_writer_thread_progress_signal_reaches_100`
+is in the same family.
+
+**User impact:** None. Nothing in the running app destroys a
+`FileWriterThread` this way — the owning object holds the reference for as
+long as the thread lives.
+
+**Why it is not skipped:** it passes on both runners and covers a real
+path. Skipping would trade a rare red for permanently missing coverage.
+If it becomes noisy, deselect it the way `TestAsyncFileOpsErrorPaths` is
+deselected rather than marking it skip, so the cost stays visible.
+
+**Planned fix:** the same refactor as above — hold the thread on the
+object, not on the stack.
+
 ---
 
 ## Cross-project audit findings

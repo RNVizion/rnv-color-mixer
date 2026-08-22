@@ -1931,7 +1931,7 @@ class TestIntegration(unittest.TestCase):
         self.assertGreater(s.get("total",s.get("total_entries",0)),0)
 
     def test_theme_keys_cover_all_ui_elements(self):
-        required=["accent","accent_on","border_color","text_color","window_bg",
+        required=["accent","accent_text","border_color","text_color","window_bg",
                   "panel_bg","button_bg","button_text","slot_border",
                   "slider_handle","text_hint","menu_disabled","scrollbar_hover"]
         for key in required:

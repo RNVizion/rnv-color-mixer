@@ -98,7 +98,7 @@ class _BrandComboDelegate(QStyledItemDelegate):
             'hover_bg': t['panel_hover'],
             'hover_fg': t['accent'],
             'sel_bg':   t['accent'],
-            'sel_fg':   t['accent_on'],
+            'sel_fg':   t['accent_text'],
         }
 
     def __init__(self, parent: QWidget | None = None, is_dark: bool = True) -> None:
@@ -176,7 +176,7 @@ def _style_tip(panel, widget, tail: str) -> None:
     entry = (widget, tail)
     if entry not in tips:
         tips.append(entry)
-    accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_text"]
+    accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_ink"]
     widget.setStyleSheet(f"color: {accent}; " + tail)
 
 
@@ -186,7 +186,7 @@ def _section_header_style(accent: str) -> str:
 
 
 def _style_harmony_description(panel) -> None:
-    accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_text"]
+    accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_ink"]
     r, g, b = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
     panel.harmony_description.setStyleSheet(
         f"color: {accent}; font-size: {config.FONT_SIZES['small']}px; "
@@ -734,7 +734,7 @@ class PackageDPanel(QDialog):
             _t_k = _theme_colors(getattr(self, '_is_dark', True))
             key_label.setStyleSheet(f"""
                 background-color: {_t_k['accent']};
-                color: {_t_k['accent_on']};
+                color: {_t_k['accent_text']};
                 padding: 3px 8px;
                 border-radius: 3px;
                 font-weight: bold;
@@ -1139,7 +1139,7 @@ class PackageDPanel(QDialog):
         header.setStyleSheet(f"""
             font-weight: bold;
             font-size: {config.FONT_SIZES['medium']}px;
-            color: {_t_h['accent_text']};
+            color: {_t_h['accent_ink']};
             padding-top: 10px;
             padding-bottom: 5px;
         """)
@@ -1572,7 +1572,7 @@ class PackageDPanel(QDialog):
                         "your first custom color palette!"
                     )
                     item.setFlags(Qt.ItemFlag.NoItemFlags)  # Not selectable
-                    item.setForeground(QColor(_theme_colors(getattr(self, '_is_dark', True))['accent_text']))  # Gold text
+                    item.setForeground(QColor(_theme_colors(getattr(self, '_is_dark', True))['accent_ink']))  # Gold text
                     self.presets_list.addItem(item)
                     self.delete_preset_btn.setEnabled(False)
                     
@@ -2486,19 +2486,19 @@ class PackageDPanel(QDialog):
         text        = t['text_color']
         bg2         = t['panel_secondary']
         bg_hover    = t['panel_hover']
-        accent_on   = t['accent_on']
+        accent_text   = t['accent_text']
         accent_hov  = t['accent_hover']
-        accent_text = t['accent_text']
+        accent_ink = t['accent_ink']
         pressed_bg  = t['button_pressed_bg']
         disabled    = t['text_disabled']
 
         label_style = (
             f"font-weight: bold; font-size: {config.FONT_SIZES['medium']}px; "
-            f"color: {accent_text}; margin-top: 15px; margin-bottom: 5px;"
+            f"color: {accent_ink}; margin-top: 15px; margin-bottom: 5px;"
         )
         for _tip_widget, _tip_tail in getattr(self, '_themed_tips', []):
             try:
-                _tip_widget.setStyleSheet(f"color: {accent_text}; " + _tip_tail)
+                _tip_widget.setStyleSheet(f"color: {accent_ink}; " + _tip_tail)
             except RuntimeError:
                 pass
         if hasattr(self, 'harmony_description'):
@@ -2508,7 +2508,7 @@ class PackageDPanel(QDialog):
                 pass
         for _hdr in getattr(self, '_themed_headers', []):
             try:
-                _hdr.setStyleSheet(_section_header_style(accent_text))
+                _hdr.setStyleSheet(_section_header_style(accent_ink))
             except RuntimeError:
                 pass
         for attr in ('_shortcuts_label', '_export_label', '_palette_label', '_picker_label'):
@@ -2586,7 +2586,7 @@ class PackageDPanel(QDialog):
             QPushButton:pressed {{
                 background-color: {pressed_bg};
                 border-color: {pressed_bg};
-                color: {accent_on};
+                color: {accent_text};
             }}
             QPushButton:disabled {{
                 background-color: {border};
@@ -2600,7 +2600,7 @@ class PackageDPanel(QDialog):
                 padding: 4px;
                 border-radius: 3px;
                 selection-background-color: {accent};
-                selection-color: {accent_on};
+                selection-color: {accent_text};
             }}
             QLineEdit:focus, QSpinBox:focus {{
                 border-color: {accent};
@@ -2647,7 +2647,7 @@ class PackageDPanel(QDialog):
                 height: 0px;
             }}
             QLabel[class="section-header"] {{
-                color: {accent_text}; font-weight: bold;
+                color: {accent_ink}; font-weight: bold;
             }}
             /* Primary action buttons inherit standard QPushButton styling */
         """)
@@ -2668,8 +2668,8 @@ class PackageDPanel(QDialog):
         border_col    = t['border_color']
         hover_bg      = t['panel_hover']
         accent_col    = t['accent']
-        accent_on_col = t['accent_on']
         accent_text_col = t['accent_text']
+        accent_ink_col = t['accent_ink']
 
         list_ss = f"""
                 QListWidget {{
@@ -2685,17 +2685,17 @@ class PackageDPanel(QDialog):
                 }}
                 QListWidget::item:hover {{
                     background-color: {hover_bg};
-                    color: {accent_text_col};
+                    color: {accent_ink_col};
                 }}
                 QListWidget::item:selected,
                 QListWidget::item:selected:active,
                 QListWidget::item:selected:!active {{
                     background-color: {accent_col};
-                    color: {accent_on_col};
+                    color: {accent_text_col};
                 }}
             """
         highlight      = QColor(accent_col)
-        highlight_text = QColor(accent_on_col)
+        highlight_text = QColor(accent_text_col)
         base           = QColor(bg_col)
         text           = QColor(text_col)
 
@@ -2742,7 +2742,7 @@ class PackageDPanel(QDialog):
 
         t               = _theme_colors(is_dark)
         highlight_color = QColor(t['accent'])
-        highlight_text  = QColor(t['accent_on'])
+        highlight_text  = QColor(t['accent_text'])
         base_color      = QColor(t['panel_secondary'])
         text_color      = QColor(t['text_color'])
 
@@ -2791,7 +2791,7 @@ class PackageDPanel(QDialog):
         t2 = _theme_colors(is_dark)
         palette = self.palette()
         palette.setColor(QPalette.ColorRole.Highlight,       QColor(t2['accent']))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(t2['accent_on']))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(t2['accent_text']))
         palette.setColor(QPalette.ColorRole.Base,            QColor(t2['input_bg']))
         palette.setColor(QPalette.ColorRole.Text,            QColor(t2['text_color']))
         palette.setColor(QPalette.ColorRole.Window,          QColor(t2['panel_bg']))
