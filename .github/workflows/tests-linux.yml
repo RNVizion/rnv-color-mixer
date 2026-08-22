@@ -54,7 +54,7 @@ jobs:
           # Production deps (PyQt6 + Pillow are imported by the app)
           pip install -r requirements.txt
           # Test deps (pytest-timeout was added in Phase 9.4)
-          pip install -r requirements-test.txt
+          pip install -r tests/requirements-dev.txt
 
       - name: Verify locked test file integrity
         # The locked file SHA-256 must never change. If this gate fails,

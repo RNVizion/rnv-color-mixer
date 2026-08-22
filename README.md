@@ -203,7 +203,7 @@ rnv-color-mixer/
 ├── .coveragerc              Coverage.py configuration
 ├── pyproject.toml           Project metadata & packaging config
 ├── requirements.txt         Runtime dependencies
-├── requirements-test.txt    Test dependencies
+├── tests/                   Test suite and its dependencies
 ├── py.typed                 PEP 561 type-hint marker
 ├── RNV_Color_Mixer.spec     PyInstaller build specification
 ├── build_windows.bat        Windows build convenience script
@@ -239,7 +239,7 @@ The project carries 886 tests across two harnesses:
 
 ```bash
 # One-time setup
-pip install -r requirements-test.txt
+pip install -r tests/requirements-dev.txt
 
 # Run all tests with coverage
 python run_tests.py

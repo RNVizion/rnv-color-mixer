@@ -62,7 +62,7 @@ dependencies = [
 
 # ─── Optional dependency groups ──────────────────────────────────────────
 # Install with: pip install -e ".[test]"
-# Mirrors requirements-test.txt for users who prefer the modern PEP 621
+# Mirrors tests/requirements-dev.txt for users who prefer the modern PEP 621
 # approach to dev-dependency management.
 [project.optional-dependencies]
 test = [
