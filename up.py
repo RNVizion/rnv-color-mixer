@@ -279,26 +279,85 @@ def _tail(out: str, lines: int = 40) -> str:
     return "\n".join(text.splitlines()[-lines:])
 
 
+ENV_HELP = """\
+THE ENVIRONMENT IS NOT READY. NO TEST DISAGREED WITH THIS CHANGE -- the run
+did not get far enough to ask one.
+
+This repo needs system libraries for PyQt6 that a fresh container does not
+ship. The give-away is `ImportError: libGL.so.1`. .github/workflows/
+tests-linux.yml installs exactly this list before it installs any Python
+package, and this is the same list:
+
+    sudo apt-get update
+    sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libdbus-1-3 \\
+      libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \\
+      libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \\
+      libxcb-xfixes0 libxcb-xkb1
+
+    pip install -r requirements.txt -r tests/requirements-dev.txt
+    python up.py --verify
+"""
+
+
+def _outcome(code: int, out: str) -> str:
+    """"env", "fail" or "pass" -- and only exit code 1 means a test failed.
+
+    pytest's exit codes are load-bearing here: 0 passed, 1 tests failed, 2
+    interrupted, 3 internal error, 4 usage error, 5 nothing collected. Treating
+    every non-zero code as a failing assertion is how a tool ends up telling
+    you a stylesheet changed when in fact pytest never started. That is worse
+    than saying nothing, because the obvious next move -- regenerate the
+    snapshots -- would destroy the only proof this change is neutral.
+    """
+    if code == 0:
+        return "pass"
+    if code == 1 and "INTERNALERROR" not in out:
+        return "fail"
+    return "env"
+
+
 def verify() -> int:
     """Snapshots first: they are the proof that nothing moved."""
+    if "RNV_UPDATE_SNAPSHOTS" in os.environ:
+        print("RNV_UPDATE_SNAPSHOTS is set, so a snapshot pass would prove "
+              "nothing.\nUnset it and re-run.")
+        return 1
+
+    # Preflight. Cheaper than discovering the same thing inside an
+    # INTERNALERROR traceback, and it fails in the right vocabulary.
+    code, out = run("checking PyQt6 can load",
+                    [sys.executable, "-c", "import PyQt6.QtWidgets"])
+    if code != 0:
+        print(_tail(out, 6))
+        print("\n" + ENV_HELP)
+        return code
+
     code, out = run("byte-exact stylesheet snapshots",
                     [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
                      "tests/test_snapshots.py"])
-    print("\n".join(out.strip().splitlines()[-4:]))
-    if code != 0:
-        print("\nFAILED -- a rendered stylesheet changed. This pass is only "
-              "correct if it changes nothing. Do NOT regenerate the snapshots.")
+    verdict = _outcome(code, out)
+    print(_tail(out) if verdict != "pass" else
+          "\n".join(out.strip().splitlines()[-4:]))
+    if verdict == "env":
+        print("\n" + ENV_HELP)
         return code
-    if "RNV_UPDATE_SNAPSHOTS" in os.environ:
-        print("\nFAILED -- RNV_UPDATE_SNAPSHOTS is set, so the snapshot pass "
-              "proves nothing. Unset it and re-run.")
-        return 1
+    if verdict == "fail":
+        print("\nFAILED -- a rendered stylesheet changed, and these tests did "
+              "run to say so.\nThis pass is only correct if it changes nothing. "
+              "Do NOT regenerate the\nsnapshots: they are the evidence, not the "
+              "obstacle.")
+        return code
 
     code, out = run("neutral ramp guard",
                     [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
                      "tests/test_neutral_ramp.py"])
-    print("\n".join(out.strip().splitlines()[-4:]))
-    if code != 0:
+    verdict = _outcome(code, out)
+    print(_tail(out) if verdict != "pass" else
+          "\n".join(out.strip().splitlines()[-4:]))
+    if verdict == "env":
+        print("\n" + ENV_HELP)
+        return code
+    if verdict == "fail":
         return code
 
     # Collection before execution. A test that cannot be IMPORTED has not
@@ -309,29 +368,24 @@ def verify() -> int:
                      "-p", "no:cacheprovider", "tests/"])
     if code != 0:
         print(_tail(out))
-        print("\nCOLLECTION FAILED, WHICH IS AN ENVIRONMENT PROBLEM AND NOT "
-              "THIS CHANGE.\n"
-              "Files that fail to import never reached a single assertion, and "
-              "the two\nsuites above -- the byte-exact stylesheet snapshots and "
-              "the ramp guard --\nboth passed, which is the whole proof that "
-              "nothing moved.\n\n"
-              "Almost always a missing dependency. Install both files and "
-              "re-run:\n\n"
-              "    pip install -r requirements.txt -r tests/requirements-dev.txt\n"
-              "    python up.py --verify\n\n"
-              "If it still fails, run one of the named files on its own to see "
-              "the real\nimport error, which the summary above truncates:\n\n"
-              "    python -m pytest tests/<the-file-it-named>.py -q")
+        print("\nCOLLECTION FAILED. Files that fail to import never reached a "
+              "single\nassertion, and the two suites above -- the byte-exact "
+              "stylesheet snapshots\nand the ramp guard -- both passed, which is "
+              "the whole proof that nothing\nmoved.\n\n" + ENV_HELP)
         return code
 
     code, out = run("tests/ suite (about 3 minutes)",
                     [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
                      "tests/"])
-    print(_tail(out) if code != 0 else
+    verdict = _outcome(code, out)
+    print(_tail(out) if verdict != "pass" else
           "\n".join(out.strip().splitlines()[-4:]))
-    if code != 0:
-        print("\nFAILED -- the suite is not green. Nothing above was reverted; "
-              "`git diff` shows exactly what landed.")
+    if verdict == "env":
+        print("\n" + ENV_HELP)
+        return code
+    if verdict == "fail":
+        print("\nFAILED -- the suite is not green. Nothing was reverted; "
+              "`git diff` shows\nexactly what landed.")
         return code
 
     print("\nGreen.\n"
