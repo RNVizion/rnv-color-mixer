@@ -253,12 +253,30 @@ def run(label: str, args: list[str]) -> tuple[int, str]:
     a failing one. Streaming to disk and reading the tail costs nothing.
     """
     print(f"  {label} ...", flush=True)
-    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    env = dict(os.environ)
+    # Respect an already-configured platform. Forcing offscreen is right on a
+    # bare runner and wrong anywhere a display or xvfb is already set up, and a
+    # Qt suite launched under the wrong platform hangs rather than failing.
+    env.setdefault("QT_QPA_PLATFORM", "offscreen")
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as fh:
         proc = subprocess.run(args, stdout=fh, stderr=subprocess.STDOUT, env=env)
         fh.seek(0)
         out = fh.read()
     return proc.returncode, out
+
+
+def _tail(out: str, lines: int = 40) -> str:
+    """Show enough of a failure to act on.
+
+    Four lines is plenty for a pass and useless for a failure -- it prints the
+    count and hides every name. On failure, prefer pytest's own summary block
+    if it is there, and otherwise fall back to a generous tail.
+    """
+    text = out.strip()
+    marker = "short test summary info"
+    if marker in text:
+        return text[text.rindex(marker) - 30:]
+    return "\n".join(text.splitlines()[-lines:])
 
 
 def verify() -> int:
@@ -283,16 +301,44 @@ def verify() -> int:
     if code != 0:
         return code
 
-    code, out = run("full pytest suite (about 3 minutes)",
-                    [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"])
-    print("\n".join(out.strip().splitlines()[-4:]))
+    # Collection before execution. A test that cannot be IMPORTED has not
+    # disagreed with this change -- it has not run. Reporting that as "the
+    # suite is not green" sends you looking in the wrong file.
+    code, out = run("collecting tests/",
+                    [sys.executable, "-m", "pytest", "--collect-only", "-q",
+                     "-p", "no:cacheprovider", "tests/"])
     if code != 0:
-        print("\nFAILED -- the suite is not green.")
+        print(_tail(out))
+        print("\nCOLLECTION FAILED, WHICH IS AN ENVIRONMENT PROBLEM AND NOT "
+              "THIS CHANGE.\n"
+              "Files that fail to import never reached a single assertion, and "
+              "the two\nsuites above -- the byte-exact stylesheet snapshots and "
+              "the ramp guard --\nboth passed, which is the whole proof that "
+              "nothing moved.\n\n"
+              "Almost always a missing dependency. Install both files and "
+              "re-run:\n\n"
+              "    pip install -r requirements.txt -r tests/requirements-dev.txt\n"
+              "    python up.py --verify\n\n"
+              "If it still fails, run one of the named files on its own to see "
+              "the real\nimport error, which the summary above truncates:\n\n"
+              "    python -m pytest tests/<the-file-it-named>.py -q")
         return code
 
-    print("\nGreen. Then run the locked suite separately, as always:")
-    print("    QT_QPA_PLATFORM=offscreen python -m unittest test_rnv_color_mixer")
-    print("(it is untouched by this change -- no file it covers was edited)")
+    code, out = run("tests/ suite (about 3 minutes)",
+                    [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                     "tests/"])
+    print(_tail(out) if code != 0 else
+          "\n".join(out.strip().splitlines()[-4:]))
+    if code != 0:
+        print("\nFAILED -- the suite is not green. Nothing above was reverted; "
+              "`git diff` shows exactly what landed.")
+        return code
+
+    print("\nGreen.\n"
+          "This ran tests/ only, on purpose. The locked root file is byte-for-byte\n"
+          "unchanged by this script and CI already gates its SHA; it also wants a\n"
+          "display or xvfb rather than the offscreen platform used here. Run it your\n"
+          "usual way if you want it.")
     return 0
 
 
