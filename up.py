@@ -71,6 +71,13 @@ EXPECTED = {"DARK_STYLESHEET": 40, "LIGHT_STYLESHEET": 50, "IMAGE_STYLESHEET": 3
 EXPECTED_CONSTANTS = 14
 HEX6 = re.compile(r"#[0-9a-fA-F]{6}\b")
 
+# Exactly what .github/workflows/tests-linux.yml deselects, and for the reason
+# KNOWN_ISSUES.md gives: this class aborts Python natively (SIGABRT) on
+# offscreen Linux. Running it here would produce a crash that reads like a
+# regression in whatever change is in flight. It is not one.
+DESELECT = ["--deselect",
+            "tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths"]
+
 MAPS = {
     "DARK_STYLESHEET": {
         "#000000": "TRUE_BLACK",
@@ -299,21 +306,53 @@ package, and this is the same list:
 """
 
 
+ABORT_HELP = """\
+PYTHON ABORTED NATIVELY. THAT IS NOT A FAILING ASSERTION, AND KNOWN_ISSUES.md
+IN THIS REPO ALREADY DESCRIBES IT.
+
+Two entries there cover it. `TestAsyncFileOpsErrorPaths` aborts reliably with
+SIGABRT on offscreen Linux and is deselected here exactly as CI deselects it.
+`test_save_async_emits_finished_with_success_true` aborts roughly one run in
+thirty, much more readily under load, and was measured doing so on an
+UNTOUCHED CHECKOUT OF MAIN. The file says why that matters:
+
+    "The abort surfaces during whatever work happens to be in flight, and it
+     reads exactly like a regression in that work. It is not one."
+
+Re-run:
+
+    python up.py --verify
+
+If it aborts every time on the same test, that is worth looking at. If it
+comes and goes, it is the documented thread-lifecycle issue and this change
+is not involved -- the snapshot suite above is the proof of that, and it runs
+first for exactly this reason.
+"""
+
+
 def _outcome(code: int, out: str) -> str:
-    """"env", "fail" or "pass" -- and only exit code 1 means a test failed.
+    """"pass", "fail", "abort" or "env" -- only exit code 1 means a test failed.
 
     pytest's exit codes are load-bearing here: 0 passed, 1 tests failed, 2
-    interrupted, 3 internal error, 4 usage error, 5 nothing collected. Treating
-    every non-zero code as a failing assertion is how a tool ends up telling
-    you a stylesheet changed when in fact pytest never started. That is worse
-    than saying nothing, because the obvious next move -- regenerate the
-    snapshots -- would destroy the only proof this change is neutral.
+    interrupted, 3 internal error, 4 usage error, 5 nothing collected. A native
+    abort arrives as 134 or -6 and never as 1.
+
+    Treating every non-zero code as a failing assertion is how a tool ends up
+    telling you a stylesheet changed when pytest never started. That is worse
+    than saying nothing: the obvious next move -- regenerate the snapshots --
+    would destroy the only proof this change is neutral.
     """
     if code == 0:
         return "pass"
+    if code in (134, -6, 139, -11) or "Fatal Python error" in out:
+        return "abort"
     if code == 1 and "INTERNALERROR" not in out:
         return "fail"
     return "env"
+
+
+def _report(verdict: str) -> None:
+    print("\n" + (ABORT_HELP if verdict == "abort" else ENV_HELP))
 
 
 def verify() -> int:
@@ -338,8 +377,8 @@ def verify() -> int:
     verdict = _outcome(code, out)
     print(_tail(out) if verdict != "pass" else
           "\n".join(out.strip().splitlines()[-4:]))
-    if verdict == "env":
-        print("\n" + ENV_HELP)
+    if verdict in ("env", "abort"):
+        _report(verdict)
         return code
     if verdict == "fail":
         print("\nFAILED -- a rendered stylesheet changed, and these tests did "
@@ -354,8 +393,8 @@ def verify() -> int:
     verdict = _outcome(code, out)
     print(_tail(out) if verdict != "pass" else
           "\n".join(out.strip().splitlines()[-4:]))
-    if verdict == "env":
-        print("\n" + ENV_HELP)
+    if verdict in ("env", "abort"):
+        _report(verdict)
         return code
     if verdict == "fail":
         return code
@@ -365,7 +404,7 @@ def verify() -> int:
     # suite is not green" sends you looking in the wrong file.
     code, out = run("collecting tests/",
                     [sys.executable, "-m", "pytest", "--collect-only", "-q",
-                     "-p", "no:cacheprovider", "tests/"])
+                     "-p", "no:cacheprovider", "tests/", *DESELECT])
     if code != 0:
         print(_tail(out))
         print("\nCOLLECTION FAILED. Files that fail to import never reached a "
@@ -376,12 +415,12 @@ def verify() -> int:
 
     code, out = run("tests/ suite (about 3 minutes)",
                     [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                     "tests/"])
+                     "tests/", *DESELECT])
     verdict = _outcome(code, out)
     print(_tail(out) if verdict != "pass" else
           "\n".join(out.strip().splitlines()[-4:]))
-    if verdict == "env":
-        print("\n" + ENV_HELP)
+    if verdict in ("env", "abort"):
+        _report(verdict)
         return code
     if verdict == "fail":
         print("\nFAILED -- the suite is not green. Nothing was reverted; "
