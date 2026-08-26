@@ -159,6 +159,108 @@ GOLD_PROVENANCE: Final[dict[str, str]] = {
     "BRAND_GOLD_PRESSED": "alias",
 }
 
+# ==================== APP NEUTRALS ====================
+#
+# WHY THESE EXIST. The three stylesheet templates below used to carry 120 hex
+# literals -- 40 dark, 50 light, 30 image -- while the golds twenty lines up
+# were already interpolated from constants. A literal cannot follow its base:
+# move a value here and the templates keep the old one, silently, with nothing
+# to report it. Every rendered hex now has a key, which is the same rule the
+# gold aliases above were written for.
+#
+# NAMED BY ROLE, NOT BY BYTE. A step is named for the job it does, and where
+# one value does two jobs the comment says both rather than minting a second
+# constant. The one exception is APP_BTN_HOVER_INVERSE, which is assigned FROM
+# its base rather than repeating the value, so the two move together.
+#
+# THIS IS A REWIRE, NOT A RETUNE. Every value below is exactly what the
+# templates already rendered. tests/test_snapshots.py compares the three
+# stylesheets byte-for-byte against frozen references; if those pass without
+# regeneration, nothing moved.
+
+TRUE_BLACK: Final[str] = "#000000"
+"""Window and scroll-area ground in dark; primary text in light; the label on
+a pressed control in dark; the selection foreground in every mode."""
+
+WHITE: Final[str] = "#ffffff"
+"""Control surface in light -- button, input, combo, scroll area -- and the
+label on a pressed control in light."""
+
+# ---- dark and image ----
+APP_SURFACE_DARK: Final[str] = "#1a1a1a"
+"""Control surface in dark and image: button, input, combo, status bar, and
+the slider groove."""
+
+APP_BORDER_DARK: Final[str] = "#333333"
+"""Every border in dark and image. Also the hover ground and the splitter
+handle -- in dark the hover fill deliberately equals the border step, so a
+hovered control reads as its own outline filling in."""
+
+APP_TEXT_DARK: Final[str] = "#e0e0e0"
+"""Primary text in dark and image. Also the slider handle, which takes the
+brightest step in the ramp rather than a colour of its own."""
+
+APP_HANDLE_HOVER_DARK: Final[str] = "#f0f0f0"
+"""Slider handle when hovered, dark and image. One step above the text."""
+
+# ---- light ----
+APP_WINDOW_LIGHT: Final[str] = "#f5f5f5"
+"""Window ground in light, the status bar, and the scrollbar track."""
+
+APP_BORDER_LIGHT: Final[str] = "#cccccc"
+"""Every border in light. Also the scrollbar handle at rest and the splitter
+handle, on the same reasoning as APP_BORDER_DARK."""
+
+APP_ITEM_HOVER_LIGHT: Final[str] = "#eeeeee"
+"""Combo-box item under the cursor, light. The list hover, not the button
+hover -- those are different schemes, see APP_BTN_HOVER_INVERSE."""
+
+APP_HANDLE_LIGHT: Final[str] = "#666666"
+"""Slider handle at rest, light."""
+
+APP_HANDLE_EDGE_LIGHT: Final[str] = "#999999"
+"""The emphasised edge of a light handle: the slider handle's border, and the
+scrollbar handle when hovered."""
+
+APP_CONTROL_DIM: Final[str] = "#555555"
+"""Two unrelated jobs on one step: the light slider handle when hovered, and
+the image-mode checkbox indicator border. Worth knowing that dark mode draws
+that same checkbox border with APP_BORDER_DARK while rnv-color-picker and
+rnv-icon-builder use this step in both -- an inconsistency this pass records
+and does not change, because nothing here may move a pixel."""
+
+# ---- the inverse button scheme, both modes ----
+APP_BTN_HOVER_INVERSE: Final[str] = APP_BORDER_DARK
+"""The basic button's hover ground. Light mode borrows the dark step on
+purpose: the scheme inverts on hover, and the label stays put. Assigned from
+APP_BORDER_DARK rather than repeating the value so the two cannot drift
+apart."""
+
+APP_BTN_PRESSED: Final[str] = "#444444"
+"""The basic button's pressed fill, identical in all three modes. The label
+flips instead -- TRUE_BLACK on dark, WHITE on light."""
+
+# Declarative provenance, read by tests/test_neutral_ramp.py, in the same
+# shape as GOLD_PROVENANCE above. A classification that lives only in a test
+# drifts from the thing it classifies.
+NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
+    "TRUE_BLACK": "anchor",
+    "WHITE": "anchor",
+    "APP_SURFACE_DARK": "step",
+    "APP_BORDER_DARK": "step",
+    "APP_TEXT_DARK": "step",
+    "APP_HANDLE_HOVER_DARK": "step",
+    "APP_WINDOW_LIGHT": "step",
+    "APP_BORDER_LIGHT": "step",
+    "APP_ITEM_HOVER_LIGHT": "step",
+    "APP_HANDLE_LIGHT": "step",
+    "APP_HANDLE_EDGE_LIGHT": "step",
+    "APP_CONTROL_DIM": "step",
+    "APP_BTN_PRESSED": "step",
+    "APP_BTN_HOVER_INVERSE": "alias",
+}
+
+
 class ThemeManager:
     """Manages application themes with Dark Mode, Light Mode, and Image Mode"""
     
@@ -403,23 +505,23 @@ EMBEDDED_FONT_DATA = ""
 # Updated Stylesheets using new theme system with LARGER BUTTONS
 DARK_STYLESHEET = f"""
 QMainWindow {{
-    background-color: #000000;
-    color: #e0e0e0;
+    background-color: {TRUE_BLACK};
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QWidget {{
-    background-color: #000000;
-    color: #e0e0e0;
+    background-color: {TRUE_BLACK};
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QPushButton {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
@@ -428,27 +530,27 @@ QPushButton {{
 }}
 
 QPushButton:hover {{
-    background-color: #333333;
-    border-color: #333333;
+    background-color: {APP_BORDER_DARK};
+    border-color: {APP_BORDER_DARK};
 }}
 
 QPushButton:pressed {{
-    background-color: #444444;
-    color: #000000;
-    border-color: #333333;
+    background-color: {APP_BTN_PRESSED};
+    color: {TRUE_BLACK};
+    border-color: {APP_BORDER_DARK};
 }}
 
 QLineEdit {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: {BRAND_GOLD};
-    selection-color: #000000;
+    selection-color: {TRUE_BLACK};
 }}
 
 QLineEdit:focus {{
@@ -456,33 +558,33 @@ QLineEdit:focus {{
 }}
 
 QLabel {{
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QSlider::groove:horizontal {{
-    border: 1px solid #333333;
+    border: 1px solid {APP_BORDER_DARK};
     height: 8px;
-    background: #1a1a1a;
+    background: {APP_SURFACE_DARK};
     border-radius: 4px;
 }}
 
 QSlider::handle:horizontal {{
-    background: #e0e0e0;
-    border: 1px solid #333333;
+    background: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     width: 18px;
     border-radius: 9px;
     margin: -5px 0;
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: #f0f0f0;
+    background: {APP_HANDLE_HOVER_DARK};
 }}
 
 QScrollArea {{
-    background-color: #000000;
-    border: 1px solid #333333;
+    background-color: {TRUE_BLACK};
+    border: 1px solid {APP_BORDER_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
@@ -540,23 +642,23 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 }}
 
 QStatusBar {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-    border-top: 1px solid #333333;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
+    border-top: 1px solid {APP_BORDER_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QStatusBar QLabel {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
     padding: 2px 4px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -564,8 +666,8 @@ QCheckBox {{
 QCheckBox::indicator {{
     width: 13px;
     height: 13px;
-    background-color: #1a1a1a;
-    border: 1px solid #333333;
+    background-color: {APP_SURFACE_DARK};
+    border: 1px solid {APP_BORDER_DARK};
 }}
 
 QCheckBox::indicator:checked {{
@@ -574,7 +676,7 @@ QCheckBox::indicator:checked {{
 }}
 
 QSplitter::handle {{
-    background-color: #333333;
+    background-color: {APP_BORDER_DARK};
 }}
 
 QSplitter::handle:horizontal {{
@@ -586,9 +688,9 @@ QSplitter::handle:vertical {{
 }}
 
 QComboBox {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
@@ -600,42 +702,42 @@ QComboBox:hover {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
     selection-background-color: {BRAND_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
-    background-color: #333333;
+    background-color: {APP_BORDER_DARK};
     color: {BRAND_GOLD};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
     background-color: {BRAND_GOLD};
-    color: #000000;
+    color: {TRUE_BLACK};
 }}
 """
 
 LIGHT_STYLESHEET = f"""
 QMainWindow {{
-    background-color: #f5f5f5;
-    color: #000000;
+    background-color: {APP_WINDOW_LIGHT};
+    color: {TRUE_BLACK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QWidget {{
-    background-color: #f5f5f5;
-    color: #000000;
+    background-color: {APP_WINDOW_LIGHT};
+    color: {TRUE_BLACK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QPushButton {{
-    background-color: #ffffff;
-    color: #000000;
-    border: 1px solid #cccccc;
+    background-color: {WHITE};
+    color: {TRUE_BLACK};
+    border: 1px solid {APP_BORDER_LIGHT};
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
@@ -644,27 +746,27 @@ QPushButton {{
 }}
 
 QPushButton:hover {{
-    background-color: #333333;
-    border-color: #cccccc;
+    background-color: {APP_BTN_HOVER_INVERSE};
+    border-color: {APP_BORDER_LIGHT};
 }}
 
 QPushButton:pressed {{
-    background-color: #444444;
-    color: #ffffff;
-    border-color: #cccccc;
+    background-color: {APP_BTN_PRESSED};
+    color: {WHITE};
+    border-color: {APP_BORDER_LIGHT};
 }}
 
 QLineEdit {{
-    background-color: #ffffff;
-    color: #000000;
-    border: 1px solid #cccccc;
+    background-color: {WHITE};
+    color: {TRUE_BLACK};
+    border: 1px solid {APP_BORDER_LIGHT};
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: {BRAND_DARK_GOLD};
-    selection-color: #ffffff;
+    selection-color: {WHITE};
 }}
 
 QLineEdit:focus {{
@@ -672,82 +774,82 @@ QLineEdit:focus {{
 }}
 
 QLabel {{
-    color: #000000;
+    color: {TRUE_BLACK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QSlider::groove:horizontal {{
-    border: 1px solid #cccccc;
+    border: 1px solid {APP_BORDER_LIGHT};
     height: 8px;
-    background: #ffffff;
+    background: {WHITE};
     border-radius: 4px;
 }}
 
 QSlider::handle:horizontal {{
-    background: #666666;
-    border: 1px solid #999999;
+    background: {APP_HANDLE_LIGHT};
+    border: 1px solid {APP_HANDLE_EDGE_LIGHT};
     width: 18px;
     border-radius: 9px;
     margin: -5px 0;
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: #555555;
+    background: {APP_CONTROL_DIM};
 }}
 
 QScrollArea {{
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
+    background-color: {WHITE};
+    border: 1px solid {APP_BORDER_LIGHT};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QScrollBar:vertical {{
-    background-color: #f5f5f5;
+    background-color: {APP_WINDOW_LIGHT};
     width: 15px;
     border: none;
 }}
 
 QScrollBar::handle:vertical {{
-    background-color: #cccccc;
+    background-color: {APP_BORDER_LIGHT};
     min-height: 20px;
     border-radius: 7px;
 }}
 
 QScrollBar::handle:vertical:hover {{
-    background-color: #999999;
+    background-color: {APP_HANDLE_EDGE_LIGHT};
 }}
 
 QScrollBar::sub-page:vertical {{
-    background-color: #f5f5f5;
+    background-color: {APP_WINDOW_LIGHT};
 }}
 
 QScrollBar::add-page:vertical {{
-    background-color: #f5f5f5;
+    background-color: {APP_WINDOW_LIGHT};
 }}
 
 QScrollBar:horizontal {{
-    background-color: #f5f5f5;
+    background-color: {APP_WINDOW_LIGHT};
     height: 15px;
     border: none;
 }}
 
 QScrollBar::handle:horizontal {{
-    background-color: #cccccc;
+    background-color: {APP_BORDER_LIGHT};
     min-width: 20px;
     border-radius: 7px;
 }}
 
 QScrollBar::handle:horizontal:hover {{
-    background-color: #999999;
+    background-color: {APP_HANDLE_EDGE_LIGHT};
 }}
 
 QScrollBar::sub-page:horizontal {{
-    background-color: #f5f5f5;
+    background-color: {APP_WINDOW_LIGHT};
 }}
 
 QScrollBar::add-page:horizontal {{
-    background-color: #f5f5f5;
+    background-color: {APP_WINDOW_LIGHT};
 }}
 
 QScrollBar::add-line, QScrollBar::sub-line {{
@@ -756,23 +858,23 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 }}
 
 QStatusBar {{
-    background-color: #f5f5f5;
-    color: #000000;
-    border-top: 1px solid #cccccc;
+    background-color: {APP_WINDOW_LIGHT};
+    color: {TRUE_BLACK};
+    border-top: 1px solid {APP_BORDER_LIGHT};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QStatusBar QLabel {{
-    background-color: #f5f5f5;
-    color: #000000;
+    background-color: {APP_WINDOW_LIGHT};
+    color: {TRUE_BLACK};
     padding: 2px 4px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
-    color: #000000;
+    color: {TRUE_BLACK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -780,8 +882,8 @@ QCheckBox {{
 QCheckBox::indicator {{
     width: 13px;
     height: 13px;
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
+    background-color: {WHITE};
+    border: 1px solid {APP_BORDER_LIGHT};
 }}
 
 QCheckBox::indicator:checked {{
@@ -790,7 +892,7 @@ QCheckBox::indicator:checked {{
 }}
 
 QSplitter::handle {{
-    background-color: #cccccc;
+    background-color: {APP_BORDER_LIGHT};
 }}
 
 QSplitter::handle:horizontal {{
@@ -802,9 +904,9 @@ QSplitter::handle:vertical {{
 }}
 
 QComboBox {{
-    background-color: #ffffff;
-    color: #000000;
-    border: 1px solid #cccccc;
+    background-color: {WHITE};
+    color: {TRUE_BLACK};
+    border: 1px solid {APP_BORDER_LIGHT};
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
@@ -816,27 +918,27 @@ QComboBox:hover {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: #ffffff;
-    color: #000000;
+    background-color: {WHITE};
+    color: {TRUE_BLACK};
     selection-background-color: {BRAND_DARK_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
-    background-color: #eeeeee;
+    background-color: {APP_ITEM_HOVER_LIGHT};
     color: {BRAND_DARK_GOLD_DEEP};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
     background-color: {BRAND_DARK_GOLD};
-    color: #ffffff;
+    color: {WHITE};
 }}
 """
 
 # NEW: Image Mode Stylesheet (modified from Dark theme to allow background image)
 IMAGE_STYLESHEET = f"""
 QMainWindow {{
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -847,7 +949,7 @@ QMainWindow > QWidget {{
 
 QWidget {{
     background-color: transparent;
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -857,9 +959,9 @@ QFrame, QScrollArea, QLabel {{
 }}
 
 QPushButton {{
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    background-color: {APP_SURFACE_DARK};
+    color: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
@@ -868,27 +970,27 @@ QPushButton {{
 }}
 
 QPushButton:hover {{
-    background-color: #333333;
-    border-color: #333333;
+    background-color: {APP_BORDER_DARK};
+    border-color: {APP_BORDER_DARK};
 }}
 
 QPushButton:pressed {{
-    background-color: #444444;
-    color: #000000;
-    border-color: #333333;
+    background-color: {APP_BTN_PRESSED};
+    color: {TRUE_BLACK};
+    border-color: {APP_BORDER_DARK};
 }}
 
 QLineEdit {{
     background-color: rgba(0, 0, 0, 171);
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    color: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: {BRAND_GOLD};
-    selection-color: #000000;
+    selection-color: {TRUE_BLACK};
 }}
 
 QLineEdit:focus {{
@@ -896,29 +998,29 @@ QLineEdit:focus {{
 }}
 
 QLabel {{
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     background-color: transparent;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QSlider::groove:horizontal {{
-    border: 1px solid #333333;
+    border: 1px solid {APP_BORDER_DARK};
     height: 8px;
-    background: #1a1a1a;
+    background: {APP_SURFACE_DARK};
     border-radius: 4px;
 }}
 
 QSlider::handle:horizontal {{
-    background: #e0e0e0;
-    border: 1px solid #333333;
+    background: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     width: 18px;
     border-radius: 9px;
     margin: -5px 0;
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: #f0f0f0;
+    background: {APP_HANDLE_HOVER_DARK};
 }}
 
 QScrollArea {{
@@ -994,22 +1096,22 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 
 QStatusBar {{
     background-color: rgba(26, 26, 26, 200);
-    color: #e0e0e0;
-    border-top: 1px solid #333333;
+    color: {APP_TEXT_DARK};
+    border-top: 1px solid {APP_BORDER_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QStatusBar QLabel {{
     background-color: transparent;
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     padding: 2px 4px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
     font-size: {FONT_SIZES["normal"]}px;
 }}
@@ -1018,7 +1120,7 @@ QCheckBox::indicator {{
     width: 13px;
     height: 13px;
     background-color: rgba(0, 0, 0, 100);
-    border: 1px solid #555555;
+    border: 1px solid {APP_CONTROL_DIM};
 }}
 
 QCheckBox::indicator:checked {{
@@ -1027,7 +1129,7 @@ QCheckBox::indicator:checked {{
 }}
 
 QSplitter::handle {{
-    background-color: #333333;
+    background-color: {APP_BORDER_DARK};
 }}
 
 QSplitter::handle:horizontal {{
@@ -1040,8 +1142,8 @@ QSplitter::handle:vertical {{
 
 QComboBox {{
     background-color: rgba(26, 26, 26, 191);
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    color: {APP_TEXT_DARK};
+    border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
@@ -1054,19 +1156,19 @@ QComboBox:hover {{
 
 QComboBox QAbstractItemView {{
     background-color: rgba(26, 26, 26, 191);
-    color: #e0e0e0;
+    color: {APP_TEXT_DARK};
     selection-background-color: {BRAND_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
 }}
 
 QComboBox QAbstractItemView::item:hover {{
-    background-color: #333333;
+    background-color: {APP_BORDER_DARK};
     color: {BRAND_GOLD};
 }}
 
 QComboBox QAbstractItemView::item:selected {{
     background-color: {BRAND_GOLD};
-    color: #000000;
+    color: {TRUE_BLACK};
 }}
 """
 
