@@ -342,7 +342,11 @@ class ThemeManager:
         'scrollbar_handle': '#cccccc',
         'scrollbar_hover': BRAND_DARK_GOLD,
         'slider_handle': '#666666',
-        'text_hint': '#888888',
+        # The 10px hint under each fine-tune slider is the only consumer, and
+        # it sits on the QFrame that section builds -- panel_secondary, not
+        # panel_bg. #888888 read 3.5407:1 there, below AA for text this
+        # size. #666666 clears 4.5 on every light ground in this app.
+        'text_hint': '#666666',
         'menu_disabled': '#999999',
     }
     
