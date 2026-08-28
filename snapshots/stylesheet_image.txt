@@ -1,6 +1,6 @@
 
 QMainWindow {
-    color: #e0e0e0;
+    color: #dddddd;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
@@ -11,7 +11,7 @@ QMainWindow > QWidget {
 
 QWidget {
     background-color: transparent;
-    color: #e0e0e0;
+    color: #dddddd;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
@@ -22,7 +22,7 @@ QFrame, QScrollArea, QLabel {
 
 QPushButton {
     background-color: #1a1a1a;
-    color: #e0e0e0;
+    color: #dddddd;
     border: 1px solid #333333;
     padding: 2px;
     border-radius: 4px;
@@ -44,7 +44,7 @@ QPushButton:pressed {
 
 QLineEdit {
     background-color: rgba(0, 0, 0, 171);
-    color: #e0e0e0;
+    color: #dddddd;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -60,7 +60,7 @@ QLineEdit:focus {
 }
 
 QLabel {
-    color: #e0e0e0;
+    color: #dddddd;
     background-color: transparent;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
@@ -74,7 +74,7 @@ QSlider::groove:horizontal {
 }
 
 QSlider::handle:horizontal {
-    background: #e0e0e0;
+    background: #dddddd;
     border: 1px solid #333333;
     width: 18px;
     border-radius: 9px;
@@ -82,7 +82,7 @@ QSlider::handle:horizontal {
 }
 
 QSlider::handle:horizontal:hover {
-    background: #f0f0f0;
+    background: #eeeeee;
 }
 
 QScrollArea {
@@ -158,7 +158,7 @@ QScrollBar::add-line, QScrollBar::sub-line {
 
 QStatusBar {
     background-color: rgba(26, 26, 26, 200);
-    color: #e0e0e0;
+    color: #dddddd;
     border-top: 1px solid #333333;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 9px;
@@ -166,14 +166,14 @@ QStatusBar {
 
 QStatusBar QLabel {
     background-color: transparent;
-    color: #e0e0e0;
+    color: #dddddd;
     padding: 2px 4px;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 9px;
 }
 
 QCheckBox {
-    color: #e0e0e0;
+    color: #dddddd;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
     font-size: 10px;
 }
@@ -204,7 +204,7 @@ QSplitter::handle:vertical {
 
 QComboBox {
     background-color: rgba(26, 26, 26, 191);
-    color: #e0e0e0;
+    color: #dddddd;
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
@@ -218,7 +218,7 @@ QComboBox:hover {
 
 QComboBox QAbstractItemView {
     background-color: rgba(26, 26, 26, 191);
-    color: #e0e0e0;
+    color: #dddddd;
     selection-background-color: #d2bc93;
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
 }

@@ -196,12 +196,16 @@ APP_BORDER_DARK: Final[str] = "#333333"
 handle -- in dark the hover fill deliberately equals the border step, so a
 hovered control reads as its own outline filling in."""
 
-APP_TEXT_DARK: Final[str] = "#e0e0e0"
+APP_TEXT_DARK: Final[str] = "#dddddd"
 """Primary text in dark and image. Also the slider handle, which takes the
 brightest step in the ramp rather than a colour of its own."""
 
-APP_HANDLE_HOVER_DARK: Final[str] = "#f0f0f0"
-"""Slider handle when hovered, dark and image. One step above the text."""
+APP_HANDLE_HOVER_DARK: Final[str] = "#eeeeee"
+"""Slider handle when hovered, dark and image. One step above the
+text: grey(14), where APP_TEXT_DARK is grey(13), on the published
+ink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was
+0x10 -- the surface ladder step, not the grid step -- and the
+sentence was true by accident."""
 
 # ---- light ----
 APP_WINDOW_LIGHT: Final[str] = "#f5f5f5"
@@ -267,11 +271,11 @@ class ThemeManager:
     DARK_THEME = {
         'name': 'Dark',
         'window_bg': '#000000',
-        'text_color': '#e0e0e0',
+        'text_color': APP_TEXT_DARK,
         'border_color': '#333333',
         'hover_color': '#444444',
         'button_bg': '#1a1a1a',
-        'button_text': '#e0e0e0',
+        'button_text': APP_TEXT_DARK,
         'button_hover_bg': '#333333',
         'button_pressed_bg': BRAND_GOLD_PRESSED,
         'button_pressed_text': '#000000',
@@ -281,8 +285,8 @@ class ThemeManager:
         'canvas_bg': '#0a0a0a',
         'scroll_area_bg': '#000000',
         'input_bg': '#1a1a1a',
-        'input_text': '#e0e0e0',
-        'slot_border': '#e0e0e0',
+        'input_text': APP_TEXT_DARK,
+        'slot_border': APP_TEXT_DARK,
         'slot_border_width': 2,
         'label_bg': '#1a1a1a',
         'label_border': '#333333',
@@ -300,7 +304,7 @@ class ThemeManager:
         'scrollbar_bg': '#1a1a1a',
         'scrollbar_handle': '#333333',
         'scrollbar_hover': BRAND_GOLD,
-        'slider_handle': '#e0e0e0',
+        'slider_handle': APP_TEXT_DARK,
         'text_hint': '#888888',
         'menu_disabled': '#666666',
     }
@@ -354,11 +358,11 @@ class ThemeManager:
     IMAGE_THEME = {
         'name': 'Image',
         'window_bg': '#000000',
-        'text_color': '#e0e0e0',
+        'text_color': APP_TEXT_DARK,
         'border_color': '#333333',
         'hover_color': '#444444',
         'button_bg': '#1a1a1a',
-        'button_text': '#e0e0e0',
+        'button_text': APP_TEXT_DARK,
         'button_hover_bg': '#333333',
         'button_pressed_bg': BRAND_GOLD_PRESSED,
         'button_pressed_text': '#000000',
@@ -368,8 +372,8 @@ class ThemeManager:
         'canvas_bg': '#0a0a0a',
         'scroll_area_bg': '#000000',
         'input_bg': '#1a1a1a',
-        'input_text': '#e0e0e0',
-        'slot_border': '#e0e0e0',
+        'input_text': APP_TEXT_DARK,
+        'slot_border': APP_TEXT_DARK,
         'slot_border_width': 2,
         'label_bg': '#1a1a1a',
         'label_border': '#333333',
@@ -387,7 +391,7 @@ class ThemeManager:
         'scrollbar_bg': '#1a1a1a',
         'scrollbar_handle': '#333333',
         'scrollbar_hover': BRAND_GOLD,
-        'slider_handle': '#e0e0e0',
+        'slider_handle': APP_TEXT_DARK,
         'text_hint': '#888888',
         'menu_disabled': '#666666',
     }

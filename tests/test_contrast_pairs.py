@@ -215,9 +215,9 @@ def test_the_audit_finds_something_to_audit(theme):
 # The two button schemes, as the other four aligned apps render them.
 # (bg, fg) for rest, hover, pressed.
 MAIN_SCHEME = {
-    "DARK":  (("#1a1a1a", "#e0e0e0"), ("#333333", "#e0e0e0"), ("#444444", "#000000")),
+    "DARK":  (("#1a1a1a", "#dddddd"), ("#333333", "#dddddd"), ("#444444", "#000000")),
     "LIGHT": (("#ffffff", "#000000"), ("#333333", "#000000"), ("#444444", "#ffffff")),
-    "IMAGE": (("#1a1a1a", "#e0e0e0"), ("#333333", "#e0e0e0"), ("#444444", "#000000")),
+    "IMAGE": (("#1a1a1a", "#dddddd"), ("#333333", "#dddddd"), ("#444444", "#000000")),
 }
 
 
