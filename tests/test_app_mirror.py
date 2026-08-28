@@ -1,28 +1,37 @@
 """
-The APP register, mirrored -- and the ink move that made mirroring necessary.
+The APP register mirrored, and the ink move onto the published grid.
 
-WHY THIS FILE EXISTS. Until 2026-08-28 this app carried #e0e0e0, #1a1a1a,
-#2a2a2a and #333333 as bare hex literals with no constant and no provenance.
-Every one of them is a REGISTERED value in RNVizion/rnv-brand. A registered
-value could have moved upstream and this app would have kept the old one
-silently -- the same failure #c4a458 had, one level down.
+WHY THIS FILE EXISTS. This app did its neutral rewire on 2026-08-27, so every
+rendered hex already carried a constant -- but nothing checked those constants
+against RNVizion/rnv-brand. APP_TEXT_DARK, APP_SURFACE_DARK and APP_BORDER_DARK
+are all REGISTERED values, and the register could move upstream while this app
+kept the old ones, silently and with a clean test run.
 
-It nearly happened. `APP["text"]` moved from #e0e0e0 to #dddddd in
-rnv-brand@68d195e, and nothing here would have noticed.
+It nearly happened: APP["text"] moved to #dddddd in rnv-brand@68d195e, and
+nothing here would have noticed.
 
 THE INK GRID, published in the brand beside that move:
 
     grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.
 
-It governs INKS AND EDGES and deliberately does not govern surfaces --
-BRAND_BLACK sits at n = 1.53 and APP_CARD at n = 2.47, and BRAND_BLACK is a
-permanent that will not move to fit a ladder.
+It governs INKS AND EDGES and deliberately does not govern surfaces:
+APP_SURFACE_DARK is BRAND_BLACK #1a1a1a at n = 1.53, a permanent that will not
+move to fit a ladder.
 
 TWO GUARDS, NOT ONE. rnv-text-transformer's mirror test guards with
 `pytest.importorskip('engine.brand')`, so where rnv-brand is not importable it
 reports clean and drift hides. Every register value here is therefore pinned
 LOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is
 absent, the mirror catches the brand moving. Neither alone is enough.
+
+NO RETIRED GOLD IS QUOTED IN THIS FILE, AND THAT IS DELIBERATE.
+tests/test_brand_mirror.py sweeps every tracked file for the retired values and
+exempts only files that declare, by marker, that naming them IS their job. The
+first draft of this docstring cited one in passing to illustrate a point and
+turned CI red. Taking the marker would have been the wrong repair -- it would
+have made this file permanently exempt from a sweep it has no business being
+exempt from. So the prose describes the failure without quoting the value, and
+the delivery script now refuses to install a guard that would trip the sweep.
 """
 from __future__ import annotations
 
