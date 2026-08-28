@@ -2,66 +2,62 @@
 """
 RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP
 
-Move rnv-color-mixer's dark ink onto the published grid, and take the slider
-handle with it.
+Fix the docstring the ink script installed in tests/test_app_mirror.py.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse every edit in memory, write nothing
     python up.py --verify    # run the suites only, change nothing
     python up.py --finish    # delete this file
 
-WHAT MOVES
+WHAT WENT WRONG
 
-  APP_TEXT_DARK          #e0e0e0 -> #dddddd    grey(13)
-  APP_HANDLE_HOVER_DARK  #f0f0f0 -> #eeeeee    grey(14)
+The ink pass installed tests/test_app_mirror.py with a docstring that had two
+faults, and CI caught the first one:
 
-  DARK + IMAGE  text_color, button_text, input_text, slot_border,
-                slider_handle    literal -> APP_TEXT_DARK
+1. IT QUOTED A RETIRED GOLD. tests/test_brand_mirror.py sweeps every tracked
+   file for the retired values and exempts only files carrying a marker that
+   says naming them IS that file's job. The docstring cited one in passing, to
+   illustrate what happens when a value stops following its base. CI went red.
 
-  LIGHT hover_color stays #e0e0e0. It is a SURFACE, and the published grid
-  governs inks and edges and deliberately not surfaces.
+2. IT DESCRIBED THE WRONG APP. The docstring said this app "carried #e0e0e0,
+   #1a1a1a, #2a2a2a and #333333 as bare hex literals with no constant and no
+   provenance", and referred to an APP_CARD constant. None of that is true
+   here -- that is rnv-icon-builder's situation, and the text arrived when
+   this guard was derived from that app's. This app did its neutral rewire on
+   2026-08-27; every rendered hex already had a constant. What was missing was
+   a check that those constants still matched the register.
 
-WHY THE HANDLE HOVER MOVES TOO
+The second fault is the worse one. A wrong docstring in a guard file survives
+every run, tells the next reader a false history of the code, and nothing ever
+reports it.
 
-APP_HANDLE_HOVER_DARK's docstring says "One step above the text." That was
-true of #f0f0f0 above #e0e0e0 only by coincidence -- the gap was 0x10, which
-is the SURFACE ladder's step, not the ink grid's 0x11. Leaving it behind would
-have made the sentence false and stranded the last off-grid value in dark
-mode. At grey(14) the sentence is exactly true, and the guard asserts the
-relationship rather than restating it in prose.
+WHY THE MARKER WOULD HAVE BEEN THE WRONG FIX
 
-This app is the only place #f0f0f0 appears as a dark-mode value anywhere in
-the five. Every other use of it is a light surface.
+Adding RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN would have turned CI
+green in one line. It would also have made this file permanently exempt from a
+sweep it has no business being exempt from -- a dead exemption is a licence
+waiting for a defect, which is the reasoning that put the marker mechanism
+there in the first place. The value is simply removed from the prose instead.
 
-THIS APP ALREADY DID THE HARD PART
+WHY LOCAL VERIFICATION COULD NOT SEE THIS
 
-The 2026-08-27 neutral rewire gave every rendered hex a constant, so moving
-the ink is one line and twenty stylesheet sites follow it. What it did NOT
-cover is ThemeManager's three theme dicts, which still spell their neutrals as
-literals -- so the ink entries there are wired to the constant here. The rest
-of that rewire is the grey-ramp derivation pass.
+tests/test_brand_mirror.py enumerates files with `git ls-files`. A file the
+delivery script CREATES is untracked until it is committed, so the sweep never
+looked at it in any pre-delivery run. The suite was green here and red in CI
+for that reason alone, and no amount of re-running would have shown it.
 
-THE NAMING CONVENTION DIVERGES HERE, ON PURPOSE
+Two things change because of that:
 
-The other four apps mirror the brand as APP_TEXT -> APP["text"], which
-resolves mechanically. This app names by role AND MODE -- APP_TEXT_DARK,
-APP_WINDOW_LIGHT -- because it registers a light set beside the dark one. The
-brand's APP dict is the dark palette only. Renaming eleven constants to fit
-the other convention would make them wrong within this file, so the mirror
-test carries an explicit map instead. Recorded rather than quietly tolerated.
-
-THE SNAPSHOTS ARE HAND-EDITED, NOT REGENERATED
-
-snapshots/stylesheet_dark.txt and stylesheet_image.txt are byte-exact
-references. Regenerating them would make the test agree with whatever the code
-now emits, which destroys the only evidence that nothing else moved. Each file
-gets exactly 11 ink substitutions and 1 handle substitution, asserted by count
-before and after. stylesheet_light.txt contains neither value and is not
-touched -- which is itself the proof the light half was left alone.
+  - verification now stages the script's own output before running the suites,
+    so created files are visible to any git-driven guard;
+  - and checks() below reads the RETIRED table out of tests/test_brand_mirror.py
+    and refuses to install a guard file containing any of those values. The
+    repo's own list is the source of truth, so this cannot go stale against it.
 """
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import re
 import subprocess
@@ -70,25 +66,14 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-DESCRIPTION = "move the dark ink and the slider handle onto the grid"
-SENTINEL_FILE = "utils/config.py"
-SENTINEL = 'APP_TEXT_DARK: Final[str] = "#dddddd"'
+DESCRIPTION = "correct the guard docstring installed by the ink pass"
+SENTINEL_FILE = "tests/test_app_mirror.py"
+SENTINEL = "NO RETIRED GOLD IS QUOTED IN THIS FILE"
 GUARD = "tests/test_app_mirror.py"
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-CONTRAST_TEST = "tests/test_contrast_pairs.py"
-SNAPSHOTS = ("snapshots/stylesheet_dark.txt", "snapshots/stylesheet_image.txt")
-LIGHT_SNAPSHOT = "snapshots/stylesheet_light.txt"
+MIRROR_TEST = "tests/test_brand_mirror.py"
 
-# RUN THE WAY THIS REPO'S CI RUNS, deselects included. KNOWN_ISSUES.md
-# documents why: TestAsyncFileOpsErrorPaths aborts natively on offscreen Linux,
-# and the abort surfaces during whatever work is in flight, reading exactly
-# like a regression in it. It is not one.
-#
-# The paths below are copied from .github/workflows/tests-linux.yml lines 93-94
-# rather than remembered. A --deselect that matches nothing is silently ignored
-# by pytest, so a wrong path does not fail -- it just stops deselecting, and
-# the run looks green for the wrong reason. This script had that bug once.
 SUITES = [
     ("pytest tests/ (about 4 minutes)",
      [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider",
@@ -100,126 +85,60 @@ SUITES = [
       "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"]),
 ]
 
-OLD_INK = '"#e0e0e0"'
-NEW_INK = '"#dddddd"'
-OLD_HANDLE = '"#f0f0f0"'
-NEW_HANDLE = '"#eeeeee"'
-
-INK_KEYS = ("text_color", "button_text", "input_text", "slot_border",
-            "slider_handle")
-
-INK_HITS = 11        # per dark/image snapshot
-HANDLE_HITS = 1      # per dark/image snapshot
+OLD_DOC = '"""\nThe APP register, mirrored -- and the ink move that made mirroring necessary.\n\nWHY THIS FILE EXISTS. Until 2026-08-28 this app carried #e0e0e0, #1a1a1a,\n#2a2a2a and #333333 as bare hex literals with no constant and no provenance.\nEvery one of them is a REGISTERED value in RNVizion/rnv-brand. A registered\nvalue could have moved upstream and this app would have kept the old one\nsilently -- the same failure #c4a458 had, one level down.\n\nIt nearly happened. `APP["text"]` moved from #e0e0e0 to #dddddd in\nrnv-brand@68d195e, and nothing here would have noticed.\n\nTHE INK GRID, published in the brand beside that move:\n\n    grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.\n\nIt governs INKS AND EDGES and deliberately does not govern surfaces --\nBRAND_BLACK sits at n = 1.53 and APP_CARD at n = 2.47, and BRAND_BLACK is a\npermanent that will not move to fit a ladder.\n\nTWO GUARDS, NOT ONE. rnv-text-transformer\'s mirror test guards with\n`pytest.importorskip(\'engine.brand\')`, so where rnv-brand is not importable it\nreports clean and drift hides. Every register value here is therefore pinned\nLOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is\nabsent, the mirror catches the brand moving. Neither alone is enough.\n"""\n'
+NEW_DOC = '"""\nThe APP register mirrored, and the ink move onto the published grid.\n\nWHY THIS FILE EXISTS. This app did its neutral rewire on 2026-08-27, so every\nrendered hex already carried a constant -- but nothing checked those constants\nagainst RNVizion/rnv-brand. APP_TEXT_DARK, APP_SURFACE_DARK and APP_BORDER_DARK\nare all REGISTERED values, and the register could move upstream while this app\nkept the old ones, silently and with a clean test run.\n\nIt nearly happened: APP["text"] moved to #dddddd in rnv-brand@68d195e, and\nnothing here would have noticed.\n\nTHE INK GRID, published in the brand beside that move:\n\n    grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.\n\nIt governs INKS AND EDGES and deliberately does not govern surfaces:\nAPP_SURFACE_DARK is BRAND_BLACK #1a1a1a at n = 1.53, a permanent that will not\nmove to fit a ladder.\n\nTWO GUARDS, NOT ONE. rnv-text-transformer\'s mirror test guards with\n`pytest.importorskip(\'engine.brand\')`, so where rnv-brand is not importable it\nreports clean and drift hides. Every register value here is therefore pinned\nLOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is\nabsent, the mirror catches the brand moving. Neither alone is enough.\n\nNO RETIRED GOLD IS QUOTED IN THIS FILE, AND THAT IS DELIBERATE.\ntests/test_brand_mirror.py sweeps every tracked file for the retired values and\nexempts only files that declare, by marker, that naming them IS their job. The\nfirst draft of this docstring cited one in passing to illustrate a point and\nturned CI red. Taking the marker would have been the wrong repair -- it would\nhave made this file permanently exempt from a sweep it has no business being\nexempt from. So the prose describes the failure without quoting the value, and\nthe delivery script now refuses to install a guard that would trip the sweep.\n"""\n'
 
 
-def _bounds(lines):
-    """The three palettes are CLASS attributes here, so they are indented and
-    carry identically-spelled key lines. Every edit is scoped to its own."""
-    starts = {}
-    for i, line in enumerate(lines):
-        m = re.match(r"^\s+(DARK_THEME|LIGHT_THEME|IMAGE_THEME)\s*=", line)
-        if m:
-            starts[m.group(1)] = i
-    if len(starts) != 3:
-        raise SystemExit(f"expected three theme dicts, found {sorted(starts)}")
-    order = sorted(starts.items(), key=lambda kv: kv[1])
-    return {n: (st, order[i + 1][1] if i + 1 < len(order) else len(lines))
-            for i, (n, st) in enumerate(order)}
-
-
-def _set(lines, span, key, expect, value):
-    st, en = span
-    hits = [i for i in range(st, en) if lines[i].strip().startswith(f"'{key}':")]
-    if len(hits) != 1:
-        raise SystemExit(f"expected one '{key}' in that palette, found {len(hits)}")
-    if expect not in lines[hits[0]]:
-        raise SystemExit(f"'{key}' is not {expect}: {lines[hits[0]].strip()!r}")
-    lines[hits[0]] = lines[hits[0]].replace(expect, value)
+def _retired_values(tree_text: str) -> list[str]:
+    """The repo's own RETIRED table, read rather than restated."""
+    tree = ast.parse(tree_text)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            target = node.targets[0] if isinstance(node, ast.Assign) else node.target
+            if getattr(target, "id", None) == "RETIRED" and isinstance(node.value, ast.Dict):
+                return [k.value for k in node.value.keys
+                        if isinstance(k, ast.Constant) and isinstance(k.value, str)]
+    raise SystemExit("could not find RETIRED in tests/test_brand_mirror.py")
 
 
 def edits(tree) -> None:
-    # The two constants. Twenty stylesheet sites follow the first one.
-    tree.sub(SENTINEL_FILE, 'APP_TEXT_DARK: Final[str] = "#e0e0e0"',
-             'APP_TEXT_DARK: Final[str] = "#dddddd"')
-    tree.sub(SENTINEL_FILE, 'APP_HANDLE_HOVER_DARK: Final[str] = "#f0f0f0"',
-             'APP_HANDLE_HOVER_DARK: Final[str] = "#eeeeee"')
-
-    # The docstring that the move makes true rather than approximately true.
-    tree.sub(SENTINEL_FILE,
-             '"""Slider handle when hovered, dark and image. One step above the text."""',
-             '"""Slider handle when hovered, dark and image. One step above the\n'
-             'text: grey(14), where APP_TEXT_DARK is grey(13), on the published\n'
-             'ink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was\n'
-             '0x10 -- the surface ladder step, not the grid step -- and the\n'
-             'sentence was true by accident."""')
-
-    # The theme dicts, dark and image only. Light's #e0e0e0 is a surface.
-    lines = tree.read(SENTINEL_FILE).splitlines(keepends=True)
-    b = _bounds(lines)
-    for name in ("DARK_THEME", "IMAGE_THEME"):
-        for key in INK_KEYS:
-            _set(lines, b[name], key, "'#e0e0e0'", "APP_TEXT_DARK")
-    tree.write(SENTINEL_FILE, "".join(lines))
-
-    # The button-scheme reference pairs.
-    tree.sub(CONTRAST_TEST,
-             '    "DARK":  (("#1a1a1a", "#e0e0e0"), ("#333333", "#e0e0e0"), ("#444444", "#000000")),',
-             '    "DARK":  (("#1a1a1a", "#dddddd"), ("#333333", "#dddddd"), ("#444444", "#000000")),')
-    tree.sub(CONTRAST_TEST,
-             '    "IMAGE": (("#1a1a1a", "#e0e0e0"), ("#333333", "#e0e0e0"), ("#444444", "#000000")),',
-             '    "IMAGE": (("#1a1a1a", "#dddddd"), ("#333333", "#dddddd"), ("#444444", "#000000")),')
-
-    # The snapshots, by count rather than blanket replace.
-    for rel in SNAPSHOTS:
-        text = tree.read(rel)
-        ink, handle = text.count("#e0e0e0"), text.count("#f0f0f0")
-        if (ink, handle) != (INK_HITS, HANDLE_HITS):
-            raise SystemExit(
-                f"{rel}: expected {INK_HITS} ink and {HANDLE_HITS} handle "
-                f"occurrence(s), found {ink} and {handle}. The stylesheet "
-                f"moved; re-derive this edit before trusting the script.")
-        tree.write(rel, text.replace("#e0e0e0", "#dddddd")
-                            .replace("#f0f0f0", "#eeeeee"))
+    tree.sub(SENTINEL_FILE, OLD_DOC, NEW_DOC)
 
 
 def checks(tree) -> None:
-    src = tree.read(SENTINEL_FILE)
-    if src.count(SENTINEL) != 1:
-        raise SystemExit("APP_TEXT_DARK was not moved exactly once")
-    if 'APP_HANDLE_HOVER_DARK: Final[str] = "#eeeeee"' not in src:
-        raise SystemExit("APP_HANDLE_HOVER_DARK was not moved")
-    for key in INK_KEYS:
-        if len(re.findall(rf"'{key}':\s+APP_TEXT_DARK,", src)) != 2:
-            raise SystemExit(f"{key} does not read APP_TEXT_DARK in dark and image")
-    # Exactly one #e0e0e0 must survive: LIGHT hover_color.
-    if src.count("'#e0e0e0'") != 1:
+    guard = tree.read(SENTINEL_FILE)
+    if SENTINEL not in guard:
+        raise SystemExit("the corrected docstring did not land")
+
+    # Guard the guard, using the repo's own table. A hand-copied list here
+    # would go stale behind the real one, in the direction that reports clean.
+    retired = _retired_values(tree.read(MIRROR_TEST))
+    if not retired:
+        raise SystemExit("the RETIRED table is empty -- this check is not "
+                         "checking anything")
+    hits = [value for value in retired if value in guard]
+    if hits:
         raise SystemExit(
-            f"expected exactly one surviving #e0e0e0 (the light surface), "
-            f"found {src.count(chr(39) + '#e0e0e0' + chr(39))}")
-    # The ASSIGNMENT, not the string. The docstring beside it explains what the
-    # value used to be, so sweeping for the bare hex fails on a mention -- the
-    # same trap that made an early grey census count a comment as a use, and
-    # that this script tripped once already on tab_pane_bg in the sister repo.
-    if re.search(r'=\s*"#f0f0f0"', src):
-        raise SystemExit("a #f0f0f0 is still assigned in the palette file")
-    for rel in SNAPSHOTS:
-        text = tree.read(rel)
-        if "#e0e0e0" in text or "#f0f0f0" in text:
-            raise SystemExit(f"{rel} still carries a retired value")
-        if text.count("#dddddd") != INK_HITS:
-            raise SystemExit(f"{rel}: expected {INK_HITS} #dddddd")
-    # Guard the guard for the snapshots: the light one proves the sweep was
-    # scoped rather than global.
-    light = tree.read(LIGHT_SNAPSHOT)
-    if "#dddddd" in light:
-        raise SystemExit("the light stylesheet snapshot changed -- the ink "
-                         "substitution was not scoped to dark and image")
-    pairs = tree.read(CONTRAST_TEST)
-    if '("#1a1a1a", "#e0e0e0")' in pairs:
-        raise SystemExit("the main-button reference scheme still names #e0e0e0")
+            "the guard file still names retired value(s) " + ", ".join(hits)
+            + ". Taking the by-design marker would silence this and is the "
+              "wrong repair -- remove the value from the prose instead.")
+
+    # And the second fault: the text that described a different app.
+    #
+    # Anchored on the wrong SENTENCE, not the bare name. `APP_CARD` also
+    # appears further down, in a comment explaining that this app deliberately
+    # does NOT use that spelling -- a correct mention, and sweeping for the
+    # token alone fails on it. That is the fourth time this pass has tripped
+    # over use-versus-mention; every one of them was a check reading a word
+    # instead of a claim.
+    for wrong in ("bare hex literals with no constant and no provenance",
+                  "APP_CARD at n = 2.47"):
+        if wrong in guard:
+            raise SystemExit(f"the guard still says {wrong!r}, which is not "
+                             f"true of this app")
 
 
-GUARD_SOURCE = '"""\nThe APP register, mirrored -- and the ink move that made mirroring necessary.\n\nWHY THIS FILE EXISTS. Until 2026-08-28 this app carried #e0e0e0, #1a1a1a,\n#2a2a2a and #333333 as bare hex literals with no constant and no provenance.\nEvery one of them is a REGISTERED value in RNVizion/rnv-brand. A registered\nvalue could have moved upstream and this app would have kept the old one\nsilently -- the same failure #c4a458 had, one level down.\n\nIt nearly happened. `APP["text"]` moved from #e0e0e0 to #dddddd in\nrnv-brand@68d195e, and nothing here would have noticed.\n\nTHE INK GRID, published in the brand beside that move:\n\n    grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.\n\nIt governs INKS AND EDGES and deliberately does not govern surfaces --\nBRAND_BLACK sits at n = 1.53 and APP_CARD at n = 2.47, and BRAND_BLACK is a\npermanent that will not move to fit a ladder.\n\nTWO GUARDS, NOT ONE. rnv-text-transformer\'s mirror test guards with\n`pytest.importorskip(\'engine.brand\')`, so where rnv-brand is not importable it\nreports clean and drift hides. Every register value here is therefore pinned\nLOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is\nabsent, the mirror catches the brand moving. Neither alone is enough.\n"""\nfrom __future__ import annotations\n\nimport ast\nimport pathlib\n\nimport pytest\n\nfrom utils import config as colors\nfrom utils.config import ThemeManager\n\nDARK = ThemeManager.DARK_THEME\nLIGHT = ThemeManager.LIGHT_THEME\nIMAGE = ThemeManager.IMAGE_THEME\n\nROOT = pathlib.Path(__file__).resolve().parents[1]\nSRC = ROOT / \'utils\' / \'config.py\'\n\nGRID_STEP = 0x11\n\n#: What the brand register held on 2026-08-28, written down so this file still\n#: has an opinion when engine.brand cannot be imported.\nPINNED = {\n    \'TRUE_BLACK\': \'#000000\',\n    \'WHITE\': \'#ffffff\',\n    \'APP_SURFACE_DARK\': \'#1a1a1a\',\n    \'APP_BORDER_DARK\': \'#333333\',\n    \'APP_TEXT_DARK\': \'#dddddd\',\n}\n\n#: This app names its neutrals by ROLE AND MODE -- APP_SURFACE_DARK, not\n#: APP_CARD -- because it registers a light set beside the dark one. The brand\'s\n#: APP dict is the dark palette only, so the APP_<KEY> convention the other four\n#: apps resolve by cannot be used here. Mapped explicitly rather than renaming\n#: eleven constants to fit a convention that would then be wrong within this\n#: file.\nMIRRORS = {\n    \'TRUE_BLACK\': (\'module\', \'TRUE_BLACK\'),\n    \'WHITE\': (\'module\', \'WHITE\'),\n    \'APP_SURFACE_DARK\': (\'APP\', \'panel\'),\n    \'APP_BORDER_DARK\': (\'APP\', \'border\'),\n    \'APP_TEXT_DARK\': (\'APP\', \'text\'),\n}\n\n#: Dark-mode ink and edge. These carry APP_TEXT and must reference it by name.\nINK_KEYS = (\'text_color\', \'button_text\', \'input_text\', \'slot_border\',\n            \'slider_handle\')\n\n#: The other half of #e0e0e0\'s old double life: a LIGHT surface, which the\n#: grid does not govern and which did not move.\nLIGHT_SURFACE_KEYS = (\'hover_color\',)\n\n\ndef grey(n: int) -> str:\n    v = n * GRID_STEP\n    return \'#%02x%02x%02x\' % (v, v, v)\n\n\ndef _dict_node(name: str) -> ast.Dict:\n    tree = ast.parse(SRC.read_text(encoding=\'utf-8-sig\'))\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.Assign, ast.AnnAssign)):\n            target = node.targets[0] if isinstance(node, ast.Assign) else node.target\n            if getattr(target, \'id\', None) == name and isinstance(node.value, ast.Dict):\n                return node.value\n    raise AssertionError(f\'{name} is not a dict literal in utils/config.py\')\n\n\ndef _entry(node: ast.Dict, key: str) -> ast.AST | None:\n    for k, v in zip(node.keys, node.values):\n        if isinstance(k, ast.Constant) and k.value == key:\n            return v\n    return None\n\n\n# ------------------------------------------------------------- guard the guard\n\ndef test_the_keys_this_file_reads_still_exist():\n    """Every assertion below reads these. If a key is renamed, this fails\n    loudly instead of the rest quietly passing over nothing."""\n    for key in INK_KEYS:\n        assert key in DARK, f\'DARK has no {key}\'\n    for key in LIGHT_SURFACE_KEYS:\n        assert key in LIGHT, f\'LIGHT has no {key}\'\n    for name in PINNED:\n        assert hasattr(colors, name), f\'utils.config has no {name}\'\n\n\n# ------------------------------------------------------------------- the value\n\ndef test_the_ink_is_a_step_on_the_grid():\n    assert colors.APP_TEXT_DARK == grey(13) == \'#dddddd\', (\n        f\'APP_TEXT is {colors.APP_TEXT_DARK}, not grey(13). The ink grid admits no \'\n        f\'exceptions -- see rnv-brand engine/brand.py APP.\')\n\n\ndef test_every_pinned_neutral_is_what_the_register_held():\n    """The local half of the mirror. Runs everywhere, including where\n    engine.brand is not importable."""\n    drift = {n: getattr(colors, n) for n, v in PINNED.items()\n             if getattr(colors, n) != v}\n    assert not drift, (\n        f\'these constants no longer hold their registered values: {drift}\\n\'\n        f\'If the brand moved, update PINNED here in the same commit that \'\n        f\'updates utils/config.py -- never one without the other.\')\n\n\ndef test_register_values_match_rnv_brand():\n    """The upstream half. Skips where rnv-brand is not importable, which is\n    exactly why the pin above is not optional."""\n    brand = pytest.importorskip(\n        \'engine.brand\',\n        reason=\'rnv-brand not importable here; the local pin is doing the work\')\n    drift = []\n    for name in PINNED:\n        where, key = MIRRORS[name]\n        theirs = brand.APP[key] if where == \'APP\' else getattr(brand, key)\n        mine = getattr(colors, name)\n        if mine.lower() != theirs.lower():\n            drift.append(f\'{name}: ours {mine}, theirs {theirs}\')\n    assert not drift, \'drift from rnv-brand:\\n  \' + \'\\n  \'.join(drift)\n\n\n# --------------------------------------------------- the ink references the name\n\ndef test_every_dark_ink_reads_the_constant_not_a_literal():\n    """A literal cannot follow its base. This is the whole point of the pass:\n    if APP_TEXT moves again, these move with it or this test fails."""\n    node = _dict_node(\'DARK_THEME\')\n    literals = []\n    for key in INK_KEYS:\n        value = _entry(node, key)\n        if not (isinstance(value, ast.Name) and value.id == \'APP_TEXT_DARK\'):\n            literals.append(f\'{key} = {ast.unparse(value) if value else "missing"}\')\n    assert not literals, (\n        \'dark ink entries still written as literals:\\n  \' + \'\\n  \'.join(literals))\n\n\ndef test_the_resolved_ink_is_the_constant():\n    """The AST check above proves the spelling; this proves the value."""\n    for key in INK_KEYS:\n        assert DARK[key] == colors.APP_TEXT_DARK, f\'DARK[{key!r}] is {DARK[key]}\'\n\n\ndef test_image_mode_carries_the_same_ink():\n    """IMAGE_THEME is a separate literal block here, not a spread of DARK, so\n    the move has to be made twice and asserted twice."""\n    node = _dict_node(\'IMAGE_THEME\')\n    literals = []\n    for key in INK_KEYS:\n        value = _entry(node, key)\n        if not (isinstance(value, ast.Name) and value.id == \'APP_TEXT_DARK\'):\n            literals.append(\n                f\'{key} = {ast.unparse(value) if value is not None else "missing"}\')\n    assert not literals, (\'image ink still written as literals:\\n  \'\n                          + \'\\n  \'.join(literals))\n    for key in INK_KEYS:\n        assert IMAGE[key] == colors.APP_TEXT_DARK, f\'IMAGE[{key!r}]\'\n\n\ndef test_the_handle_hover_is_still_one_step_above_the_text():\n    """APP_HANDLE_HOVER_DARK is documented as \'one step above the text\'. That\n    sentence was true of #f0f0f0 above #e0e0e0 only by accident -- the gap was\n    0x10, not a grid step. Both are on the grid now and the relationship is\n    asserted rather than described."""\n    assert colors.APP_HANDLE_HOVER_DARK == grey(14) == \'#eeeeee\'\n    assert colors.APP_HANDLE_HOVER_DARK == grey(\n        (int(colors.APP_TEXT_DARK[1:3], 16) // GRID_STEP) + 1)\n\n\ndef test_the_light_surface_did_not_follow_the_ink():\n    """#e0e0e0\'s other half. LIGHT hover_color is a SURFACE, and the grid does\n    not govern surfaces."""\n    assert LIGHT[\'hover_color\'] == \'#e0e0e0\'\n\n\n# ------------------------------------------------------------- what did NOT move\n\ndef test_the_light_ink_is_true_black():\n    """Primary text is one role with two mode values: dark is a grey on the\n    grid, light is TRUE_BLACK."""\n    assert LIGHT[\'text_color\'] == colors.TRUE_BLACK == \'#000000\'\n\n\n# ---------------------------------------------------------------- what it costs\n\ndef _luminance(value: str) -> float:\n    channels = [int(value.lstrip(\'#\')[i:i + 2], 16) / 255 for i in (0, 2, 4)]\n    channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4\n                for c in channels]\n    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]\n\n\ndef _contrast(a: str, b: str) -> float:\n    high, low = sorted((_luminance(a), _luminance(b)), reverse=True)\n    return (high + 0.05) / (low + 0.05)\n\n\ndef test_the_ink_clears_the_text_floor_on_every_dark_ground_it_touches():\n    """Measured, not assumed. The darkest ground the ink is drawn on is the\n    pressed plate; everything else has more room."""\n    grounds = (\'#000000\', \'#1a1a1a\', \'#2a2a2a\', \'#333333\', \'#3a3a3a\', \'#444444\')\n    worst = min((_contrast(colors.APP_TEXT_DARK, g), g) for g in grounds)\n    assert worst[0] >= 4.5, (\n        f\'the ink falls to {worst[0]:.2f}:1 on {worst[1]}, under the 4.5 floor\')\n'
+GUARD_SOURCE = None   # this pass edits the guard rather than installing one
 
 
 # ------------------------------------------------------------------ plumbing
@@ -401,7 +320,6 @@ def apply(check_only: bool) -> int:
 
     tree = Tree(root)
     edits(tree)
-    tree.write(GUARD, GUARD_SOURCE)
     checks(tree)
 
     if check_only:
