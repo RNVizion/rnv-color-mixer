@@ -207,6 +207,39 @@ ink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was
 0x10 -- the surface ladder step, not the grid step -- and the
 sentence was true by accident."""
 
+APP_CANVAS_DARK: Final[str] = "#0a0a0a"
+"""The ground BELOW the panel in dark and image: the mixing canvas, and the
+selected tab, which sits flush with it.
+
+Unnamed until 2026-08-29 because the 2026-08-27 rewire's scope was the three
+stylesheet templates and this value has never appeared in one -- it is reached
+only through ThemeManager's dicts, which seven modules build their own QSS
+from.
+
+NOT A BRAND VALUE, and worth saying so here because it was briefly mistaken
+for one. #0a0a0a is app-owned. The register's canvas is WEB_BLACK #0a0a0f, one
+byte away in the blue channel alone, and a rule derived from the resemblance
+would have pinned fifteen light uses to a colour the register does not hold.
+See rnv-brand@8ab1174 BRAND_COLORS.md:270."""
+
+APP_CARD_DARK: Final[str] = "#2a2a2a"
+"""engine/brand.py APP["card"]. The raised secondary surface in dark and
+image: panel_secondary in the About dialog and the fine-tune panel, and the
+ground of the custom tooltip.
+
+MIRRORED, not app-owned -- it is pinned in tests/test_app_mirror.py alongside
+the other register values, so a move upstream is caught here."""
+
+APP_PANEL_HOVER_DARK: Final[str] = "#3a3a3a"
+"""Panel hover in dark and image. One step above APP_CARD_DARK on the 0x10
+surface spacing, though that ladder is not published: rnv-brand@8ab1174 notes
+it yields #3a3a3a while APP["border"] is #333333, so two rungs are in use and
+two are not. Named as an app value until the register rules it."""
+
+APP_HINT_DARK: Final[str] = "#888888"
+"""Hint text in dark and image. grey(8) on the published ink grid, and the
+same step the other four apps use for muted text."""
+
 # ---- light ----
 APP_WINDOW_LIGHT: Final[str] = "#f5f5f5"
 """Window ground in light, the status bar, and the scrollbar track."""
@@ -254,6 +287,10 @@ NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
     "APP_BORDER_DARK": "step",
     "APP_TEXT_DARK": "step",
     "APP_HANDLE_HOVER_DARK": "step",
+    "APP_CANVAS_DARK": "step",
+    "APP_CARD_DARK": "step",
+    "APP_PANEL_HOVER_DARK": "step",
+    "APP_HINT_DARK": "step",
     "APP_WINDOW_LIGHT": "step",
     "APP_BORDER_LIGHT": "step",
     "APP_ITEM_HOVER_LIGHT": "step",
@@ -270,42 +307,42 @@ class ThemeManager:
     
     DARK_THEME = {
         'name': 'Dark',
-        'window_bg': '#000000',
+        'window_bg': TRUE_BLACK,
         'text_color': APP_TEXT_DARK,
-        'border_color': '#333333',
+        'border_color': APP_BORDER_DARK,
         'hover_color': '#444444',
-        'button_bg': '#1a1a1a',
+        'button_bg': APP_SURFACE_DARK,
         'button_text': APP_TEXT_DARK,
-        'button_hover_bg': '#333333',
+        'button_hover_bg': APP_BORDER_DARK,
         'button_pressed_bg': BRAND_GOLD_PRESSED,
-        'button_pressed_text': '#000000',
+        'button_pressed_text': TRUE_BLACK,
         'button_pressed_border': BRAND_GOLD,
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
-        'checkbox_border': '#333333',
-        'canvas_bg': '#0a0a0a',
-        'scroll_area_bg': '#000000',
-        'input_bg': '#1a1a1a',
+        'checkbox_border': APP_BORDER_DARK,
+        'canvas_bg': APP_CANVAS_DARK,
+        'scroll_area_bg': TRUE_BLACK,
+        'input_bg': APP_SURFACE_DARK,
         'input_text': APP_TEXT_DARK,
         'slot_border': APP_TEXT_DARK,
         'slot_border_width': 2,
-        'label_bg': '#1a1a1a',
-        'label_border': '#333333',
-        'tooltip_bg': '#2a2a2a',
+        'label_bg': APP_SURFACE_DARK,
+        'label_border': APP_BORDER_DARK,
+        'tooltip_bg': APP_CARD_DARK,
         'tooltip_border': BRAND_GOLD,
         'text_disabled': '#555555',
         'accent': BRAND_GOLD,
         'accent_ink': BRAND_GOLD,
         'accent_hover': BRAND_GOLD_HOVER,
-        'accent_text': '#000000',
-        'panel_bg': '#1a1a1a',
-        'panel_secondary': '#2a2a2a',
-        'panel_hover': '#3a3a3a',
-        'tab_selected_bg': '#0a0a0a',
-        'scrollbar_bg': '#1a1a1a',
-        'scrollbar_handle': '#333333',
+        'accent_text': TRUE_BLACK,
+        'panel_bg': APP_SURFACE_DARK,
+        'panel_secondary': APP_CARD_DARK,
+        'panel_hover': APP_PANEL_HOVER_DARK,
+        'tab_selected_bg': APP_CANVAS_DARK,
+        'scrollbar_bg': APP_SURFACE_DARK,
+        'scrollbar_handle': APP_BORDER_DARK,
         'scrollbar_hover': BRAND_GOLD,
         'slider_handle': APP_TEXT_DARK,
-        'text_hint': '#888888',
+        'text_hint': APP_HINT_DARK,
         'menu_disabled': '#666666',
     }
     
@@ -357,42 +394,42 @@ class ThemeManager:
     # NEW: Image Theme - Copy of Dark Theme for Image Mode
     IMAGE_THEME = {
         'name': 'Image',
-        'window_bg': '#000000',
+        'window_bg': TRUE_BLACK,
         'text_color': APP_TEXT_DARK,
-        'border_color': '#333333',
+        'border_color': APP_BORDER_DARK,
         'hover_color': '#444444',
-        'button_bg': '#1a1a1a',
+        'button_bg': APP_SURFACE_DARK,
         'button_text': APP_TEXT_DARK,
-        'button_hover_bg': '#333333',
+        'button_hover_bg': APP_BORDER_DARK,
         'button_pressed_bg': BRAND_GOLD_PRESSED,
-        'button_pressed_text': '#000000',
+        'button_pressed_text': TRUE_BLACK,
         'button_pressed_border': BRAND_GOLD,
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
-        'checkbox_border': '#333333',
-        'canvas_bg': '#0a0a0a',
-        'scroll_area_bg': '#000000',
-        'input_bg': '#1a1a1a',
+        'checkbox_border': APP_BORDER_DARK,
+        'canvas_bg': APP_CANVAS_DARK,
+        'scroll_area_bg': TRUE_BLACK,
+        'input_bg': APP_SURFACE_DARK,
         'input_text': APP_TEXT_DARK,
         'slot_border': APP_TEXT_DARK,
         'slot_border_width': 2,
-        'label_bg': '#1a1a1a',
-        'label_border': '#333333',
-        'tooltip_bg': '#2a2a2a',
+        'label_bg': APP_SURFACE_DARK,
+        'label_border': APP_BORDER_DARK,
+        'tooltip_bg': APP_CARD_DARK,
         'tooltip_border': BRAND_GOLD,
         'text_disabled': '#555555',
         'accent': BRAND_GOLD,
         'accent_ink': BRAND_GOLD,
         'accent_hover': BRAND_GOLD_HOVER,
-        'accent_text': '#000000',
-        'panel_bg': '#1a1a1a',
-        'panel_secondary': '#2a2a2a',
-        'panel_hover': '#3a3a3a',
-        'tab_selected_bg': '#0a0a0a',
-        'scrollbar_bg': '#1a1a1a',
-        'scrollbar_handle': '#333333',
+        'accent_text': TRUE_BLACK,
+        'panel_bg': APP_SURFACE_DARK,
+        'panel_secondary': APP_CARD_DARK,
+        'panel_hover': APP_PANEL_HOVER_DARK,
+        'tab_selected_bg': APP_CANVAS_DARK,
+        'scrollbar_bg': APP_SURFACE_DARK,
+        'scrollbar_handle': APP_BORDER_DARK,
         'scrollbar_hover': BRAND_GOLD,
         'slider_handle': APP_TEXT_DARK,
-        'text_hint': '#888888',
+        'text_hint': APP_HINT_DARK,
         'menu_disabled': '#666666',
     }
     

@@ -99,13 +99,55 @@ def test_anchors_are_literals_not_computed():
             assert name not in computed, f"{name} is an anchor but is computed"
 
 
-def test_every_neutral_constant_reaches_a_stylesheet():
+def test_every_neutral_constant_is_actually_rendered():
     """A constant nothing renders is dead weight, and dead weight is where the
-    next wrong value hides."""
+    next wrong value hides.
+
+    WIDENED 2026-08-29, and the widening is a correction rather than a
+    relaxation. This app renders through TWO paths:
+
+      1. the three stylesheet templates above -- main-window chrome, and the
+         only thing this test used to look at;
+      2. ThemeManager's three theme dicts, which ui/about_dialog.py,
+         core/color_fine_tune.py, ui/canvas_view.py, core/color_slot.py,
+         core/package_d_panel.py, ui/ui_handler.py and RNV_Color_Mixer.py each
+         build their own QSS from.
+
+    The templates style no QToolTip, QGroupBox, QFrame or QDialog at all, so
+    path 2 paints most of the dialogs. Checking only path 1 measured "reaches a
+    stylesheet template" while claiming "is rendered" -- and would have called
+    a constant used by every dialog in the app dead weight.
+
+    The strength is unchanged: a constant reached by NEITHER path still fails.
+    """
     rendered = "".join(getattr(config, t) for t in TEMPLATES).lower()
+    in_dicts = {str(v).lower()
+                for theme in (config.ThemeManager.DARK_THEME,
+                              config.ThemeManager.LIGHT_THEME,
+                              config.ThemeManager.IMAGE_THEME)
+                for v in theme.values()}
     orphans = [n for n in config.NEUTRAL_PROVENANCE
-               if getattr(config, n).lower() not in rendered]
+               if getattr(config, n).lower() not in rendered
+               and getattr(config, n).lower() not in in_dicts]
     assert not orphans, f"neutral constants that render nowhere: {orphans}"
+
+
+def test_both_rendering_paths_are_still_carrying_something():
+    """Guard the guard for the widening. If either path stopped resolving, the
+    union above would still pass on the other one -- quietly halving what this
+    test covers."""
+    rendered = "".join(getattr(config, t) for t in TEMPLATES).lower()
+    in_dicts = {str(v).lower()
+                for theme in (config.ThemeManager.DARK_THEME,
+                              config.ThemeManager.LIGHT_THEME,
+                              config.ThemeManager.IMAGE_THEME)
+                for v in theme.values()}
+    from_templates = [n for n in config.NEUTRAL_PROVENANCE
+                      if getattr(config, n).lower() in rendered]
+    from_dicts = [n for n in config.NEUTRAL_PROVENANCE
+                  if getattr(config, n).lower() in in_dicts]
+    assert len(from_templates) >= 10, f"only {len(from_templates)} reach a template"
+    assert len(from_dicts) >= 10, f"only {len(from_dicts)} reach a theme dict"
 
 
 def test_the_neutrals_are_pure_greys():
