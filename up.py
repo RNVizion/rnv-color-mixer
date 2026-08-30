@@ -2,57 +2,66 @@
 """
 RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP
 
-Fix the docstring the ink script installed in tests/test_app_mirror.py.
+Name rnv-color-mixer's unnamed dark greys, then wire the dark palettes to them.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse every edit in memory, write nothing
     python up.py --verify    # run the suites only, change nothing
     python up.py --finish    # delete this file
 
-WHAT WENT WRONG
+WHAT MOVES: NOTHING. Not one rendered pixel. checks() resolves every entry of
+every palette from the ORIGINAL file and the EDITED one and refuses to write
+unless all three are equal, entry for entry, and unless the file has the same
+number of lines.
 
-The ink pass installed tests/test_app_mirror.py with a docstring that had two
-faults, and CI caught the first one:
+WHY MIXER WAS DIFFERENT FROM THE OTHER FOUR
 
-1. IT QUOTED A RETIRED GOLD. tests/test_brand_mirror.py sweeps every tracked
-   file for the retired values and exempts only files carrying a marker that
-   says naming them IS that file's job. The docstring cited one in passing, to
-   illustrate what happens when a value stops following its base. CI went red.
+This app styles itself through two paths. The three *_STYLESHEET templates
+cover main-window chrome; seven separate modules build their own QSS from
+ThemeManager's theme dicts. The 2026-08-27 neutral rewire covered the
+templates only -- and said so -- so the dicts still spell their values out.
 
-2. IT DESCRIBED THE WRONG APP. The docstring said this app "carried #e0e0e0,
-   #1a1a1a, #2a2a2a and #333333 as bare hex literals with no constant and no
-   provenance", and referred to an APP_CARD constant. None of that is true
-   here -- that is rnv-icon-builder's situation, and the text arrived when
-   this guard was derived from that app's. This app did its neutral rewire on
-   2026-08-27; every rendered hex already had a constant. What was missing was
-   a check that those constants still matched the register.
+Four dark greys were therefore never named, because they appear in no
+template:
 
-The second fault is the worse one. A wrong docstring in a guard file survives
-every run, tells the next reader a false history of the code, and nothing ever
-reports it.
+    #0a0a0a  canvas_bg, tab_selected_bg     -> APP_CANVAS_DARK
+    #2a2a2a  panel_secondary, tooltip_bg    -> APP_CARD_DARK
+    #3a3a3a  panel_hover                    -> APP_PANEL_HOVER_DARK
+    #888888  text_hint                      -> APP_HINT_DARK
 
-WHY THE MARKER WOULD HAVE BEEN THE WRONG FIX
+NAMES FIRST, THEN WIRING, IN ONE PASS
 
-Adding RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN would have turned CI
-green in one line. It would also have made this file permanently exempt from a
-sweep it has no business being exempt from -- a dead exemption is a licence
-waiting for a defect, which is the reasoning that put the marker mechanism
-there in the first place. The value is simply removed from the prose instead.
+The names are the point; the wiring is what makes them real. Splitting them
+would leave this app holding four constants that nothing references, which is
+the exact state the test below exists to prevent. The value-neutrality proof
+is strong enough to carry both: nothing may move, and the script checks rather
+than claims.
 
-WHY LOCAL VERIFICATION COULD NOT SEE THIS
+APP_CARD_DARK IS A REGISTER VALUE
 
-tests/test_brand_mirror.py enumerates files with `git ls-files`. A file the
-delivery script CREATES is untracked until it is committed, so the sweep never
-looked at it in any pre-delivery run. The suite was green here and red in CI
-for that reason alone, and no amount of re-running would have shown it.
+#2a2a2a is engine/brand.py APP["card"]. It joins PINNED and MIRRORS in
+tests/test_app_mirror.py, so a move upstream is caught here like the other
+four. The remaining three are app-owned and named as such.
 
-Two things change because of that:
+ONE TEST IS WIDENED, AND IT IS A CORRECTION
 
-  - verification now stages the script's own output before running the suites,
-    so created files are visible to any git-driven guard;
-  - and checks() below reads the RETIRED table out of tests/test_brand_mirror.py
-    and refuses to install a guard file containing any of those values. The
-    repo's own list is the source of truth, so this cannot go stale against it.
+tests/test_neutral_ramp.py asked whether a constant "reaches a stylesheet",
+meaning "is rendered". Those stopped being the same thing the moment the theme
+dicts became a naming target: the templates style no QToolTip, QGroupBox,
+QFrame or QDialog, so the dicts paint most of the app's dialogs. Unwidened, it
+would call a constant used by every dialog dead weight. A companion test
+asserts BOTH paths still carry values, so the union cannot quietly halve.
+
+THE SUBSTITUTION IS AN ALLOWLIST, NOT EVERY CONSTANT
+
+Value-keyed substitution across a dark palette is a trap here:
+DARK['menu_disabled'] is #666666, and the only constant holding #666666 is
+APP_HANDLE_LIGHT. A blanket swap would write a _LIGHT name into the dark
+palette -- true by value and false by name, which is worse than the literal it
+replaced. Only the seven dark-appropriate names are substituted.
+
+LIGHT IS UNTOUCHED, on the register's stated order: the light ladder is not
+ruled, and two of its values (#aaaaaa, #e0e0e0) remain unnamed here on purpose.
 """
 from __future__ import annotations
 
@@ -66,13 +75,14 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-DESCRIPTION = "correct the guard docstring installed by the ink pass"
-SENTINEL_FILE = "tests/test_app_mirror.py"
-SENTINEL = "NO RETIRED GOLD IS QUOTED IN THIS FILE"
-GUARD = "tests/test_app_mirror.py"
+DESCRIPTION = "name the dark greys and wire the dark palettes"
+SENTINEL_FILE = "utils/config.py"
+SENTINEL = 'APP_CARD_DARK: Final[str] = "#2a2a2a"'
+GUARD = "tests/test_register_wiring.py"
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-MIRROR_TEST = "tests/test_brand_mirror.py"
+RAMP_TEST = "tests/test_neutral_ramp.py"
+MIRROR_TEST = "tests/test_app_mirror.py"
 
 SUITES = [
     ("pytest tests/ (about 4 minutes)",
@@ -85,60 +95,173 @@ SUITES = [
       "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"]),
 ]
 
-OLD_DOC = '"""\nThe APP register, mirrored -- and the ink move that made mirroring necessary.\n\nWHY THIS FILE EXISTS. Until 2026-08-28 this app carried #e0e0e0, #1a1a1a,\n#2a2a2a and #333333 as bare hex literals with no constant and no provenance.\nEvery one of them is a REGISTERED value in RNVizion/rnv-brand. A registered\nvalue could have moved upstream and this app would have kept the old one\nsilently -- the same failure #c4a458 had, one level down.\n\nIt nearly happened. `APP["text"]` moved from #e0e0e0 to #dddddd in\nrnv-brand@68d195e, and nothing here would have noticed.\n\nTHE INK GRID, published in the brand beside that move:\n\n    grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.\n\nIt governs INKS AND EDGES and deliberately does not govern surfaces --\nBRAND_BLACK sits at n = 1.53 and APP_CARD at n = 2.47, and BRAND_BLACK is a\npermanent that will not move to fit a ladder.\n\nTWO GUARDS, NOT ONE. rnv-text-transformer\'s mirror test guards with\n`pytest.importorskip(\'engine.brand\')`, so where rnv-brand is not importable it\nreports clean and drift hides. Every register value here is therefore pinned\nLOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is\nabsent, the mirror catches the brand moving. Neither alone is enough.\n"""\n'
-NEW_DOC = '"""\nThe APP register mirrored, and the ink move onto the published grid.\n\nWHY THIS FILE EXISTS. This app did its neutral rewire on 2026-08-27, so every\nrendered hex already carried a constant -- but nothing checked those constants\nagainst RNVizion/rnv-brand. APP_TEXT_DARK, APP_SURFACE_DARK and APP_BORDER_DARK\nare all REGISTERED values, and the register could move upstream while this app\nkept the old ones, silently and with a clean test run.\n\nIt nearly happened: APP["text"] moved to #dddddd in rnv-brand@68d195e, and\nnothing here would have noticed.\n\nTHE INK GRID, published in the brand beside that move:\n\n    grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.\n\nIt governs INKS AND EDGES and deliberately does not govern surfaces:\nAPP_SURFACE_DARK is BRAND_BLACK #1a1a1a at n = 1.53, a permanent that will not\nmove to fit a ladder.\n\nTWO GUARDS, NOT ONE. rnv-text-transformer\'s mirror test guards with\n`pytest.importorskip(\'engine.brand\')`, so where rnv-brand is not importable it\nreports clean and drift hides. Every register value here is therefore pinned\nLOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is\nabsent, the mirror catches the brand moving. Neither alone is enough.\n\nNO RETIRED GOLD IS QUOTED IN THIS FILE, AND THAT IS DELIBERATE.\ntests/test_brand_mirror.py sweeps every tracked file for the retired values and\nexempts only files that declare, by marker, that naming them IS their job. The\nfirst draft of this docstring cited one in passing to illustrate a point and\nturned CI red. Taking the marker would have been the wrong repair -- it would\nhave made this file permanently exempt from a sweep it has no business being\nexempt from. So the prose describes the failure without quoting the value, and\nthe delivery script now refuses to install a guard that would trip the sweep.\n"""\n'
+# The allowlist. Dark-appropriate names only -- see the docstring on
+# menu_disabled for why this is not "every constant".
+SUBSTITUTE = {
+    "#000000": "TRUE_BLACK",
+    "#0a0a0a": "APP_CANVAS_DARK",
+    "#1a1a1a": "APP_SURFACE_DARK",
+    "#2a2a2a": "APP_CARD_DARK",
+    "#333333": "APP_BORDER_DARK",
+    "#3a3a3a": "APP_PANEL_HOVER_DARK",
+    "#888888": "APP_HINT_DARK",
+}
+
+DARK_DICTS = ("DARK_THEME", "IMAGE_THEME")
+ALL_DICTS = ("DARK_THEME", "LIGHT_THEME", "IMAGE_THEME")
+
+NEW_CONSTS = '\nAPP_CANVAS_DARK: Final[str] = "#0a0a0a"\n"""The ground BELOW the panel in dark and image: the mixing canvas, and the\nselected tab, which sits flush with it.\n\nUnnamed until 2026-08-29 because the 2026-08-27 rewire\'s scope was the three\nstylesheet templates and this value has never appeared in one -- it is reached\nonly through ThemeManager\'s dicts, which seven modules build their own QSS\nfrom.\n\nNOT A BRAND VALUE, and worth saying so here because it was briefly mistaken\nfor one. #0a0a0a is app-owned. The register\'s canvas is WEB_BLACK #0a0a0f, one\nbyte away in the blue channel alone, and a rule derived from the resemblance\nwould have pinned fifteen light uses to a colour the register does not hold.\nSee rnv-brand@8ab1174 BRAND_COLORS.md:270."""\n\nAPP_CARD_DARK: Final[str] = "#2a2a2a"\n"""engine/brand.py APP["card"]. The raised secondary surface in dark and\nimage: panel_secondary in the About dialog and the fine-tune panel, and the\nground of the custom tooltip.\n\nMIRRORED, not app-owned -- it is pinned in tests/test_app_mirror.py alongside\nthe other register values, so a move upstream is caught here."""\n\nAPP_PANEL_HOVER_DARK: Final[str] = "#3a3a3a"\n"""Panel hover in dark and image. One step above APP_CARD_DARK on the 0x10\nsurface spacing, though that ladder is not published: rnv-brand@8ab1174 notes\nit yields #3a3a3a while APP["border"] is #333333, so two rungs are in use and\ntwo are not. Named as an app value until the register rules it."""\n\nAPP_HINT_DARK: Final[str] = "#888888"\n"""Hint text in dark and image. grey(8) on the published ink grid, and the\nsame step the other four apps use for muted text."""\n\n'
+CONST_ANCHOR = "\n# ---- light ----\n"
+PROV_OLD = '    "APP_HANDLE_HOVER_DARK": "step",\n'
+PROV_NEW = '    "APP_HANDLE_HOVER_DARK": "step",\n    "APP_CANVAS_DARK": "step",\n    "APP_CARD_DARK": "step",\n    "APP_PANEL_HOVER_DARK": "step",\n    "APP_HINT_DARK": "step",\n'
+PINNED_OLD = "    'APP_TEXT_DARK': '#dddddd',\n"
+PINNED_NEW = "    'APP_TEXT_DARK': '#dddddd',\n    'APP_CARD_DARK': '#2a2a2a',\n"
+MIRROR_OLD = "    'APP_TEXT_DARK': ('APP', 'text'),\n"
+MIRROR_NEW = "    'APP_TEXT_DARK': ('APP', 'text'),\n    'APP_CARD_DARK': ('APP', 'card'),\n"
+REACH_OLD = 'def test_every_neutral_constant_reaches_a_stylesheet():\n    """A constant nothing renders is dead weight, and dead weight is where the\n    next wrong value hides."""\n    rendered = "".join(getattr(config, t) for t in TEMPLATES).lower()\n    orphans = [n for n in config.NEUTRAL_PROVENANCE\n               if getattr(config, n).lower() not in rendered]\n    assert not orphans, f"neutral constants that render nowhere: {orphans}"\n'
+REACH_NEW = 'def test_every_neutral_constant_is_actually_rendered():\n    """A constant nothing renders is dead weight, and dead weight is where the\n    next wrong value hides.\n\n    WIDENED 2026-08-29, and the widening is a correction rather than a\n    relaxation. This app renders through TWO paths:\n\n      1. the three stylesheet templates above -- main-window chrome, and the\n         only thing this test used to look at;\n      2. ThemeManager\'s three theme dicts, which ui/about_dialog.py,\n         core/color_fine_tune.py, ui/canvas_view.py, core/color_slot.py,\n         core/package_d_panel.py, ui/ui_handler.py and RNV_Color_Mixer.py each\n         build their own QSS from.\n\n    The templates style no QToolTip, QGroupBox, QFrame or QDialog at all, so\n    path 2 paints most of the dialogs. Checking only path 1 measured "reaches a\n    stylesheet template" while claiming "is rendered" -- and would have called\n    a constant used by every dialog in the app dead weight.\n\n    The strength is unchanged: a constant reached by NEITHER path still fails.\n    """\n    rendered = "".join(getattr(config, t) for t in TEMPLATES).lower()\n    in_dicts = {str(v).lower()\n                for theme in (config.ThemeManager.DARK_THEME,\n                              config.ThemeManager.LIGHT_THEME,\n                              config.ThemeManager.IMAGE_THEME)\n                for v in theme.values()}\n    orphans = [n for n in config.NEUTRAL_PROVENANCE\n               if getattr(config, n).lower() not in rendered\n               and getattr(config, n).lower() not in in_dicts]\n    assert not orphans, f"neutral constants that render nowhere: {orphans}"\n\n\ndef test_both_rendering_paths_are_still_carrying_something():\n    """Guard the guard for the widening. If either path stopped resolving, the\n    union above would still pass on the other one -- quietly halving what this\n    test covers."""\n    rendered = "".join(getattr(config, t) for t in TEMPLATES).lower()\n    in_dicts = {str(v).lower()\n                for theme in (config.ThemeManager.DARK_THEME,\n                              config.ThemeManager.LIGHT_THEME,\n                              config.ThemeManager.IMAGE_THEME)\n                for v in theme.values()}\n    from_templates = [n for n in config.NEUTRAL_PROVENANCE\n                      if getattr(config, n).lower() in rendered]\n    from_dicts = [n for n in config.NEUTRAL_PROVENANCE\n                  if getattr(config, n).lower() in in_dicts]\n    assert len(from_templates) >= 10, f"only {len(from_templates)} reach a template"\n    assert len(from_dicts) >= 10, f"only {len(from_dicts)} reach a theme dict"\n'
 
 
-def _retired_values(tree_text: str) -> list[str]:
-    """The repo's own RETIRED table, read rather than restated."""
-    tree = ast.parse(tree_text)
+def _resolve(source: str) -> dict:
+    """Every palette resolved to plain values, whether an entry is a literal or
+    a name. This is what makes 'nothing moved' checkable rather than asserted."""
+    tree = ast.parse(source.lstrip("\ufeff"))
+    consts = {}
     for node in ast.walk(tree):
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             target = node.targets[0] if isinstance(node, ast.Assign) else node.target
-            if getattr(target, "id", None) == "RETIRED" and isinstance(node.value, ast.Dict):
-                return [k.value for k in node.value.keys
-                        if isinstance(k, ast.Constant) and isinstance(k.value, str)]
-    raise SystemExit("could not find RETIRED in tests/test_brand_mirror.py")
+            if isinstance(target, ast.Name) and isinstance(node.value, ast.Constant):
+                consts.setdefault(target.id, node.value.value)
+    out = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            target = node.targets[0] if isinstance(node, ast.Assign) else node.target
+            name = getattr(target, "id", None)
+            if name in ALL_DICTS and isinstance(node.value, ast.Dict):
+                palette = {}
+                for key, value in zip(node.value.keys, node.value.values):
+                    if not isinstance(key, ast.Constant):
+                        continue
+                    if isinstance(value, ast.Constant):
+                        palette[key.value] = value.value
+                    elif isinstance(value, ast.Name):
+                        palette[key.value] = consts.get(value.id, f"<{value.id}>")
+                    else:
+                        palette[key.value] = ast.unparse(value)
+                out[name] = palette
+    return out
+
+
+def _bounds(lines):
+    """The palettes are CLASS attributes here, so they are indented, and they
+    carry identically-spelled key lines. Every edit is scoped to its own."""
+    starts = {}
+    pattern = re.compile(r"^\s+(" + "|".join(ALL_DICTS) + r")\s*=")
+    for i, line in enumerate(lines):
+        m = pattern.match(line)
+        if m:
+            starts[m.group(1)] = i
+    if len(starts) != len(ALL_DICTS):
+        raise SystemExit(f"expected three palettes, found {sorted(starts)}")
+    order = sorted(starts.items(), key=lambda kv: kv[1])
+    return {n: (st, order[i + 1][1] if i + 1 < len(order) else len(lines))
+            for i, (n, st) in enumerate(order)}
 
 
 def edits(tree) -> None:
-    tree.sub(SENTINEL_FILE, OLD_DOC, NEW_DOC)
+    # 1. the names
+    source = tree.read(SENTINEL_FILE)
+    if source.count(CONST_ANCHOR) != 1:
+        raise SystemExit("could not find the single '# ---- light ----' divider")
+    tree.write(SENTINEL_FILE,
+               source.replace(CONST_ANCHOR, NEW_CONSTS + CONST_ANCHOR.lstrip("\n"), 1))
+    tree.sub(SENTINEL_FILE, PROV_OLD, PROV_NEW)
+
+    # 2. the register mirror picks up APP_CARD_DARK
+    tree.sub(MIRROR_TEST, PINNED_OLD, PINNED_NEW)
+    tree.sub(MIRROR_TEST, MIRROR_OLD, MIRROR_NEW)
+
+    # 3. the widened reach test
+    tree.sub(RAMP_TEST, REACH_OLD, REACH_NEW)
+
+    # 4. the wiring, dark and image only
+    lines = tree.read(SENTINEL_FILE).splitlines(keepends=True)
+    bounds = _bounds(lines)
+    swapped = 0
+    for name in DARK_DICTS:
+        start, end = bounds[name]
+        for i in range(start, end):
+            line = lines[i]
+            # Match without the line ending and put it back verbatim: Python's
+            # `$` also matches before a trailing newline, so a pattern ending
+            # `(,.*)$` eats it and reflows the palette onto one line while
+            # every value stays identical and every test stays green.
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            m = re.match(r"^(\s*'[a-z_0-9]+':\s*)'(#[0-9a-fA-F]{6})'(,.*)$", body)
+            if not m:
+                continue
+            const = SUBSTITUTE.get(m.group(2).lower())
+            if const:
+                lines[i] = f"{m.group(1)}{const}{m.group(3)}{ending}"
+                swapped += 1
+    if swapped == 0:
+        raise SystemExit("nothing was substituted -- already wired, or the "
+                         "palettes changed shape")
+    tree.write(SENTINEL_FILE, "".join(lines))
+    print(f"  named 4 greys, substituted {swapped} literal(s)")
 
 
 def checks(tree) -> None:
-    guard = tree.read(SENTINEL_FILE)
-    if SENTINEL not in guard:
-        raise SystemExit("the corrected docstring did not land")
+    original = (Path.cwd() / SENTINEL_FILE).read_text(encoding="utf-8-sig")
+    edited = tree.read(SENTINEL_FILE)
 
-    # Guard the guard, using the repo's own table. A hand-copied list here
-    # would go stale behind the real one, in the direction that reports clean.
-    retired = _retired_values(tree.read(MIRROR_TEST))
-    if not retired:
-        raise SystemExit("the RETIRED table is empty -- this check is not "
-                         "checking anything")
-    hits = [value for value in retired if value in guard]
-    if hits:
-        raise SystemExit(
-            "the guard file still names retired value(s) " + ", ".join(hits)
-            + ". Taking the by-design marker would silence this and is the "
-              "wrong repair -- remove the value from the prose instead.")
+    if SENTINEL not in edited:
+        raise SystemExit("APP_CARD_DARK was not defined")
 
-    # And the second fault: the text that described a different app.
-    #
-    # Anchored on the wrong SENTENCE, not the bare name. `APP_CARD` also
-    # appears further down, in a comment explaining that this app deliberately
-    # does NOT use that spelling -- a correct mention, and sweeping for the
-    # token alone fails on it. That is the fourth time this pass has tripped
-    # over use-versus-mention; every one of them was a check reading a word
-    # instead of a claim.
-    for wrong in ("bare hex literals with no constant and no provenance",
-                  "APP_CARD at n = 2.47"):
-        if wrong in guard:
-            raise SystemExit(f"the guard still says {wrong!r}, which is not "
-                             f"true of this app")
+    before, after = _resolve(original), _resolve(edited)
+    moved = []
+    for name in set(before) | set(after):
+        for key in set(before.get(name, {})) | set(after.get(name, {})):
+            was, now = before.get(name, {}).get(key), after.get(name, {}).get(key)
+            if was != now:
+                moved.append(f"{name}[{key!r}]: {was} -> {now}")
+    if moved:
+        raise SystemExit("THIS PASS MUST NOT MOVE A VALUE, and it moved:\n  "
+                         + "\n  ".join(moved))
+
+    # No _LIGHT name may appear inside a dark palette. This is the trap the
+    # allowlist exists for, asserted rather than trusted.
+    lines = edited.splitlines()
+    bounds = _bounds([l + "\n" for l in lines])
+    for name in DARK_DICTS:
+        start, end = bounds[name]
+        for i in range(start, end):
+            m = re.match(r"^\s*'([a-z_0-9]+)':\s*([A-Z][A-Z_0-9]+),", lines[i])
+            if m and m.group(2).endswith("_LIGHT"):
+                raise SystemExit(
+                    f"{name}[{m.group(1)!r}] now reads {m.group(2)} -- a light "
+                    f"name in a dark palette is worse than the literal it "
+                    f"replaced")
+
+    # Completeness: no allowlisted value may survive as a literal in dark.
+    survivors = []
+    for name in DARK_DICTS:
+        start, end = bounds[name]
+        for i in range(start, end):
+            m = re.match(r"^\s*'([a-z_0-9]+)':\s*'(#[0-9a-fA-F]{6})',", lines[i])
+            if m and m.group(2).lower() in SUBSTITUTE:
+                survivors.append(f"{name}[{m.group(1)!r}] = {m.group(2)}")
+    if survivors:
+        raise SystemExit("values still spelled as literals in dark:\n  "
+                         + "\n  ".join(survivors))
+
+    ramp = tree.read(RAMP_TEST)
+    if "test_both_rendering_paths_are_still_carrying_something" not in ramp:
+        raise SystemExit("the widened reach test and its companion did not land")
 
 
-GUARD_SOURCE = None   # this pass edits the guard rather than installing one
+GUARD_SOURCE = '"""\nmixer\'s dark palettes, wired to the names the same pass created.\n\nWHY THIS APP NEEDED NAMING FIRST. The 2026-08-27 neutral rewire covered the\nthree stylesheet templates. Seven other modules build their own QSS from\nThemeManager\'s theme dicts, and four dark greys lived only there -- so they had\nnever been named, and there was nothing to wire them to.\n\nNOTHING MOVED. The delivery script resolved every palette before and after and\nrefused to write unless they matched entry for entry.\n"""\nfrom __future__ import annotations\n\nimport ast\nimport pathlib\n\nfrom utils import config\nfrom utils.config import ThemeManager\n\nDARK = ThemeManager.DARK_THEME\nIMAGE = ThemeManager.IMAGE_THEME\nLIGHT = ThemeManager.LIGHT_THEME\nPALETTES = {"DARK_THEME": DARK, "IMAGE_THEME": IMAGE}\n\nROOT = pathlib.Path(__file__).resolve().parents[1]\nSRC = ROOT / "utils" / "config.py"\n\nSUBSTITUTE = {\n    "#000000": "TRUE_BLACK",\n    "#0a0a0a": "APP_CANVAS_DARK",\n    "#1a1a1a": "APP_SURFACE_DARK",\n    "#2a2a2a": "APP_CARD_DARK",\n    "#333333": "APP_BORDER_DARK",\n    "#3a3a3a": "APP_PANEL_HOVER_DARK",\n    "#888888": "APP_HINT_DARK",\n}\nNEW_NAMES = ("APP_CANVAS_DARK", "APP_CARD_DARK", "APP_PANEL_HOVER_DARK",\n             "APP_HINT_DARK")\n\n\ndef _dicts(names):\n    tree = ast.parse(SRC.read_text(encoding="utf-8-sig"))\n    out = {}\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.Assign, ast.AnnAssign)):\n            target = node.targets[0] if isinstance(node, ast.Assign) else node.target\n            if getattr(target, "id", None) in names and isinstance(node.value, ast.Dict):\n                out[getattr(target, "id")] = node.value\n    missing = set(names) - set(out)\n    assert not missing, f"palettes that are no longer dict literals: {missing}"\n    return out\n\n\n# ------------------------------------------------------------- guard the guard\n\ndef test_the_names_this_file_reads_exist():\n    for name in NEW_NAMES:\n        assert hasattr(config, name), f"utils.config has no {name}"\n        assert name in config.NEUTRAL_PROVENANCE, f"{name} has no provenance"\n    assert _dicts(PALETTES)\n\n\ndef test_the_new_names_hold_the_values_they_were_created_for():\n    assert config.APP_CANVAS_DARK == "#0a0a0a"\n    assert config.APP_CARD_DARK == "#2a2a2a"\n    assert config.APP_PANEL_HOVER_DARK == "#3a3a3a"\n    assert config.APP_HINT_DARK == "#888888"\n\n\n# ------------------------------------------------------------ the substitution\n\ndef test_no_allowlisted_value_is_spelled_as_a_literal_in_dark():\n    """A literal cannot follow its base. There must not be one left."""\n    literals = []\n    for dict_name, node in _dicts(PALETTES).items():\n        for key, value in zip(node.keys, node.values):\n            if not isinstance(key, ast.Constant):\n                continue\n            if isinstance(value, ast.Constant) and isinstance(value.value, str):\n                const = SUBSTITUTE.get(value.value.lower())\n                if const:\n                    literals.append(f"{dict_name}[{key.value!r}] = {value.value} "\n                                    f"(should read {const})")\n    assert not literals, ("values still written as literals:\\n  "\n                          + "\\n  ".join(literals))\n\n\ndef test_every_dark_name_resolves_to_the_value_it_replaced():\n    wrong = []\n    by_name = {v: k for k, v in SUBSTITUTE.items()}\n    for dict_name, node in _dicts(PALETTES).items():\n        for key, value in zip(node.keys, node.values):\n            if isinstance(value, ast.Name) and value.id in by_name:\n                actual = PALETTES[dict_name].get(key.value)\n                if actual != by_name[value.id]:\n                    wrong.append(f"{dict_name}[{key.value!r}] -> {value.id} "\n                                 f"resolves to {actual}")\n    assert not wrong, "names resolving wrongly:\\n  " + "\\n  ".join(wrong)\n\n\ndef test_no_light_name_leaked_into_a_dark_palette():\n    """The trap the allowlist exists for. DARK[\'menu_disabled\'] is #666666 and\n    the only constant holding #666666 is APP_HANDLE_LIGHT -- a value-keyed\n    substitution across every constant would have written a light name into the\n    dark palette, true by value and false by name."""\n    leaked = []\n    for dict_name, node in _dicts(PALETTES).items():\n        for key, value in zip(node.keys, node.values):\n            if isinstance(value, ast.Name) and value.id.endswith("_LIGHT"):\n                leaked.append(f"{dict_name}[{key.value!r}] -> {value.id}")\n    assert not leaked, ("light names inside a dark palette:\\n  "\n                        + "\\n  ".join(leaked))\n\n\ndef test_menu_disabled_is_still_the_literal_that_proves_the_point():\n    """Guard the guard for the test above: it can only catch a leak while the\n    value that would leak is still there to leak."""\n    assert DARK.get("menu_disabled") == "#666666", (\n        "menu_disabled moved; the allowlist reasoning above needs re-checking")\n\n\ndef test_the_light_palette_was_left_alone():\n    """The light ladder is unruled. Two of its greys -- #aaaaaa and #e0e0e0 --\n    are deliberately still unnamed. If a later pass wires light, this test has\n    to be deleted on purpose."""\n    named = []\n    for key, value in zip(*(lambda n: (n.keys, n.values))(_dicts(("LIGHT_THEME",))["LIGHT_THEME"])):\n        if isinstance(value, ast.Name) and value.id in SUBSTITUTE.values():\n            named.append(f"LIGHT_THEME[{key.value!r}] -> {value.id}")\n    assert not named, ("the light palette now references the dark names:\\n  "\n                       + "\\n  ".join(named))\n'
 
 
 # ------------------------------------------------------------------ plumbing
@@ -320,6 +443,7 @@ def apply(check_only: bool) -> int:
 
     tree = Tree(root)
     edits(tree)
+    tree.write(GUARD, GUARD_SOURCE)
     checks(tree)
 
     if check_only:
