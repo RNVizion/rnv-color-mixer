@@ -108,6 +108,21 @@ deselected rather than marking it skip, so the cost stays visible.
 **Planned fix:** the same refactor as above — hold the thread on the
 object, not on the stack.
 
+**Update, 31 Aug 2026 — it became noisy, so it is deselected.**
+`tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths` aborted
+Linux CI at `test_writer_binary_format_writes_bytes`, with Windows green on
+the same commit. Reproduced locally on an **untouched checkout of that same
+commit**: one abort in three runs, at the identical test, twenty tests in.
+The abort is preceded by a swallowed
+`RuntimeError: wrapped C/C++ object of type QLabel has been deleted` from
+`RNV_Color_Mixer.py:2365` — a preview callback firing after its label is
+gone — which is the same lifecycle smell described above and is worth its
+own look.
+
+Deselected on Linux only, in the manner this entry already prescribed:
+visible in the workflow, not marked skip, so the cost stays countable. The
+planned fix is unchanged and is still the right one.
+
 ---
 
 ## Cross-project audit findings

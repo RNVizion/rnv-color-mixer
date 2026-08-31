@@ -90,8 +90,16 @@ jobs:
           #   - TestAsyncFileOpsErrorPaths (pytest):
           #       Qt threading + filesystem ops crash Python natively
           #       (SIGABRT) on offscreen Linux.
+          #   - TestAsyncFileOpsFormatPaths (pytest):
+          #       The same family, in a different file. Aborted CI on
+          #       2026-08-31 at test_writer_binary_format_writes_bytes.
+          #       Reproduced on an UNTOUCHED checkout of the same commit:
+          #       one abort in three runs, at the identical test.
+          #       KNOWN_ISSUES.md said to deselect this family the way
+          #       TestAsyncFileOpsErrorPaths is deselected if it ever
+          #       became noisy. It has.
           coverage run --data-file=.coverage.unittest --branch -m pytest test_rnv_color_mixer.py -v --deselect "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"
-          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths
+          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths --deselect tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths
           coverage combine .coverage.unittest .coverage.pytest
           coverage report -m
           coverage report -m > coverage_report.txt
