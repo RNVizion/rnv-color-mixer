@@ -205,22 +205,43 @@ APP_HANDLE_HOVER_DARK: Final[str] = "#eeeeee"
 text: grey(14), where APP_TEXT_DARK is grey(13), on the published
 ink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was
 0x10 -- the surface ladder step, not the grid step -- and the
-sentence was true by accident."""
+sentence was true by accident.
+
+APP-OWNED, AND IT SHARES A HEX WITH APP_ITEM_HOVER_LIGHT. Both are #eeeeee and
+they are not the same thing: that one is APP["hover-light"], a LIGHT surface
+the register owns; this is a DARK handle, an ink-grid step doing an ink job.
+grey(14) is reachable from both families, which is exactly the sort of
+coincidence the ink grid makes possible and the reason it has to be named
+rather than noticed. If the register moves the light plate, this must NOT
+follow. tests/test_ladder_and_plate.py asserts the coincidence in both
+directions."""
 
 APP_CANVAS_DARK: Final[str] = "#0a0a0a"
-"""The ground BELOW the panel in dark and image: the mixing canvas, and the
-selected tab, which sits flush with it.
+"""engine/brand.py APP["canvas"]. The ground BELOW the panel in dark and image:
+the mixing canvas, and the selected tab, which sits flush with it.
 
 Unnamed until 2026-08-29 because the 2026-08-27 rewire's scope was the three
 stylesheet templates and this value has never appeared in one -- it is reached
 only through ThemeManager's dicts, which seven modules build their own QSS
 from.
 
-NOT A BRAND VALUE, and worth saying so here because it was briefly mistaken
-for one. #0a0a0a is app-owned. The register's canvas is WEB_BLACK #0a0a0f, one
-byte away in the blue channel alone, and a rule derived from the resemblance
-would have pinned fifteen light uses to a colour the register does not hold.
-See rnv-brand@8ab1174 BRAND_COLORS.md:270."""
+REGISTERED 2026-08-29 in rnv-brand rev 22, and app-owned here until then. It is
+the n=-1 rung of the dark surface ladder:
+
+    BRAND_BLACK + n * 0x10,  n in -1..+2
+    #0a0a0a canvas   #1a1a1a panel   #2a2a2a card   #3a3a3a panel-hover
+
+STILL NOT WEB_BLACK, and the distinction is now sharper rather than gone. This
+docstring used to say "#0a0a0a is app-owned; the register's canvas is WEB_BLACK
+#0a0a0f". The second half was the part that mattered and it survives: the web
+ground is a different value, one byte away in the blue channel alone. App
+neutrals are pure grey, R = G = B, without exception, and the web carries a
+tint the apps do not. That byte is why invert(#0a0a0a) = #f5f5f5 once looked
+like a light-ground rule and was not -- the register's canvas inverts to
+#f5f5f0. Two canvases one byte apart, deliberately.
+
+MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py alongside the
+other register values, so a move upstream is caught here."""
 
 APP_CARD_DARK: Final[str] = "#2a2a2a"
 """engine/brand.py APP["card"]. The raised secondary surface in dark and
@@ -231,10 +252,21 @@ MIRRORED, not app-owned -- it is pinned in tests/test_app_mirror.py alongside
 the other register values, so a move upstream is caught here."""
 
 APP_PANEL_HOVER_DARK: Final[str] = "#3a3a3a"
-"""Panel hover in dark and image. One step above APP_CARD_DARK on the 0x10
-surface spacing, though that ladder is not published: rnv-brand@8ab1174 notes
-it yields #3a3a3a while APP["border"] is #333333, so two rungs are in use and
-two are not. Named as an app value until the register rules it."""
+"""engine/brand.py APP["panel-hover"]. Panel hover in dark and image, and the
+n=+2 rung of the dark surface ladder.
+
+REGISTERED 2026-08-29 in rnv-brand rev 22. THE REGISTER RULED IT, AND THE
+DOUBT THIS DOCSTRING USED TO RECORD WAS MISPLACED. It said the ladder was not
+published because "it yields #3a3a3a while APP["border"] is #333333, so two
+rungs are in use and two are not" -- treating the border as a missing rung.
+It is not a rung at all. #333333 is grey(3) on the INK grid, which governs inks
+and EDGES, and a border is an edge. The two families were being compared to
+each other. The ladder was complete the whole time:
+
+    BRAND_BLACK + n * 0x10,  n in -1..+2
+    #0a0a0a canvas   #1a1a1a panel   #2a2a2a card   #3a3a3a panel-hover
+
+MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 
 APP_HINT_DARK: Final[str] = "#888888"
 """Hint text in dark and image. grey(8) on the published ink grid, and the
@@ -249,8 +281,24 @@ APP_BORDER_LIGHT: Final[str] = "#cccccc"
 handle, on the same reasoning as APP_BORDER_DARK."""
 
 APP_ITEM_HOVER_LIGHT: Final[str] = "#eeeeee"
-"""Combo-box item under the cursor, light. The list hover, not the button
-hover -- those are different schemes, see APP_BTN_HOVER_INVERSE."""
+"""engine/brand.py APP["hover-light"]. grey(14). The light interaction plate:
+the combo-box item under the cursor and the panel hover. The LIST hover, not
+the button hover -- those are different schemes, see APP_BTN_HOVER_INVERSE.
+
+REGISTERED 2026-08-30 in rnv-brand rev 23. It was registered a day earlier as
+#e8e8e8 and moved here before any app was wired to it, because #e8e8e8 is the
+ground BRAND_DARK_GOLD_DEEP is calibrated against -- rev 24 registered that
+role as GOLD_TEXT_GROUND_FLOOR. A plate on the value the gold is pinned to
+clears the 4.5 text floor by 0.0334 and fails the moment the gold moves one
+step. This value clears by 0.2875. A boundary is not a plate.
+
+THE NAME STAYS AS IT IS. This app names neutrals by role AND mode because it
+registers a light set beside the dark one, and tests/test_app_mirror.py maps
+those names to register keys explicitly rather than renaming eleven constants
+to fit a convention that would then be wrong within this file. The mirror is
+what carries the ownership, not the spelling.
+
+MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 
 APP_HANDLE_LIGHT: Final[str] = "#666666"
 """Slider handle at rest, light."""
@@ -377,7 +425,7 @@ class ThemeManager:
         'accent_text': '#ffffff',
         'panel_bg': '#f5f5f5',
         'panel_secondary': '#ffffff',
-        'panel_hover': '#eeeeee',
+        'panel_hover': APP_ITEM_HOVER_LIGHT,
         'tab_selected_bg': '#ffffff',
         'scrollbar_bg': '#f5f5f5',
         'scrollbar_handle': '#cccccc',

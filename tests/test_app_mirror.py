@@ -61,6 +61,9 @@ PINNED = {
     'APP_BORDER_DARK': '#333333',
     'APP_TEXT_DARK': '#dddddd',
     'APP_CARD_DARK': '#2a2a2a',
+    'APP_CANVAS_DARK': '#0a0a0a',
+    'APP_PANEL_HOVER_DARK': '#3a3a3a',
+    'APP_ITEM_HOVER_LIGHT': '#eeeeee',
 }
 
 #: This app names its neutrals by ROLE AND MODE -- APP_SURFACE_DARK, not
@@ -76,6 +79,9 @@ MIRRORS = {
     'APP_BORDER_DARK': ('APP', 'border'),
     'APP_TEXT_DARK': ('APP', 'text'),
     'APP_CARD_DARK': ('APP', 'card'),
+    'APP_CANVAS_DARK': ('APP', 'canvas'),
+    'APP_PANEL_HOVER_DARK': ('APP', 'panel-hover'),
+    'APP_ITEM_HOVER_LIGHT': ('APP', 'hover-light'),
 }
 
 #: Dark-mode ink and edge. These carry APP_TEXT and must reference it by name.
