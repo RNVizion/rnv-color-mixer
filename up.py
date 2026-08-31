@@ -2,71 +2,75 @@
 """
 RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP
 
-Reclassify three rnv-color-mixer neutrals from app-owned to mirrored, and
-correct the three docstrings that argued they were not.
+Deselect the second AsyncFileOps class on Linux CI, as KNOWN_ISSUES.md
+already prescribes, and make every deselect prove it still points at a real
+test.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse every edit in memory, write nothing
     python up.py --verify    # run the suites only, change nothing
     python up.py --finish    # delete this file
 
-WHAT MOVES: NOTHING. Not one rendered pixel, and only one line of the palettes.
+THIS CHANGES NO APPLICATION CODE AT ALL. One workflow line, one
+KNOWN_ISSUES.md entry, one new test.
 
-This app already NAMED these three values -- the 2026-08-29 pass did that. What
-it could not do was classify them correctly, because the register had not yet
-ruled. It has:
+WHAT HAPPENED
 
-    APP_CANVAS_DARK       #0a0a0a  ->  APP["canvas"]       rev 22
-    APP_PANEL_HOVER_DARK  #3a3a3a  ->  APP["panel-hover"]  rev 22
-    APP_ITEM_HOVER_LIGHT  #eeeeee  ->  APP["hover-light"]  rev 23
+Linux CI aborted on 2026-08-31 with exit 134 at
+tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths::test_writer_binary_format_writes_bytes.
+Windows was green on the same commit.
 
-So the change is provenance: three entries in PINNED, three in MIRRORS, and
-three docstrings that currently say the opposite of what is now true.
+IT IS NOT THE ALIGNMENT WORK, AND THAT IS CHECKED RATHER THAN ASSERTED. The
+same file was run three times on an UNTOUCHED checkout of the same commit,
+with none of the colour changes applied: run 1 aborted at exactly that test,
+twenty tests in; runs 2 and 3 passed 27/27. Same abort, same position, no
+changes present.
 
-THE DOCSTRINGS ARE THE POINT OF THIS PASS, NOT A SIDE EFFECT
+THE REPOSITORY ALREADY PREDICTED THIS
 
-    APP_CANVAS_DARK says  "NOT A BRAND VALUE ... #0a0a0a is app-owned."
-    APP_PANEL_HOVER_DARK  "that ladder is not published ... two rungs are in
-                           use and two are not. Named as an app value until
-                           the register rules it."
+KNOWN_ISSUES.md carries an entry titled "FileWriterThread signal tests --
+intermittent SIGABRT, deliberately not skipped". It says the abort surfaces
+during whatever work is in flight and "reads exactly like a regression in
+that work. It is not one." It also says, in as many words:
 
-Both were accurate when written and both are now false. A wrong docstring
-beside a right value is worse than no docstring: it is evidence, and the next
-person to read it will believe it. This programme has already been bitten once
-by a guard docstring that described the wrong app's history and passed every
-test, because nothing checks prose.
+    If it becomes noisy, deselect it the way TestAsyncFileOpsErrorPaths is
+    deselected rather than marking it skip, so the cost stays visible.
 
-The ladder claim was wrong in an instructive way. It treated APP["border"]
-#333333 as a missing rung of the surface ladder. #333333 is grey(3) on the INK
-grid, which governs inks and EDGES -- a border is an edge, and was never a rung.
-Two families compared to each other. The ladder was complete when the doubt was
-first written down.
+It has become noisy. This does what that sentence says.
 
-ONE SUBSTITUTION
+WHY THE EXISTING DESELECT DID NOT COVER IT
 
-    LIGHT_THEME  panel_hover  '#eeeeee'  ->  APP_ITEM_HOVER_LIGHT
+The workflow already deselects
+tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths -- the same
+root cause, the same thread lifecycle, a nearly identical class name, in a
+different file. The exemption was written for one home of the pattern and
+the pattern has two.
 
-It is the same value; the constant already existed and already held it. The
-literal was the last place in the light palette that spelled the plate out.
+A DESELECT IS AN EXEMPTION, SO IT GETS A GUARD
 
-A COINCIDENCE, NAMED
+pytest SILENTLY IGNORES a --deselect that matches nothing. No warning, no
+error -- the run just collects everything and the exemption stops applying.
+Three hand-written node ids now live in these workflows, and a rename would
+turn any of them off without a word.
 
-APP_HANDLE_HOVER_DARK is also #eeeeee, and it is NOT the register's plate. It
-is the dark slider handle when hovered -- grey(14) on the ink grid, one step
-above APP_TEXT_DARK at grey(13), doing an INK job in a DARK palette. The
-register's hover-light is a LIGHT SURFACE. grey(14) is reachable from both
-families, which is exactly the coincidence the published grid makes possible.
-It is recorded in tests/test_ladder_and_plate.py and asserted in both
-directions: one that stops coinciding fails, and so does one that turns out to
-be mirrored after all.
+tests/test_ci_deselects.py reads every workflow, extracts every --deselect,
+and asserts pytest can still collect the node it names. It also asserts that
+each deselected AsyncFileOps class is described in KNOWN_ISSUES.md, so the
+workflow and the prose cannot drift apart in the direction that can be
+checked.
 
-WHY THE PLATE IS #eeeeee AND NOT #e8e8e8
+WHAT THIS DOES NOT FIX
 
-#e8e8e8 is the ground BRAND_DARK_GOLD_DEEP is calibrated against -- the
-smallest uniform step that clears it is -14, and -13 gives 4.4675 and fails.
-rev 24 registered that role as GOLD_TEXT_GROUND_FLOOR. A hover plate on that
-value clears the 4.5 floor by 0.0334 and fails the moment the gold moves.
-#eeeeee is grey(14), one step inside, and clears by 0.2875.
+The underlying lifecycle bug. KNOWN_ISSUES.md names the real repair -- hold
+the thread on the object rather than on the stack -- and that is still the
+right fix and still outstanding. Worth adding: the abort is preceded in the
+CI log by a swallowed
+
+    RuntimeError: wrapped C/C++ object of type QLabel has been deleted
+
+from RNV_Color_Mixer.py:2365, a preview callback firing after its label is
+gone. That is the same lifecycle smell one level up, and it deserves its own
+look rather than being bundled in here.
 """
 from __future__ import annotations
 
@@ -80,194 +84,102 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-DESCRIPTION = "reclassify three neutrals as mirrored, and fix their docstrings"
-SENTINEL_FILE = "utils/config.py"
-SENTINEL = "APP_ITEM_HOVER_LIGHT,"
-MIRROR = "tests/test_app_mirror.py"
-GUARD = "tests/test_ladder_and_plate.py"
+DESCRIPTION = "deselect the second AsyncFileOps class on Linux CI"
+SENTINEL_FILE = ".github/workflows/tests-linux.yml"
+SENTINEL = "TestAsyncFileOpsFormatPaths"
+KNOWN = "KNOWN_ISSUES.md"
+GUARD = "tests/test_ci_deselects.py"
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
+#: The guard is the point of this pass, so it is what gets run. The full
+#: suites are not re-run here: this pass touches no application code, and
+#: the thing it is responding to is an intermittent abort in the suite it
+#: is deselecting from.
 SUITES = [
-    ('pytest tests/',
-     [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-    ('unittest suite',
-     [sys.executable, "-m", "unittest", "test_rnv_color_mixer"]),
+    ('the deselect guard',
+     [sys.executable, "-m", "pytest", GUARD, "-q", "-p", "no:cacheprovider"]),
 ]
 
-#: palette -> {value: constant}. An ALLOWLIST, not a sweep.
-SUBSTITUTE = {"LIGHT_THEME": {"#eeeeee": "APP_ITEM_HOVER_LIGHT"}}
-EXPECTED_SUBS = 1
-
-#: The palettes are class attributes of ThemeManager, so they are indented.
-ALL_DICTS = ("DARK_THEME", "LIGHT_THEME", "IMAGE_THEME")
-
-OLD_CANVAS_DOC = '"""The ground BELOW the panel in dark and image: the mixing canvas, and the\nselected tab, which sits flush with it.\n\nUnnamed until 2026-08-29 because the 2026-08-27 rewire\'s scope was the three\nstylesheet templates and this value has never appeared in one -- it is reached\nonly through ThemeManager\'s dicts, which seven modules build their own QSS\nfrom.\n\nNOT A BRAND VALUE, and worth saying so here because it was briefly mistaken\nfor one. #0a0a0a is app-owned. The register\'s canvas is WEB_BLACK #0a0a0f, one\nbyte away in the blue channel alone, and a rule derived from the resemblance\nwould have pinned fifteen light uses to a colour the register does not hold.\nSee rnv-brand@8ab1174 BRAND_COLORS.md:270."""'
-NEW_CANVAS_DOC = '"""engine/brand.py APP["canvas"]. The ground BELOW the panel in dark and image:\nthe mixing canvas, and the selected tab, which sits flush with it.\n\nUnnamed until 2026-08-29 because the 2026-08-27 rewire\'s scope was the three\nstylesheet templates and this value has never appeared in one -- it is reached\nonly through ThemeManager\'s dicts, which seven modules build their own QSS\nfrom.\n\nREGISTERED 2026-08-29 in rnv-brand rev 22, and app-owned here until then. It is\nthe n=-1 rung of the dark surface ladder:\n\n    BRAND_BLACK + n * 0x10,  n in -1..+2\n    #0a0a0a canvas   #1a1a1a panel   #2a2a2a card   #3a3a3a panel-hover\n\nSTILL NOT WEB_BLACK, and the distinction is now sharper rather than gone. This\ndocstring used to say "#0a0a0a is app-owned; the register\'s canvas is WEB_BLACK\n#0a0a0f". The second half was the part that mattered and it survives: the web\nground is a different value, one byte away in the blue channel alone. App\nneutrals are pure grey, R = G = B, without exception, and the web carries a\ntint the apps do not. That byte is why invert(#0a0a0a) = #f5f5f5 once looked\nlike a light-ground rule and was not -- the register\'s canvas inverts to\n#f5f5f0. Two canvases one byte apart, deliberately.\n\nMIRRORED, not app-owned -- pinned in tests/test_app_mirror.py alongside the\nother register values, so a move upstream is caught here."""'
-OLD_HOVER_DOC = '"""Panel hover in dark and image. One step above APP_CARD_DARK on the 0x10\nsurface spacing, though that ladder is not published: rnv-brand@8ab1174 notes\nit yields #3a3a3a while APP["border"] is #333333, so two rungs are in use and\ntwo are not. Named as an app value until the register rules it."""'
-NEW_HOVER_DOC = '"""engine/brand.py APP["panel-hover"]. Panel hover in dark and image, and the\nn=+2 rung of the dark surface ladder.\n\nREGISTERED 2026-08-29 in rnv-brand rev 22. THE REGISTER RULED IT, AND THE\nDOUBT THIS DOCSTRING USED TO RECORD WAS MISPLACED. It said the ladder was not\npublished because "it yields #3a3a3a while APP["border"] is #333333, so two\nrungs are in use and two are not" -- treating the border as a missing rung.\nIt is not a rung at all. #333333 is grey(3) on the INK grid, which governs inks\nand EDGES, and a border is an edge. The two families were being compared to\neach other. The ladder was complete the whole time:\n\n    BRAND_BLACK + n * 0x10,  n in -1..+2\n    #0a0a0a canvas   #1a1a1a panel   #2a2a2a card   #3a3a3a panel-hover\n\nMIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""'
-OLD_ITEM_DOC = '"""Combo-box item under the cursor, light. The list hover, not the button\nhover -- those are different schemes, see APP_BTN_HOVER_INVERSE."""'
-NEW_ITEM_DOC = '"""engine/brand.py APP["hover-light"]. grey(14). The light interaction plate:\nthe combo-box item under the cursor and the panel hover. The LIST hover, not\nthe button hover -- those are different schemes, see APP_BTN_HOVER_INVERSE.\n\nREGISTERED 2026-08-30 in rnv-brand rev 23. It was registered a day earlier as\n#e8e8e8 and moved here before any app was wired to it, because #e8e8e8 is the\nground BRAND_DARK_GOLD_DEEP is calibrated against -- rev 24 registered that\nrole as GOLD_TEXT_GROUND_FLOOR. A plate on the value the gold is pinned to\nclears the 4.5 text floor by 0.0334 and fails the moment the gold moves one\nstep. This value clears by 0.2875. A boundary is not a plate.\n\nTHE NAME STAYS AS IT IS. This app names neutrals by role AND mode because it\nregisters a light set beside the dark one, and tests/test_app_mirror.py maps\nthose names to register keys explicitly rather than renaming eleven constants\nto fit a convention that would then be wrong within this file. The mirror is\nwhat carries the ownership, not the spelling.\n\nMIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""'
-OLD_HANDLE_DOC = '"""Slider handle when hovered, dark and image. One step above the\ntext: grey(14), where APP_TEXT_DARK is grey(13), on the published\nink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was\n0x10 -- the surface ladder step, not the grid step -- and the\nsentence was true by accident."""'
-NEW_HANDLE_DOC = '"""Slider handle when hovered, dark and image. One step above the\ntext: grey(14), where APP_TEXT_DARK is grey(13), on the published\nink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was\n0x10 -- the surface ladder step, not the grid step -- and the\nsentence was true by accident.\n\nAPP-OWNED, AND IT SHARES A HEX WITH APP_ITEM_HOVER_LIGHT. Both are #eeeeee and\nthey are not the same thing: that one is APP["hover-light"], a LIGHT surface\nthe register owns; this is a DARK handle, an ink-grid step doing an ink job.\ngrey(14) is reachable from both families, which is exactly the sort of\ncoincidence the ink grid makes possible and the reason it has to be named\nrather than noticed. If the register moves the light plate, this must NOT\nfollow. tests/test_ladder_and_plate.py asserts the coincidence in both\ndirections."""'
-PINNED = "    'APP_CANVAS_DARK': '#0a0a0a',\n    'APP_PANEL_HOVER_DARK': '#3a3a3a',\n    'APP_ITEM_HOVER_LIGHT': '#eeeeee',\n"
-MIRRORS = "    'APP_CANVAS_DARK': ('APP', 'canvas'),\n    'APP_PANEL_HOVER_DARK': ('APP', 'panel-hover'),\n    'APP_ITEM_HOVER_LIGHT': ('APP', 'hover-light'),\n"
-
-EXPECTED_ADDED = {
-    SENTINEL_FILE: (NEW_CANVAS_DOC.count("\n") - OLD_CANVAS_DOC.count("\n")
-                    + NEW_HOVER_DOC.count("\n") - OLD_HOVER_DOC.count("\n")
-                    + NEW_ITEM_DOC.count("\n") - OLD_ITEM_DOC.count("\n")
-                    + NEW_HANDLE_DOC.count("\n") - OLD_HANDLE_DOC.count("\n")),
-    MIRROR: PINNED.count("\n") + MIRRORS.count("\n"),
-}
-
-
-def _resolve(source: str) -> dict:
-    """Every palette, resolved to plain values, whether an entry is written as
-    a literal or a name. This is what makes "nothing moved" checkable."""
-    tree = ast.parse(source.lstrip("\ufeff"))
-    consts = {}
-    for node in tree.body:
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            target = node.targets[0] if isinstance(node, ast.Assign) else node.target
-            if isinstance(target, ast.Name) and isinstance(node.value, ast.Constant):
-                consts[target.id] = node.value.value
-    out = {}
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            target = node.targets[0] if isinstance(node, ast.Assign) else node.target
-            name = getattr(target, "id", None)
-            if name in ALL_DICTS and isinstance(node.value, ast.Dict):
-                palette = {}
-                for key, value in zip(node.value.keys, node.value.values):
-                    if not isinstance(key, ast.Constant):
-                        continue
-                    if isinstance(value, ast.Constant):
-                        palette[key.value] = value.value
-                    elif isinstance(value, ast.Name):
-                        palette[key.value] = consts.get(value.id, f"<{value.id}>")
-                    else:
-                        palette[key.value] = ast.unparse(value)
-                out[name] = palette
-    return out
-
-
-def _bounds(lines):
-    """The palettes carry identically-spelled key lines, so a plain string
-    replace cannot tell dark from light. Every edit is scoped to its own.
-    These are class attributes, hence the leading indent in the pattern."""
-    starts = {}
-    pattern = re.compile(r"^\s+(" + "|".join(ALL_DICTS) + r")\s*[:=]")
-    for i, line in enumerate(lines):
-        m = pattern.match(line)
-        if m:
-            starts[m.group(1)] = i
-    if len(starts) != len(ALL_DICTS):
-        raise SystemExit(f"expected {len(ALL_DICTS)} palettes, found {sorted(starts)}")
-    order = sorted(starts.items(), key=lambda kv: kv[1])
-    return {n: (st, order[i + 1][1] if i + 1 < len(order) else len(lines))
-            for i, (n, st) in enumerate(order)}
+OLD_COMMENT = '          #   - TestAsyncFileOpsErrorPaths (pytest):\n          #       Qt threading + filesystem ops crash Python natively\n          #       (SIGABRT) on offscreen Linux.'
+NEW_COMMENT = '          #   - TestAsyncFileOpsErrorPaths (pytest):\n          #       Qt threading + filesystem ops crash Python natively\n          #       (SIGABRT) on offscreen Linux.\n          #   - TestAsyncFileOpsFormatPaths (pytest):\n          #       The same family, in a different file. Aborted CI on\n          #       2026-08-31 at test_writer_binary_format_writes_bytes.\n          #       Reproduced on an UNTOUCHED checkout of the same commit:\n          #       one abort in three runs, at the identical test.\n          #       KNOWN_ISSUES.md said to deselect this family the way\n          #       TestAsyncFileOpsErrorPaths is deselected if it ever\n          #       became noisy. It has.'
+OLD_RUN = '          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths'
+NEW_RUN = '          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths --deselect tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths'
+KNOWN_ANCHOR = '**Planned fix:** the same refactor as above — hold the thread on the\nobject, not on the stack.\n\n---'
+KNOWN_NEW = '**Planned fix:** the same refactor as above — hold the thread on the\nobject, not on the stack.\n\n**Update, 31 Aug 2026 — it became noisy, so it is deselected.**\n`tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths` aborted\nLinux CI at `test_writer_binary_format_writes_bytes`, with Windows green on\nthe same commit. Reproduced locally on an **untouched checkout of that same\ncommit**: one abort in three runs, at the identical test, twenty tests in.\nThe abort is preceded by a swallowed\n`RuntimeError: wrapped C/C++ object of type QLabel has been deleted` from\n`RNV_Color_Mixer.py:2365` — a preview callback firing after its label is\ngone — which is the same lifecycle smell described above and is worth its\nown look.\n\nDeselected on Linux only, in the manner this entry already prescribed:\nvisible in the workflow, not marked skip, so the cost stays countable. The\nplanned fix is unchanged and is still the right one.\n\n---'
 
 
 def edits(tree) -> None:
-    # The docstrings first. Each is matched whole, so a file that has moved
-    # underneath this script fails here rather than editing the wrong prose.
-    tree.sub(SENTINEL_FILE, OLD_CANVAS_DOC, NEW_CANVAS_DOC)
-    tree.sub(SENTINEL_FILE, OLD_HOVER_DOC, NEW_HOVER_DOC)
-    tree.sub(SENTINEL_FILE, OLD_ITEM_DOC, NEW_ITEM_DOC)
-    tree.sub(SENTINEL_FILE, OLD_HANDLE_DOC, NEW_HANDLE_DOC)
-
-    source = tree.read(SENTINEL_FILE)
-    lines = source.splitlines(keepends=True)
-    bounds = _bounds(lines)
-    swapped = 0
-    for dict_name, table in SUBSTITUTE.items():
-        start, end = bounds[dict_name]
-        for i in range(start, end):
-            line = lines[i]
-            # Match the line WITHOUT its ending and put the ending back
-            # verbatim. Python's `$` also matches just before a trailing
-            # newline, so a pattern ending in `(,.*)$` silently drops it, and
-            # the result is still valid Python -- every test passes while the
-            # palette is reflowed onto one line.
-            body = line.rstrip("\r\n")
-            ending = line[len(body):]
-            m = re.match(r"^(\s*'[a-z_0-9]+':\s*)'(#[0-9a-fA-F]{6})'(,.*)$", body)
-            if not m:
-                continue
-            const = table.get(m.group(2).lower())
-            if const:
-                lines[i] = f"{m.group(1)}{const}{m.group(3)}{ending}"
-                swapped += 1
-    if swapped != EXPECTED_SUBS:
-        raise SystemExit(f"expected {EXPECTED_SUBS} substitution, made "
-                         f"{swapped}. Re-derive this script before trusting it.")
-    tree.write(SENTINEL_FILE, "".join(lines))
-    print(f"  substituted {swapped} literal for its name")
-
-    tree.sub(MIRROR, "    'APP_CARD_DARK': '#2a2a2a',\n",
-             "    'APP_CARD_DARK': '#2a2a2a',\n" + PINNED)
-    tree.sub(MIRROR, "    'APP_CARD_DARK': ('APP', 'card'),\n",
-             "    'APP_CARD_DARK': ('APP', 'card'),\n" + MIRRORS)
+    tree.sub(SENTINEL_FILE, OLD_COMMENT, NEW_COMMENT)
+    tree.sub(SENTINEL_FILE, OLD_RUN, NEW_RUN)
+    # The comment and the run line move together. A deselect with no note
+    # beside it is the thing this pass is complaining about.
+    tree.sub(KNOWN, KNOWN_ANCHOR, KNOWN_NEW)
+    print("  deselected TestAsyncFileOpsFormatPaths on Linux, and said why")
 
 
 def checks(tree) -> None:
-    for rel, added in EXPECTED_ADDED.items():
+    workflow = tree.read(SENTINEL_FILE)
+
+    # The deselect must name a class that EXISTS. A --deselect matching
+    # nothing is silently ignored, which is the whole reason the new guard
+    # exists -- so this script does not get to assume it either.
+    node = "tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths"
+    path, cls = node.split("::")
+    source = (Path.cwd() / path)
+    if not source.exists():
+        raise SystemExit(f"{path} does not exist")
+    module = ast.parse(source.read_text(encoding="utf-8"))
+    classes = {n.name for n in ast.walk(module) if isinstance(n, ast.ClassDef)}
+    if cls not in classes:
+        raise SystemExit(
+            f"{path} defines no class {cls}. Deselecting it would be a "
+            f"no-op that looks like a fix.")
+
+    if node not in workflow:
+        raise SystemExit("the deselect did not land in the workflow")
+    # Count the USES, not the token. The comment block above the run lines
+    # contains the words "and --deselect to skip CI-incompatible tests",
+    # and counting the bare string reads that sentence as a fourth
+    # exemption. Same use-versus-mention trap this programme keeps hitting;
+    # the claim is `--deselect` followed by something with a `::` in it.
+    uses = re.findall(r'--deselect\s+"?([^\s"]+::[^\s"]+)"?', workflow)
+    if len(uses) != 3:
+        raise SystemExit(
+            f"expected 3 deselected node ids in this workflow, found "
+            f"{len(uses)}: {uses}")
+
+    # Windows must be left alone. The abort is offscreen-Linux only, and
+    # Windows was green on the commit that produced it -- deselecting there
+    # would drop coverage on the platform where the test works.
+    win = tree.read(".github/workflows/tests-windows.yml")
+    if "AsyncFileOps" in win:
+        raise SystemExit(
+            "tests-windows.yml now mentions AsyncFileOps. This abort is "
+            "offscreen-Linux only and Windows is green; deselecting there "
+            "would lose real coverage.")
+
+    known = tree.read(KNOWN)
+    if SENTINEL not in known:
+        raise SystemExit(
+            f"{KNOWN} does not mention {SENTINEL}. A deselect with no "
+            f"written reason is an exemption nobody can review.")
+
+    # Shape, on both edited files. These are anchored substitutions plus one
+    # inserted block; the counts are derived from the text, not remembered.
+    for rel, added in ((SENTINEL_FILE,
+                        NEW_COMMENT.count("\n") - OLD_COMMENT.count("\n")
+                        + NEW_RUN.count("\n") - OLD_RUN.count("\n")),
+                       (KNOWN, KNOWN_NEW.count("\n") - KNOWN_ANCHOR.count("\n"))):
         before = (Path.cwd() / rel).read_text(encoding="utf-8-sig")
         after = tree.read(rel)
         delta = after.count("\n") - before.count("\n")
         if delta != added:
             raise SystemExit(
-                f"{rel} changed shape by {delta} lines; this pass adds exactly "
-                f"{added}. A substitution that eats or adds a line ending "
-                f"leaves every value identical and every test green.")
-
-    original = (Path.cwd() / SENTINEL_FILE).read_text(encoding="utf-8-sig")
-    edited = tree.read(SENTINEL_FILE)
-
-    before, after = _resolve(original), _resolve(edited)
-    if set(before) != set(after):
-        raise SystemExit(f"a palette appeared or vanished: {set(before) ^ set(after)}")
-    moved = []
-    for name in before:
-        for key in set(before[name]) | set(after[name]):
-            was, now = before[name].get(key), after[name].get(key)
-            if was != now:
-                moved.append(f"{name}[{key!r}]: {was} -> {now}")
-    if moved:
-        raise SystemExit("THIS PASS MUST NOT MOVE A VALUE, and it moved these:\n  "
-                         + "\n  ".join(moved))
-
-    # The three constants keep their values. This pass changes what is SAID
-    # about them, and a docstring edit that also moved a value would be the
-    # worst possible outcome of a pass whose whole subject is provenance.
-    for name, want in (("APP_CANVAS_DARK", "#0a0a0a"),
-                       ("APP_PANEL_HOVER_DARK", "#3a3a3a"),
-                       ("APP_ITEM_HOVER_LIGHT", "#eeeeee"),
-                       ("APP_HANDLE_HOVER_DARK", "#eeeeee")):
-        if f'{name}: Final[str] = "{want}"' not in edited:
-            raise SystemExit(f"{name} is no longer {want} in the edited file")
-
-    # The claims this pass exists to remove must actually be gone.
-    for stale in ("NOT A BRAND VALUE", "that ladder is not published",
-                  "Named as an app value until the register rules it"):
-        if stale in edited:
-            raise SystemExit(
-                f"the edited file still says {stale!r}. Three values have been "
-                f"reclassified as mirrored; prose that contradicts that is "
-                f"evidence pointing the wrong way.")
-
-    # ... and the sweep that finds them must still be able to see. A negative
-    # check with nothing proving it is looking passes on an empty file.
-    if "WEB_BLACK" not in edited:
-        raise SystemExit("the canvas docstring no longer mentions WEB_BLACK; "
-                         "the seam between #0a0a0a and #0a0a0f is the part of "
-                         "that note worth keeping")
-
-    if SENTINEL not in edited:
-        raise SystemExit(f"expected {SENTINEL!r} in the edited palette")
+                f"{rel} changed shape by {delta} lines; this pass adds "
+                f"exactly {added}.")
 
 
-GUARD_SOURCE = '"""Three neutrals reclassified from app-owned to mirrored, and one deliberate\ncoincidence that must not join them.\n\nWHAT THIS PASS DID. This app already NAMED these values -- the 2026-08-29 pass\ndid that. What it could not do was classify them, because the register had not\nruled. rnv-brand rev 22 registered APP["canvas"] #0a0a0a and\nAPP["panel-hover"] #3a3a3a; rev 23 registered APP["hover-light"] #eeeeee. So\nthe change is provenance, and the docstrings that argued the other way.\n\n    BRAND_BLACK + n * 0x10,  n in -1..+2\n    #0a0a0a canvas   #1a1a1a panel   #2a2a2a card   #3a3a3a panel-hover\n\nWHY THE LADDER LOOKED INCOMPLETE. The register had called it "two-thirds\nspecified" because APP["border"] #333333 is not #3a3a3a, treating the border as\na missing rung. It is not a rung: #333333 is grey(3) on the INK grid, which\ngoverns inks and EDGES. Two families compared to each other.\n\nTHE COINCIDENCE. APP_HANDLE_HOVER_DARK is also #eeeeee. It is the dark slider\nhandle when hovered -- grey(14) on the ink grid, one step above APP_TEXT_DARK\nat grey(13), doing an ink job in a dark palette. APP["hover-light"] is a LIGHT\nSURFACE. grey(14) is reachable from both families, which is the sort of\ncoincidence a published grid makes possible, and it must be named rather than\nnoticed.\n"""\nfrom __future__ import annotations\n\nimport ast\nimport pathlib\n\nimport pytest\n\nfrom utils import config\nfrom utils.config import ThemeManager\n\nROOT = pathlib.Path(__file__).resolve().parents[1]\nSRC = ROOT / \'utils\' / \'config.py\'\n\nGRID_STEP = 0x11\nLADDER_STEP = 0x10\nTEXT_FLOOR = 4.5\n\n#: Constant -> (register dict, key, the value both hold). This app names its\n#: neutrals by role AND mode because it registers a light set beside the dark\n#: one, so the APP_<KEY> convention the other apps resolve by does not apply --\n#: the map is explicit, exactly as tests/test_app_mirror.py does it.\nNEW = {\n    \'APP_CANVAS_DARK\': (\'canvas\', \'#0a0a0a\'),\n    \'APP_PANEL_HOVER_DARK\': (\'panel-hover\', \'#3a3a3a\'),\n    \'APP_ITEM_HOVER_LIGHT\': (\'hover-light\', \'#eeeeee\'),\n}\n\n#: dict NAME -> the live palette.\nPALETTES = {\'DARK_THEME\': ThemeManager.DARK_THEME,\n            \'LIGHT_THEME\': ThemeManager.LIGHT_THEME,\n            \'IMAGE_THEME\': ThemeManager.IMAGE_THEME}\n\n#: App-owned values that DELIBERATELY share a hex with a register entry.\n#: Sharing a VALUE is not playing the same ROLE, and a value check cannot tell\n#: the difference -- so the intentional ones are named here, with what they\n#: share and why they must NOT follow if the register moves.\n#:\n#: name -> (register key, why it is not the same role)\nCOINCIDENT = {\n    \'APP_HANDLE_HOVER_DARK\': (\n        \'hover-light\',\n        \'Both are #eeeeee. The register entry is a LIGHT SURFACE -- the \'\n        \'interaction plate a light-mode control hovers to. This is the DARK \'\n        \'slider handle when hovered: an ink-grid step, grey(14), one above \'\n        \'APP_TEXT_DARK at grey(13), drawn on a dark ground. Different mode, \'\n        \'different family, different job. grey(14) is simply reachable from \'\n        \'both. If APP["hover-light"] moves off grey(14) this must NOT follow \'\n        \'it, which is why it is named here rather than mirrored.\'),\n}\n\n#: The value the plate is NOT, and the reason the distinction is worth a test.\nFLOOR = \'#e8e8e8\'\n\n\ndef grey(n: int) -> str:\n    v = n * GRID_STEP\n    return \'#%02x%02x%02x\' % (v, v, v)\n\n\ndef _luminance(value: str) -> float:\n    channels = [int(value.lstrip(\'#\')[i:i + 2], 16) / 255 for i in (0, 2, 4)]\n    channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4\n                for c in channels]\n    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]\n\n\ndef _contrast(a: str, b: str) -> float:\n    high, low = sorted((_luminance(a), _luminance(b)), reverse=True)\n    return (high + 0.05) / (low + 0.05)\n\n\ndef _palette_node(name: str) -> ast.Dict:\n    tree = ast.parse(SRC.read_text(encoding=\'utf-8-sig\'))\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.Assign, ast.AnnAssign)):\n            target = node.targets[0] if isinstance(node, ast.Assign) else node.target\n            if getattr(target, \'id\', None) == name and isinstance(node.value, ast.Dict):\n                return node.value\n    raise AssertionError(f\'{name} is not a dict literal in utils/config.py\')\n\n\ndef _entry(node: ast.Dict, key: str):\n    for k, v in zip(node.keys, node.values):\n        if isinstance(k, ast.Constant) and k.value == key:\n            return v\n    return None\n\n\n# ------------------------------------------------------------- guard the guard\n\ndef test_everything_this_file_reads_still_exists():\n    """Renaming a constant must fail loudly here rather than let the rest of\n    this file pass quietly over nothing."""\n    for name in list(NEW) + list(COINCIDENT):\n        assert hasattr(config, name), f\'utils.config has no {name}\'\n    for dict_name, live in PALETTES.items():\n        assert live, f\'{dict_name} is empty\'\n\n\n# ------------------------------------------------------------------ the values\n\ndef test_the_reclassified_constants_still_hold_their_values():\n    """This pass changes what is SAID about three constants. If it moved one of\n    them, that would be the worst possible outcome of a provenance pass."""\n    drift = {n: getattr(config, n) for n, (_, v) in NEW.items()\n             if getattr(config, n) != v}\n    assert not drift, f\'values moved during a reclassification: {drift}\'\n\n\ndef test_the_reclassified_constants_match_rnv_brand():\n    """The upstream half. Skips where rnv-brand is not importable, which is why\n    tests/test_app_mirror.py pins the same three locally."""\n    brand = pytest.importorskip(\n        \'engine.brand\',\n        reason=\'rnv-brand not importable here; the local pin is doing the work\')\n    drift = []\n    for name, (key, _) in NEW.items():\n        theirs, mine = brand.APP[key], getattr(config, name)\n        if mine.lower() != theirs.lower():\n            drift.append(f\'{name}: ours {mine}, theirs APP[{key!r}] {theirs}\')\n    assert not drift, \'drift from rnv-brand:\\n  \' + \'\\n  \'.join(drift)\n\n\ndef test_all_three_are_pinned_and_mirrored():\n    """The reclassification IS the two tables. A docstring saying a value is\n    mirrored, with no entry making it so, is the failure this pass is fixing in\n    the opposite direction."""\n    mirror = pathlib.Path(__file__).with_name(\'test_app_mirror.py\')\n    source = mirror.read_text(encoding=\'utf-8\')\n    for name in NEW:\n        assert f"\'{name}\':" in source, (\n            f\'{name} is not in tests/test_app_mirror.py. It is declared \'\n            f\'mirrored in its docstring; without a PINNED and a MIRRORS entry \'\n            f\'that claim is decorative.\')\n\n\n# ------------------------------------------------------------------ the ladder\n\ndef test_the_dark_rungs_are_exact_steps_on_the_ladder():\n    """BRAND_BLACK + n * 0x10. Two of these were app-owned on the argument that\n    the ladder might not be real. It is, and this is what says so."""\n    base = int(config.APP_SURFACE_DARK.lstrip(\'#\'), 16)\n    for n, name in ((-1, \'APP_CANVAS_DARK\'), (0, \'APP_SURFACE_DARK\'),\n                    (1, \'APP_CARD_DARK\'), (2, \'APP_PANEL_HOVER_DARK\')):\n        want = base + n * (LADDER_STEP * 0x010101)\n        assert int(getattr(config, name).lstrip(\'#\'), 16) == want, (\n            f\'{name} is {getattr(config, name)}, not rung n={n} of \'\n            f\'APP_SURFACE_DARK + n*0x10\')\n\n\ndef test_the_border_is_an_edge_and_not_a_rung():\n    """The distinction that made the ladder look incomplete for a week."""\n    assert config.APP_BORDER_DARK == grey(3)\n    base = int(config.APP_SURFACE_DARK.lstrip(\'#\'), 16)\n    rungs = {base + n * (LADDER_STEP * 0x010101) for n in range(-1, 3)}\n    assert int(config.APP_BORDER_DARK.lstrip(\'#\'), 16) not in rungs\n\n\ndef test_the_canvas_is_not_the_web_ground():\n    """One byte apart, deliberately. The docstring used to say #0a0a0a was\n    app-owned BECAUSE the register\'s canvas was WEB_BLACK. The first half is\n    now wrong and the second half was always the part that mattered."""\n    r, g, b = (int(config.APP_CANVAS_DARK.lstrip(\'#\')[i:i + 2], 16)\n               for i in (0, 2, 4))\n    assert r == g == b, f\'{config.APP_CANVAS_DARK} is not a pure grey\'\n    brand = pytest.importorskip(\'engine.brand\', reason=\'rnv-brand not importable\')\n    assert config.APP_CANVAS_DARK.lower() != brand.WEB_BLACK.lower()\n\n\n# ------------------------------------------------------------------- the plate\n\ndef test_the_plate_is_a_step_on_the_ink_grid():\n    assert config.APP_ITEM_HOVER_LIGHT == grey(14) == \'#eeeeee\'\n\n\ndef test_the_plate_is_not_the_gold_text_floor():\n    """Both clear the 4.5 floor. Only one clears it by enough to survive the\n    gold moving, and the other is the value the gold is calibrated against."""\n    gold = config.BRAND_DARK_GOLD_DEEP\n    here = _contrast(gold, config.APP_ITEM_HOVER_LIGHT)\n    edge = _contrast(gold, FLOOR)\n    assert config.APP_ITEM_HOVER_LIGHT.lower() != FLOOR\n    assert here - TEXT_FLOOR >= 0.2, (\n        f\'the plate clears the floor by only {here - TEXT_FLOOR:.4f}. The \'\n        f\'register moved APP["hover-light"] here for margin, not for a pass.\')\n    assert edge - TEXT_FLOOR < 0.05, (\n        f\'{FLOOR} now clears by {edge - TEXT_FLOOR:.4f}, so it is no longer the \'\n        f\'knife-edge this ruling was about. Either the gold moved or the floor \'\n        f\'did; re-derive before trusting the value above.\')\n\n\ndef test_the_light_panel_hover_names_the_plate():\n    """The last literal in the light palette that spelled the plate out. A\n    literal cannot follow its base."""\n    node = _palette_node(\'LIGHT_THEME\')\n    value = _entry(node, \'panel_hover\')\n    assert isinstance(value, ast.Name) and value.id == \'APP_ITEM_HOVER_LIGHT\', (\n        f\'LIGHT_THEME["panel_hover"] is \'\n        f\'{ast.unparse(value) if value else "missing"}, not the plate constant\')\n    assert ThemeManager.LIGHT_THEME[\'panel_hover\'] == config.APP_ITEM_HOVER_LIGHT\n\n\n# -------------------------------------------------------------- the coincidence\n\ndef test_every_coincidence_still_coincides():\n    """A named coincidence that no longer shares a value is a dead exemption,\n    and a dead exemption is a licence waiting for a defect: it would let a\n    genuinely misclassified value hide behind it."""\n    brand = pytest.importorskip(\'engine.brand\', reason=\'rnv-brand not importable\')\n    stale = []\n    for name, (key, _why) in COINCIDENT.items():\n        mine = getattr(config, name).lower()\n        theirs = brand.APP.get(key)\n        if theirs is None:\n            stale.append(f\'{name}: the register no longer holds APP[{key!r}]\')\n        elif mine != theirs.lower():\n            stale.append(f\'{name} = {mine} no longer matches APP[{key!r}] {theirs}\')\n    assert not stale, (\n        \'COINCIDENT entries that no longer describe reality:\\n  \'\n        + \'\\n  \'.join(stale)\n        + \'\\n\\nDelete the entry or correct it -- do not leave it standing.\')\n\n\ndef test_no_coincidence_is_also_mirrored():\n    """Guard the guard. The exemption is only for app-owned values; a name in\n    both tables would quietly exempt a mirrored value from its own mirror."""\n    for name in COINCIDENT:\n        assert name not in NEW, f\'{name} is both mirrored and exempt from the mirror\'\n    mirror = pathlib.Path(__file__).with_name(\'test_app_mirror.py\')\n    source = mirror.read_text(encoding=\'utf-8\')\n    for name in COINCIDENT:\n        assert f"\'{name}\':" not in source, (\n            f\'{name} is a named coincidence and is also pinned in \'\n            f\'test_app_mirror.py. It cannot be both.\')\n\n\ndef test_the_coincidence_is_in_the_other_mode():\n    """What actually separates the two: one is a light surface, the other a\n    dark ink. If the handle hover ever appears in a light palette, the reason\n    it is exempt has gone."""\n    for dict_name in (\'LIGHT_THEME\',):\n        for key, value in PALETTES[dict_name].items():\n            assert value != config.APP_HANDLE_HOVER_DARK or \\\n                value == config.APP_ITEM_HOVER_LIGHT, (\n                    f\'{dict_name}[{key!r}] carries the dark handle hover\')\n'
+GUARD_SOURCE = '"""Every --deselect in CI names a test that exists.\n\nWHY THIS EXISTS. A `--deselect` whose path matches nothing is SILENTLY\nIGNORED by pytest. It does not warn and it does not fail; the run simply\ncollects everything and the exemption quietly stops applying. Two of these\nhave been added to this repository by hand, and a third would have been\njust as easy to mistype.\n\nThat makes a deselect an exemption with no reason attached, which is the\nfailure shape this repository keeps recording elsewhere: a licence that\noutlives its subject, or one that never had a subject at all. This test\nreads the workflow, extracts every deselect argument, and asserts that\npytest can still collect the node it names.\n\nWHAT IT DOES NOT DO. It does not judge whether the deselect is justified --\nthat is what KNOWN_ISSUES.md is for, and prose cannot be checked. It only\nproves the exemption still points at something real.\n"""\nfrom __future__ import annotations\n\nimport pathlib\nimport re\nimport subprocess\nimport sys\n\nimport pytest\n\nROOT = pathlib.Path(__file__).resolve().parents[1]\nWORKFLOWS = ROOT / \'.github\' / \'workflows\'\n\n#: A deselect USE, not the word. The argument must contain `::`, because\n#: the comment block above the run lines says "and --deselect to skip\n#: CI-incompatible tests" -- and a pattern that matches the token alone\n#: reads that sentence as an exemption named `to`, then fails because no\n#: test called `to` exists. This test failed exactly that way when it was\n#: written, which is the eighth time use-versus-mention has caught a check\n#: in this programme. Match the claim, never the token.\nDESELECT = re.compile(r\'--deselect\\s+"?([^\\s"]+::[^\\s"]+)"?\')\n\n\ndef _deselects() -> list[tuple[str, str]]:\n    out = []\n    for workflow in sorted(WORKFLOWS.glob(\'*.yml\')):\n        text = workflow.read_text(encoding=\'utf-8\')\n        for match in DESELECT.finditer(text):\n            out.append((workflow.name, match.group(1)))\n    return out\n\n\ndef test_the_workflows_are_where_this_test_thinks_they_are():\n    """Guard the guard. If the directory moved, every assertion below would\n    iterate an empty list and pass."""\n    assert WORKFLOWS.is_dir(), f\'no workflow directory at {WORKFLOWS}\'\n    assert list(WORKFLOWS.glob(\'*.yml\')), \'no workflow files found\'\n\n\ndef test_at_least_one_deselect_is_still_declared():\n    """The sweep exists because deselects exist. If they are all gone, this\n    file should be deleted rather than left passing over nothing."""\n    found = _deselects()\n    assert found, (\n        \'no --deselect found in any workflow. If CI no longer needs any, \'\n        \'delete this test in the same commit that removed the last one.\')\n\n\n@pytest.mark.parametrize(\'workflow,node\', _deselects(),\n                         ids=lambda v: v.replace(\'/\', \'-\'))\ndef test_every_deselected_node_still_exists(workflow: str, node: str):\n    """pytest ignores a --deselect that matches nothing, so a typo or a\n    renamed class turns the exemption off without saying so."""\n    path = node.split(\'::\', 1)[0]\n    assert (ROOT / path).exists(), (\n        f\'{workflow} deselects {node}, but {path} does not exist\')\n    result = subprocess.run(\n        [sys.executable, \'-m\', \'pytest\', node, \'--collect-only\', \'-q\',\n         \'-p\', \'no:cacheprovider\'],\n        cwd=ROOT, capture_output=True, text=True)\n    assert result.returncode == 0 and \'no tests ran\' not in result.stdout, (\n        f\'{workflow} deselects {node}, which pytest cannot collect.\\n\'\n        f\'A --deselect that matches nothing is silently ignored, so this \'\n        f\'exemption is not doing anything.\\n\\n{result.stdout[-800:]}\')\n\n\ndef test_the_documented_family_is_the_one_that_is_deselected():\n    """KNOWN_ISSUES.md prescribes deselecting the AsyncFileOps family on\n    Linux when it becomes noisy. This is the link between the prose and the\n    workflow, asserted in the one direction that can be."""\n    nodes = {node for _w, node in _deselects()}\n    linux = [n for n in nodes if \'AsyncFileOps\' in n]\n    assert len(linux) >= 2, (\n        f\'expected both AsyncFileOps classes to be deselected on Linux, \'\n        f\'found {sorted(linux)}\')\n    known = (ROOT / \'KNOWN_ISSUES.md\').read_text(encoding=\'utf-8\')\n    for node in linux:\n        cls = node.rsplit(\'::\', 1)[-1]\n        assert cls in known, (\n            f\'{cls} is deselected in CI but not described in \'\n            f\'KNOWN_ISSUES.md. A deselect with no written reason is an \'\n            f\'exemption nobody can review.\')\n'
 
 
 # ------------------------------------------------------------------ plumbing
