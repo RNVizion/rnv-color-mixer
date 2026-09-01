@@ -290,7 +290,7 @@ class ColorSlot(QWidget, SignalMixin):
         base_hex    = _ct['input_bg']
         text_hex    = _ct['text_color']
         window_hex  = _ct['window_bg']    # dialog/panel bg
-        button_hex  = _ct['button_bg']    # button surface bg
+        button_hex  = _ct['main_btn_bg']    # button surface bg
         border_hex  = _ct['border_color']
 
         # 1. Stylesheet — forces focus rings, spinbox borders, input selection
@@ -554,8 +554,8 @@ class ColorSlot(QWidget, SignalMixin):
                     font-size: {config.FONT_SIZES["normal"]}px;
                 }}
                 QPushButton {{
-                    background-color: {theme['button_bg']};
-                    color: {theme['button_text']};
+                    background-color: {theme['main_btn_bg']};
+                    color: {theme['main_btn_text']};
                     border: 1px solid {theme['border_color']};
                     padding: 4px;
                     border-radius: 3px;
@@ -563,12 +563,12 @@ class ColorSlot(QWidget, SignalMixin):
                     font-size: {config.FONT_SIZES["normal"]}px;
                 }}
                 QPushButton:hover {{
-                    background-color: {theme['button_hover_bg']};
-                    color: {theme['button_text']};
+                    background-color: {theme['main_btn_hover_bg']};
+                    color: {theme['main_btn_text']};
                 }}
                 QPushButton:pressed {{
-                    background-color: {theme['button_hover_bg']};
-                    color: {theme['button_pressed_text']};
+                    background-color: {theme['main_btn_hover_bg']};
+                    color: {theme['main_btn_pressed_text']};
                     border-color: {theme['border_color']};
                 }}
                 QSlider::groove:horizontal {{

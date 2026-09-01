@@ -484,7 +484,7 @@ class ColorFineTuneDialog(QDialog):
                     border-radius: 4px;
                 }}
                 QPushButton {{
-                    background-color: {_l['button_bg']};
+                    background-color: {_l['dialog_btn_bg']};
                     color: {_l['text_color']};
                     border: 1px solid {_l['border_color']};
                     border-radius: 4px;

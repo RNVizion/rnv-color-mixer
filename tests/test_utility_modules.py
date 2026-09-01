@@ -333,7 +333,7 @@ class TestThemeManager:
         # If any of these keys disappear, lots of code breaks.
         for required_key in (
             "name", "window_bg", "text_color", "accent",
-            "panel_bg", "button_bg",
+            "panel_bg", "main_btn_bg",
         ):
             assert required_key in theme, (
                 f"theme dict missing required key {required_key!r}"

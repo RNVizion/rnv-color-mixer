@@ -28,7 +28,7 @@ RETIRED = {
 }
 
 GOLD_KEYS = ("accent", "accent_hover", "accent_ink", "tooltip_border",
-             "scrollbar_hover", "button_pressed_bg", "button_pressed_border")
+             "scrollbar_hover", "main_btn_pressed_bg", "main_btn_pressed_border")
 
 
 def _luminance(value: str) -> float:
@@ -142,7 +142,7 @@ def test_the_gold_key_list_still_matches_the_palette(name):
 
 def test_pressed_returns_to_the_accent_in_every_mode():
     for name, palette in PALETTES.items():
-        assert palette["button_pressed_bg"] == palette["accent"], name
+        assert palette["main_btn_pressed_bg"] == palette["accent"], name
 
 
 def test_hover_moves_away_from_the_ground():

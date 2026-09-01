@@ -463,7 +463,7 @@ Bringing real-world paint mixing to the digital palette<br>
                     border-bottom: 2px solid {_d['accent']};
                 }}
                 QTabBar::tab:hover:!selected {{
-                    background-color: {_d['button_hover_bg']};
+                    background-color: {_d['dialog_btn_hover_bg']};
                     color: {_d['accent']};
                 }}
                 QLabel {{
@@ -567,7 +567,7 @@ Bringing real-world paint mixing to the digital palette<br>
                     background-color: {_l['scrollbar_hover']};
                 }}
                 QPushButton {{
-                    background-color: {_l['button_bg']};
+                    background-color: {_l['dialog_btn_bg']};
                     color: {_l['text_color']};
                     border: 1px solid {_l['border_color']};
                     border-radius: 4px;

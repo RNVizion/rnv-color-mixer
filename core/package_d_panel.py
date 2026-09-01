@@ -2489,7 +2489,7 @@ class PackageDPanel(QDialog):
         accent_text   = t['accent_text']
         accent_hov  = t['accent_hover']
         accent_ink = t['accent_ink']
-        pressed_bg  = t['button_pressed_bg']
+        pressed_bg  = t['dialog_btn_pressed_bg']
         disabled    = t['text_disabled']
 
         label_style = (

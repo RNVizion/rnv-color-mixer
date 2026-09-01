@@ -85,7 +85,7 @@ MIRRORS = {
 }
 
 #: Dark-mode ink and edge. These carry APP_TEXT and must reference it by name.
-INK_KEYS = ('text_color', 'button_text', 'input_text', 'slot_border',
+INK_KEYS = ('text_color', 'main_btn_text', 'input_text', 'slot_border',
             'slider_handle')
 
 #: The other half of #e0e0e0's old double life: a LIGHT surface, which the

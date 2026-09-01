@@ -130,8 +130,8 @@ class UIHandler(QObject):
                 
                 window_color = QColor(theme['window_bg'])
                 text_color = QColor(theme['text_color'])
-                button_color = QColor(theme['button_bg'])
-                button_text_color = QColor(theme['button_text'])
+                button_color = QColor(theme['main_btn_bg'])
+                button_text_color = QColor(theme['main_btn_text'])
                 base_color = QColor(theme['scroll_area_bg'])
                 border_color = QColor(theme['border_color'])
                 
@@ -336,15 +336,15 @@ class UIHandler(QObject):
                         font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
                     }}
                     QPushButton {{
-                        background-color: {theme['button_bg']};
-                        color: {theme['button_text']};
+                        background-color: {theme['main_btn_bg']};
+                        color: {theme['main_btn_text']};
                         border: 1px solid {theme['border_color']};
                         padding: 2px 2px;
                         border-radius: 4px;
                         font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
                     }}
                     QPushButton:hover {{
-                        background-color: {theme['button_hover_bg']};
+                        background-color: {theme['main_btn_hover_bg']};
                     }}
                     QLabel {{
                         color: {theme['text_color']};

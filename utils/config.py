@@ -359,12 +359,20 @@ class ThemeManager:
         'text_color': APP_TEXT_DARK,
         'border_color': APP_BORDER_DARK,
         'hover_color': '#444444',
-        'button_bg': APP_SURFACE_DARK,
-        'button_text': APP_TEXT_DARK,
-        'button_hover_bg': APP_BORDER_DARK,
-        'button_pressed_bg': BRAND_GOLD_PRESSED,
-        'button_pressed_text': TRUE_BLACK,
-        'button_pressed_border': BRAND_GOLD,
+        'main_btn_bg': APP_SURFACE_DARK,
+        'main_btn_text': APP_TEXT_DARK,
+        'main_btn_hover_bg': APP_BORDER_DARK,
+        'main_btn_pressed_bg': BRAND_GOLD_PRESSED,
+        'main_btn_pressed_text': TRUE_BLACK,
+        'main_btn_pressed_border': BRAND_GOLD,
+        # The plate, hover and pressed a DIALOG button takes. Added
+        # 2026-09-01, holding what the three dialogs already painted.
+        # Before this they read the main family, which is how a gold
+        # pressed plate that only a QDialog ever used came to look
+        # like the main window's.
+        'dialog_btn_bg': APP_SURFACE_DARK,
+        'dialog_btn_hover_bg': APP_BORDER_DARK,
+        'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
         'checkbox_border': APP_BORDER_DARK,
         'canvas_bg': APP_CANVAS_DARK,
@@ -400,12 +408,20 @@ class ThemeManager:
         'text_color': '#000000',
         'border_color': '#cccccc',
         'hover_color': '#e0e0e0',
-        'button_bg': '#ffffff',
-        'button_text': '#000000',
-        'button_hover_bg': '#333333',
-        'button_pressed_bg': BRAND_DARK_GOLD_PRESSED,
-        'button_pressed_text': '#ffffff',
-        'button_pressed_border': BRAND_DARK_GOLD,
+        'main_btn_bg': '#ffffff',
+        'main_btn_text': '#000000',
+        'main_btn_hover_bg': '#333333',
+        'main_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
+        'main_btn_pressed_text': '#ffffff',
+        'main_btn_pressed_border': BRAND_DARK_GOLD,
+        # The plate, hover and pressed a DIALOG button takes. Added
+        # 2026-09-01, holding what the three dialogs already painted.
+        # Before this they read the main family, which is how a gold
+        # pressed plate that only a QDialog ever used came to look
+        # like the main window's.
+        'dialog_btn_bg': '#ffffff',
+        'dialog_btn_hover_bg': '#333333',
+        'dialog_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
         'checkbox_bg': 'rgba(255, 255, 255, 200)',
         'checkbox_border': 'gray',
         'canvas_bg': '#ffffff',
@@ -446,12 +462,20 @@ class ThemeManager:
         'text_color': APP_TEXT_DARK,
         'border_color': APP_BORDER_DARK,
         'hover_color': '#444444',
-        'button_bg': APP_SURFACE_DARK,
-        'button_text': APP_TEXT_DARK,
-        'button_hover_bg': APP_BORDER_DARK,
-        'button_pressed_bg': BRAND_GOLD_PRESSED,
-        'button_pressed_text': TRUE_BLACK,
-        'button_pressed_border': BRAND_GOLD,
+        'main_btn_bg': APP_SURFACE_DARK,
+        'main_btn_text': APP_TEXT_DARK,
+        'main_btn_hover_bg': APP_BORDER_DARK,
+        'main_btn_pressed_bg': BRAND_GOLD_PRESSED,
+        'main_btn_pressed_text': TRUE_BLACK,
+        'main_btn_pressed_border': BRAND_GOLD,
+        # The plate, hover and pressed a DIALOG button takes. Added
+        # 2026-09-01, holding what the three dialogs already painted.
+        # Before this they read the main family, which is how a gold
+        # pressed plate that only a QDialog ever used came to look
+        # like the main window's.
+        'dialog_btn_bg': APP_SURFACE_DARK,
+        'dialog_btn_hover_bg': APP_BORDER_DARK,
+        'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
         'checkbox_bg': 'rgba(26, 26, 26, 230)',
         'checkbox_border': APP_BORDER_DARK,
         'canvas_bg': APP_CANVAS_DARK,

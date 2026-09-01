@@ -837,8 +837,8 @@ class TestConfig(unittest.TestCase):
     def _keys(self,theme,keys):
         for k in keys: self.assertIn(k,theme,f"Missing: {k}")
 
-    def test_dark_keys(self):   self._keys(self.tm.DARK_THEME,  ["window_bg","text_color","button_bg","tooltip_border"])
-    def test_light_keys(self):  self._keys(self.tm.LIGHT_THEME, ["window_bg","text_color","button_bg","tooltip_border"])
+    def test_dark_keys(self):   self._keys(self.tm.DARK_THEME,  ["window_bg","text_color","main_btn_bg","tooltip_border"])
+    def test_light_keys(self):  self._keys(self.tm.LIGHT_THEME, ["window_bg","text_color","main_btn_bg","tooltip_border"])
     def test_image_keys(self):  self._keys(self.tm.IMAGE_THEME, ["window_bg","text_color","border_color","tooltip_border"])
 
     def test_dark_brand_gold(self):   self.assertEqual(self.tm.DARK_THEME["tooltip_border"],  "#d2bc93")
@@ -1932,7 +1932,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_theme_keys_cover_all_ui_elements(self):
         required=["accent","accent_text","border_color","text_color","window_bg",
-                  "panel_bg","button_bg","button_text","slot_border",
+                  "panel_bg","main_btn_bg","main_btn_text","slot_border",
                   "slider_handle","text_hint","menu_disabled","scrollbar_hover"]
         for key in required:
             for name,t in [("DARK",config.ThemeManager.DARK_THEME),
