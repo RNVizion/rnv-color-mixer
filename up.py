@@ -314,16 +314,39 @@ def test_no_old_button_key_name_survives():
         "these keys must say where the button lives:\n  " + "\n  ".join(offenders))
 
 
-def test_the_marker_exemption_covers_only_the_two_tools():
-    marked = []
+TOOL_MARKER = "RNV-BUTTON-NAMING-TOOL-DO-NOT-SWEEP"
+
+
+def test_no_application_file_is_exempt_from_the_sweep():
+    """The exemption is by marker, and the marker is how a file could hide.
+
+    An earlier version of this counted marked files and allowed two. That
+    failed in a working tree holding a second copy of the delivery script --
+    a guard failing on the state of somebody's checkout rather than on a
+    defect in the application, which is the wrong thing to fail on.
+
+    What actually matters is that no APPLICATION file is exempt. This guard
+    may carry a marker; it lists the old names in order to forbid them.
+    Everything else must be a delivery script, identified by the tool marker
+    in its own header -- those arrive under whatever name they are saved as,
+    there can be several of them lying around, and none is application source.
+    """
+    here = Path(__file__).resolve()
+    strays = []
     for path in sorted(ROOT.rglob("*.py")):
         if any(part in SKIP for part in path.parts):
             continue
         text = path.read_text(encoding="utf-8-sig", errors="replace")
-        if any(marker in text for marker in MARKERS):
-            marked.append(path.relative_to(ROOT))
-    assert len(marked) <= 2, f"unexpected marked file(s): {marked}"
-    assert Path(__file__).relative_to(ROOT) in marked
+        if not any(marker in text for marker in MARKERS):
+            continue
+        if path.resolve() == here or TOOL_MARKER in text:
+            continue
+        strays.append(str(path.relative_to(ROOT)))
+    assert not strays, (
+        "these files are skipped by the name sweep but are not a delivery "
+        f"script: {strays}")
+    assert MARKERS[0] in here.read_text(encoding="utf-8-sig"), (
+        "this guard lost its own marker and is now sweeping itself")
 
 
 def test_all_three_palettes_carry_both_families():
