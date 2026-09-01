@@ -2563,12 +2563,12 @@ class PackageDPanel(QDialog):
             }}
             QTabBar::tab:selected {{
                 background-color: {t.get('tab_selected_bg', bg)};
-                color: {accent};
+                color: {accent_ink};
                 border-bottom: 2px solid {accent};
             }}
             QTabBar::tab:hover {{
                 background-color: {bg_hover};
-                color: {accent};
+                color: {accent_ink};
             }}
             QPushButton {{
                 background-color: {bg2};
@@ -2581,7 +2581,7 @@ class PackageDPanel(QDialog):
             QPushButton:hover {{
                 background-color: {bg_hover};
                 border-color: {accent};
-                color: {accent};
+                color: {accent_ink};
             }}
             QPushButton:pressed {{
                 background-color: {pressed_bg};
