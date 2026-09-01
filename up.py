@@ -84,6 +84,21 @@ SENTINEL = "test_no_gold_fill_carries_a_label_below_the_floor"
 GUARD = SENTINEL_FILE
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
+#: This script EXTENDS a file an earlier script created, so "the sentinel file
+#: is missing" almost always means the prerequisite has not been run -- not
+#: that you are in the wrong directory. The default message says the second,
+#: which is the more confusing of the two possibilities to be told when you
+#: are standing in the right place.
+MISSING_HELP = (
+    f"{SENTINEL_FILE} is not here, so there is nothing to extend."
+    f"\n\nThis script arms the FILL half of the gold rule in a guard that "
+    f"the gold-text script installs. Run that one first:"
+    f"\n\n    up-for-rnv-color-mixer-gold-text.py"
+    f"\n\nthen this one. If you have already run it and the file is still "
+    f"missing, you are not at the root of a rnv-color-mixer checkout -- this "
+    f"expects to run from the directory that contains tests/."
+)
+
 SUITES = [
     ('pytest tests/',
      [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"])
@@ -109,10 +124,6 @@ NEW = (
 def edits(tree) -> None:
     """Nothing here. apply() writes GUARD_SOURCE to GUARD, and GUARD is the
     file this pass replaces -- so the whole edit is the new test file."""
-    if not (Path.cwd() / SENTINEL_FILE).exists():
-        raise SystemExit(
-            f"{SENTINEL_FILE} is missing. Run the gold-text script for this "
-            f"repository first; this one extends the guard it installs.")
     print("  replacing the gold guard with the bidirectional version")
 
 
@@ -349,7 +360,12 @@ def verify() -> int:
 def apply(check_only: bool) -> int:
     root = Path.cwd()
     if not (root / SENTINEL_FILE).exists():
-        raise SystemExit(f"run this from the root of a {REPO} checkout "
+        # A script whose sentinel file is created by an EARLIER script cannot
+        # tell "wrong directory" from "prerequisite not run", and the default
+        # message asserts the first while the second is more likely. Such a
+        # script sets MISSING_HELP and says which one to run.
+        raise SystemExit(globals().get("MISSING_HELP") or
+                         f"run this from the root of a {REPO} checkout "
                          f"(no {SENTINEL_FILE} here)")
     if SENTINEL in (root / SENTINEL_FILE).read_text(encoding="utf-8"):
         raise SystemExit(f"already applied -- {SENTINEL!r} is present in "
