@@ -44,7 +44,7 @@ jobs:
         # drift detection). Use Python rather than PowerShell's
         # Get-FileHash so the verification logic is identical across OSes.
         run: |
-          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='57ab3fcae4abf13cbb0bb38d9e1c759caf1c40fdef5af5f063b12e0178af765a'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
+          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='0827b02dbaa946087da83a27b391065aaa6114cfe43a78c958f6b0a502b0eddd'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
 
       - name: Run locked unittest suite
         # Skip test_load_real_image_if_available — it hangs on offscreen

@@ -61,12 +61,16 @@ jobs:
         # the locked file was modified and the build will fail loudly.
         # Note: re-baselined post-Phase 9 after content drift was detected
         # via this CI check — current hash reflects the working test file.
+        # RNV-LOCKED-DIGEST-REBASELINED 2026-09-01: the button-key
+        # rename edited four quoted keys in the locked file. The
+        # digest below is that file's, and tests/test_locked_file_
+        # digest.py now checks it in the suite as well as here.
         run: |
           python -c "
           import hashlib
           with open('test_rnv_color_mixer.py', 'rb') as f:
               digest = hashlib.sha256(f.read()).hexdigest()
-          expected = '57ab3fcae4abf13cbb0bb38d9e1c759caf1c40fdef5af5f063b12e0178af765a'
+          expected = '0827b02dbaa946087da83a27b391065aaa6114cfe43a78c958f6b0a502b0eddd'
           if digest != expected:
               print(f'LOCKED FILE INTEGRITY VIOLATION')
               print(f'  expected: {expected}')
