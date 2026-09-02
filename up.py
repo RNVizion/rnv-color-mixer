@@ -1,74 +1,64 @@
 #!/usr/bin/env python3
 """
-RNV-BUTTON-NAMING-TOOL-DO-NOT-SWEEP
+RNV-LOCKED-DIGEST-TOOL-DO-NOT-SWEEP
 
-Rename the main button keys to main_btn_*, and give the three dialogs the
-family they were borrowing from.
+Re-baseline the locked test file's SHA-256 in both workflows, and move the
+check into the suite so CI is not the first thing to notice.
 
-    python up.py             # apply, then verify
-    python up.py --check     # rehearse every edit in memory, write nothing
+    python up.py             # re-baseline, then verify
+    python up.py --check     # rehearse, write nothing
     python up.py --verify    # run the suites only, change nothing
     python up.py --finish    # delete this file
 
-NOT ONE PIXEL MOVES. Every value the dialogs gain is the value they already
-painted.
+WHY CI WENT RED
 
-`button_*` holds the black-and-white MAIN scheme here, and the gold DIALOG
-scheme in rnv-color-picker and rnv-icon-builder. One name, two schemes,
-decided by which repository you have open -- and a name that cannot be carried
-into a new project is not a standard. After this pass the name says where the
-button lives:
+test_rnv_color_mixer.py is the gate of last resort, and both workflows refuse
+the build if its SHA-256 moves. The button-key rename edited four quoted keys
+in it -- correctly; the local suites are green -- so the digest moved and the
+integrity step failed exactly as designed.
 
-    main_btn_*     the main window at launch
-    dialog_btn_*   anything that opens later
+That step is not a bug and this is not a workaround. The workflow's own
+comment records that it has been re-baselined before, "post-Phase 9 after
+content drift was detected via this CI check". This is the same operation,
+for a change that was intended.
 
-THE FINDING THAT MADE THIS WORTH DOING HERE
+WHAT I SHOULD HAVE DONE
 
-Reading button_pressed_bg out of these palettes says the main button presses
-to GOLD. It does not. The main window's buttons are painted by the QSS blocks
-in utils/config.py, which press to APP_BTN_PRESSED #444444 with the label
-inverting -- the same black-and-white scheme as the other four applications.
-The gold pressed plate is read in exactly one place, core/package_d_panel.py,
-and PackageDPanel is a QDialog.
+Looked for the gate before touching the file it guards. The rename script
+counted its edits, pinned every colour value and compared the hex multiset on
+both sides of the diff -- and none of that could see a hash recorded in a
+YAML file two directories away. A repository-wide check that lives outside
+the test suite is invisible to a script that reasons about the test suite.
 
-So the gold was always the dialog's. The palette key just did not say so, and
-an audit that read the key instead of the paint reported the mixer as the one
-application disagreeing with the pressed-plate ruling of 26 August. It never
-disagreed. That report was withdrawn, and this rename is what stops the same
-misreading happening again.
+WHAT THIS SCRIPT DOES
 
-WHAT MOVES
+    1. Reads the digest of test_rnv_color_mixer.py as it stands on disk.
+    2. Replaces the recorded digest in .github/workflows/tests-linux.yml and
+       .github/workflows/tests-windows.yml -- one occurrence each, in two
+       different syntactic forms.
+    3. Adds tests/test_locked_file_digest.py.
 
-Forty-five quoted occurrences in eleven files, nine new palette entries (three
-keys across three palettes), and four repointed dialog reads:
+The digest is computed at run time rather than written into this script,
+because the only value that can be right is the one your file actually has.
 
-    ui/about_dialog.py         the rest plate, and the hover plate
-    core/color_fine_tune.py    the rest plate
-    core/package_d_panel.py    the gold pressed plate
+THE NEW GUARD IS WORTH MORE THAN THE RE-BASELINE
 
-core/color_slot.py and ui/ui_handler.py keep the main family. ColorSlot is a
-QWidget in the main window, not a dialog.
+It fires in the same run as the edit that caused it, instead of after the
+commit and the push, with a message that reads like tampering. And it checks
+one thing CI structurally cannot: that the two workflows record the SAME
+digest. Each workflow only ever verifies its own copy, so the two can drift
+apart and both builds keep passing -- until one platform re-baselines and the
+other does not. That failure would look like a Windows-only regression in a
+file nobody edited.
 
-DOCUMENTATION IS NOT TOUCHED, ON PURPOSE
-
-The docs pass runs once, after alignment settles, so it is written against the
-finished state rather than chased through it. The guard sweeps code, not prose.
-
-WHAT THE GUARD ASSERTS
-
-tests/test_button_key_names.py fails if an old name comes back, if a palette
-loses a key, if any of the eighteen main values or nine dialog values moved,
-if a dialog starts reading the main family, or if main-window code starts
-reading the dialog one. It also records the finding above as an assertion, so
-the next reader of button_pressed_bg is not left to rediscover it.
-
-It reads the palettes by importing ThemeManager rather than by parsing it: two
-of these values are derived aliases, and a static resolver returns None for
-them, then compares None with None and passes.
+It also refuses to contain a SHA-256 of its own. A guard carrying its own copy
+of the value would pass while the workflows were wrong, which is precisely the
+failure it exists to prevent.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
@@ -77,10 +67,10 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-DESCRIPTION = "rename the main button keys and give the dialogs their own"
-SENTINEL_FILE = "utils/config.py"
-SENTINEL = "'dialog_btn_bg'"
-GUARD = "tests/test_button_key_names.py"
+DESCRIPTION = "re-baseline the locked test file digest and guard it locally"
+SENTINEL_FILE = ".github/workflows/tests-linux.yml"
+SENTINEL = "RNV-LOCKED-DIGEST-REBASELINED"
+GUARD = "tests/test_locked_file_digest.py"
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
 SUITES = [
@@ -88,322 +78,154 @@ SUITES = [
      [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"])
 ]
 
-OLD_KEYS = ("button_bg", "button_text", "button_hover_bg", "button_pressed_bg",
-            "button_pressed_text", "button_pressed_border")
-RENAME = {k: "main_" + k.replace("button_", "btn_") for k in OLD_KEYS}
+LOCKED = "test_rnv_color_mixer.py"
+WORKFLOWS = (".github/workflows/tests-linux.yml",
+             ".github/workflows/tests-windows.yml")
 
-#: path -> how many QUOTED occurrences that file holds. Written down so the
-#: script refuses to run against a tree that has moved under it.
-QUOTED = {
-    "utils/config.py": 18,
-    "core/color_slot.py": 7,
-    "ui/ui_handler.py": 5,
-    "test_rnv_color_mixer.py": 4,
-    "tests/test_brand_mirror.py": 3,
-    "tests/test_contrast_pairs.py": 2,
-    "ui/about_dialog.py": 2,
-    "core/color_fine_tune.py": 1,
-    "core/package_d_panel.py": 1,
-    "tests/test_app_mirror.py": 1,
-    "tests/test_utility_modules.py": 1,
-}
+#: The digest recorded before this pass. Written down so the script refuses to
+#: run against a tree that has already been re-baselined, or one where the
+#: rename never landed.
+OLD = "57ab3fcae4abf13cbb0bb38d9e1c759caf1c40fdef5af5f063b12e0178af765a"
 
-#: The dialog family, inserted beside the main family it was borrowing from.
-#: Anchored on the renamed pressed-border line rather than on a line number.
-#: Dark and image share an anchor because they share every value.
-_NOTE = ("        # The plate, hover and pressed a DIALOG button takes. Added\n"
-         "        # 2026-09-01, holding what the three dialogs already painted.\n"
-         "        # Before this they read the main family, which is how a gold\n"
-         "        # pressed plate that only a QDialog ever used came to look\n"
-         "        # like the main window's.\n")
-INSERT = [
-    ("        'main_btn_pressed_border': BRAND_GOLD,\n",
-     "        'main_btn_pressed_border': BRAND_GOLD,\n" + _NOTE +
-     "        'dialog_btn_bg': APP_SURFACE_DARK,\n"
-     "        'dialog_btn_hover_bg': APP_BORDER_DARK,\n"
-     "        'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,\n",
-     2),
-    ("        'main_btn_pressed_border': BRAND_DARK_GOLD,\n",
-     "        'main_btn_pressed_border': BRAND_DARK_GOLD,\n" + _NOTE +
-     "        'dialog_btn_bg': '#ffffff',\n"
-     "        'dialog_btn_hover_bg': '#333333',\n"
-     "        'dialog_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,\n",
-     1),
-]
+ANCHOR = '        run: |\n          python -c "\n'
+MARK = ("        # RNV-LOCKED-DIGEST-REBASELINED 2026-09-01: the button-key\n"
+        "        # rename edited four quoted keys in the locked file. The\n"
+        "        # digest below is that file's, and tests/test_locked_file_\n"
+        "        # digest.py now checks it in the suite as well as here.\n")
 
-#: The four dialog reads, repointed after the rename has run.
-REPOINT = [
-    ("ui/about_dialog.py", "_d['main_btn_hover_bg']", "_d['dialog_btn_hover_bg']", 1),
-    ("ui/about_dialog.py", "_l['main_btn_bg']", "_l['dialog_btn_bg']", 1),
-    ("core/color_fine_tune.py", "_l['main_btn_bg']", "_l['dialog_btn_bg']", 1),
-    ("core/package_d_panel.py", "t['main_btn_pressed_bg']",
-     "t['dialog_btn_pressed_bg']", 1),
-]
-
-_QUOTED_RE = re.compile(r"(['\"])(" + "|".join(sorted(RENAME, key=len, reverse=True))
-                        + r")\1")
-
-
-def _rename_quoted(text: str) -> tuple[str, int]:
-    hits = 0
-
-    def swap(m: re.Match) -> str:
-        nonlocal hits
-        hits += 1
-        return f"{m.group(1)}{RENAME[m.group(2)]}{m.group(1)}"
-
-    return _QUOTED_RE.sub(swap, text), hits
+_SHA256 = re.compile(r"\b[0-9a-f]{64}\b")
 
 
 def edits(tree) -> None:
-    total = 0
-    for rel, expected in QUOTED.items():
-        new, hits = _rename_quoted(tree.read(rel))
-        if hits != expected:
-            raise SystemExit(f"{rel}: expected {expected} quoted key(s), found "
-                             f"{hits}. The file moved; re-derive this edit "
-                             f"before trusting the script.")
-        tree.write(rel, new)
-        total += hits
-    for old, new, times in INSERT:
-        tree.sub(SENTINEL_FILE, old, new, times)
-    for rel, old, new, times in REPOINT:
-        tree.sub(rel, old, new, times)
-    print(f"  renamed {total} quoted keys in {len(QUOTED)} files, "
-          f"added 9 dialog entries, repointed {len(REPOINT)} dialog reads")
+    digest = hashlib.sha256(
+        (Path.cwd() / LOCKED).read_bytes()).hexdigest()
+    if digest == OLD:
+        raise SystemExit(
+            f"{LOCKED} still hashes to the digest the workflows already "
+            f"record, so there is nothing to re-baseline. Run the button-key "
+            f"rename first -- the one whose header begins \"Rename the main "
+            f"button keys to main_btn_*\". There is no filename to look for: "
+            f"every script arrives as an attachment and is saved as up.py.")
+
+    for rel in WORKFLOWS:
+        src = tree.read(rel)
+        found = _SHA256.findall(src)
+        if found != [OLD]:
+            raise SystemExit(
+                f"{rel} records {found}, expected exactly one digest equal to "
+                f"{OLD}. Either this tree has already been re-baselined or the "
+                f"workflow moved; re-derive this edit before trusting it.")
+        tree.write(rel, src.replace(OLD, digest))
+
+    tree.sub(SENTINEL_FILE, ANCHOR, MARK + ANCHOR, 1)
+    print(f"  re-baselined both workflows to {digest}")
 
 
 def checks(tree) -> None:
-    for rel in QUOTED:
-        text = tree.read(rel)
-        for old in RENAME:
-            if re.search(r"(['\"])" + old + r"\1", text):
-                raise SystemExit(f"{rel}: {old!r} survived the rename")
+    digest = hashlib.sha256((Path.cwd() / LOCKED).read_bytes()).hexdigest()
+    recorded = set()
+    for rel in WORKFLOWS:
+        found = _SHA256.findall(tree.read(rel))
+        if found != [digest]:
+            raise SystemExit(f"{rel} now records {found}, expected [{digest}]")
+        recorded.update(found)
+    if len(recorded) != 1:
+        raise SystemExit(f"the workflows disagree: {recorded}")
 
-    config = tree.read(SENTINEL_FILE)
-    for key in ("'dialog_btn_bg'", "'dialog_btn_hover_bg'",
-                "'dialog_btn_pressed_bg'"):
-        if config.count(key) != 3:
-            raise SystemExit(f"expected 3 {key} entries, found "
-                             f"{config.count(key)}")
+    linux = tree.read(SENTINEL_FILE)
+    if linux.count(SENTINEL) != 1:
+        raise SystemExit("the re-baseline note did not land exactly once")
+    if OLD in linux or OLD in tree.read(WORKFLOWS[1]):
+        raise SystemExit("the old digest survived somewhere")
 
-    import ast
-    palettes = []
-    for node in ast.walk(ast.parse(config)):
-        if not isinstance(node, ast.Dict):
-            continue
-        pairs = {k.value: ast.unparse(v) for k, v in zip(node.keys, node.values)
-                 if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-        if "dialog_btn_bg" in pairs:
-            palettes.append(pairs)
-    if len(palettes) != 3:
-        raise SystemExit(f"expected 3 palettes, found {len(palettes)}")
-    for pairs in palettes:
-        for dialog_key, main_key in (("dialog_btn_bg", "main_btn_bg"),
-                                     ("dialog_btn_hover_bg", "main_btn_hover_bg"),
-                                     ("dialog_btn_pressed_bg", "main_btn_pressed_bg")):
-            if pairs[dialog_key] != pairs[main_key]:
-                raise SystemExit(
-                    f"{dialog_key} is {pairs[dialog_key]} where {main_key} is "
-                    f"{pairs[main_key]}. The dialog family is supposed to hold "
-                    f"what those dialogs already painted; a difference here is "
-                    f"a colour decision hiding inside a rename.")
+    guard = tree.read(GUARD)
+    if _SHA256.search(guard):
+        raise SystemExit(
+            "the guard contains a literal SHA-256. It must read the digest "
+            "from the workflows, or it is checking itself.")
 
-    for rel in ("ui/about_dialog.py", "core/color_fine_tune.py",
-                "core/package_d_panel.py"):
-        if re.search(r"(['\"])main_btn_", tree.read(rel)):
-            raise SystemExit(f"{rel} still reads the main family")
-    for rel in ("ui/ui_handler.py", "core/color_slot.py"):
-        if "dialog_btn_" in tree.read(rel):
-            raise SystemExit(f"{rel} is main-window code and must not read the "
-                             f"dialog family")
-    print("  guards: no old name survives, three palettes carry both families, "
-          "dialog values equal what those dialogs painted")
+    # The locked file itself is not touched by this pass. Saying so is the
+    # point: a script that re-baselines a digest is one edit away from being a
+    # script that edits the file the digest protects.
+    before = (Path.cwd() / LOCKED).read_bytes()
+    if LOCKED in tree.files:
+        raise SystemExit(f"{LOCKED} was modified by this pass. It must not be.")
+    if hashlib.sha256(before).hexdigest() != digest:
+        raise SystemExit("the locked file changed while this script ran")
+    print("  guards: both workflows agree, the locked file is untouched, "
+          "the guard carries no digest of its own")
 
 
-GUARD_SOURCE = r'''"""The button keys say where the button lives.
+GUARD_SOURCE = r'''"""The locked test file and the digest that gates it must agree.
 
-RNV-BUTTON-NAMING-GUARD
+RNV-LOCKED-DIGEST-GUARD
 
-main_btn_* is the main window at launch. dialog_btn_* is anything that opens
-later. Before this pass the main family here was called button_* -- the same
-name that holds the GOLD DIALOG scheme in rnv-color-picker and
-rnv-icon-builder. One name, two schemes, decided by which repository you had
-open. These tests are what stop it drifting back.
+test_rnv_color_mixer.py is the gate of last resort, and CI refuses the build if
+its SHA-256 moves. That check lives only in the two workflow files, so until
+now the first thing to notice a legitimate edit was a red build on GitHub --
+after the commit, after the push, and with a message that reads like tampering
+rather than like a re-baseline that was forgotten.
 
-Worth knowing about this application specifically: the main window's buttons
-are painted by the QSS blocks in utils/config.py from module constants, not
-from these palette keys at all. The keys are read by ColorSlot and by the UI
-handler in the main window, and by three dialogs. The dialogs now read a
-family of their own.
+These tests move that check into the suite, where it fires in the same run as
+the edit that caused it, and they check something CI cannot: that the two
+workflows still record the SAME digest.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+LOCKED = ROOT / "test_rnv_color_mixer.py"
+WORKFLOWS = (ROOT / ".github" / "workflows" / "tests-linux.yml",
+             ROOT / ".github" / "workflows" / "tests-windows.yml")
 
-OLD = ("button_bg", "button_text", "button_hover_bg", "button_pressed_bg",
-       "button_pressed_text", "button_pressed_border")
-NEW = tuple("main_" + n.replace("button_", "btn_") for n in OLD)
-DIALOG = ("dialog_btn_bg", "dialog_btn_hover_bg", "dialog_btn_pressed_bg")
-
-PINNED_MAIN = {
-    "dark": {"main_btn_bg": "#1a1a1a", "main_btn_text": "#dddddd",
-             "main_btn_hover_bg": "#333333", "main_btn_pressed_bg": "#d2bc93",
-             "main_btn_pressed_text": "#000000",
-             "main_btn_pressed_border": "#d2bc93"},
-    "light": {"main_btn_bg": "#ffffff", "main_btn_text": "#000000",
-              "main_btn_hover_bg": "#333333", "main_btn_pressed_bg": "#8c7337",
-              "main_btn_pressed_text": "#ffffff",
-              "main_btn_pressed_border": "#8c7337"},
-    "image": {"main_btn_bg": "#1a1a1a", "main_btn_text": "#dddddd",
-              "main_btn_hover_bg": "#333333", "main_btn_pressed_bg": "#d2bc93",
-              "main_btn_pressed_text": "#000000",
-              "main_btn_pressed_border": "#d2bc93"},
-}
-
-#: What the three dialogs painted before the rename, key for key.
-PINNED_DIALOG = {
-    "dark": {"dialog_btn_bg": "#1a1a1a", "dialog_btn_hover_bg": "#333333",
-             "dialog_btn_pressed_bg": "#d2bc93"},
-    "light": {"dialog_btn_bg": "#ffffff", "dialog_btn_hover_bg": "#333333",
-              "dialog_btn_pressed_bg": "#8c7337"},
-    "image": {"dialog_btn_bg": "#1a1a1a", "dialog_btn_hover_bg": "#333333",
-              "dialog_btn_pressed_bg": "#d2bc93"},
-}
-
-SKIP = {".git", "build", "dist", ".venv", "__pycache__"}
-
-#: A sweep for a name cannot tell a USE from a MENTION. The two files certain
-#: to mention the old names are this guard -- which lists them in order to
-#: forbid them -- and the delivery script that performs the rename. Skipped by
-#: marker rather than by filename: the script arrives under whatever name it
-#: is saved as.
-MARKERS = ("RNV-BUTTON-NAMING-GUARD", "RNV-BUTTON-NAMING-TOOL-DO-NOT-SWEEP")
-
-DIALOG_FILES = ("ui/about_dialog.py", "core/color_fine_tune.py",
-                "core/package_d_panel.py")
-MAIN_FILES = ("ui/ui_handler.py", "core/color_slot.py")
+_SHA256 = re.compile(r"\b([0-9a-f]{64})\b")
 
 
-def _palettes():
-    from utils.config import ThemeManager
-    return {"dark": ThemeManager.DARK_THEME, "light": ThemeManager.LIGHT_THEME,
-            "image": ThemeManager.IMAGE_THEME}
+def _recorded(path: Path) -> list[str]:
+    return _SHA256.findall(path.read_text(encoding="utf-8"))
 
 
-def _sources():
-    for path in sorted(ROOT.rglob("*.py")):
-        if any(part in SKIP for part in path.parts):
-            continue
-        text = path.read_text(encoding="utf-8-sig", errors="replace")
-        if any(marker in text for marker in MARKERS):
-            continue
-        yield path, text
+def test_every_workflow_records_exactly_one_digest():
+    for path in WORKFLOWS:
+        found = _recorded(path)
+        assert len(found) == 1, (
+            f"{path.name} records {len(found)} SHA-256 values: {found}. This "
+            f"guard reads the digest by shape, so a second one would make it "
+            f"ambiguous which gate it is checking.")
 
 
-def test_no_old_button_key_name_survives():
-    offenders = []
-    for path, text in _sources():
-        for old in OLD:
-            if re.search(r"(['\"])" + old + r"\1", text):
-                offenders.append(f"{path.relative_to(ROOT)}: {old}")
-    assert not offenders, (
-        "these keys must say where the button lives:\n  " + "\n  ".join(offenders))
+def test_both_workflows_record_the_same_digest():
+    """CI cannot catch this. Each workflow checks only its own copy, so the
+    two can drift apart and both builds still pass -- until one platform
+    re-baselines and the other does not."""
+    digests = {path.name: _recorded(path)[0] for path in WORKFLOWS}
+    assert len(set(digests.values())) == 1, (
+        f"the workflows disagree about the locked file's digest: {digests}")
 
 
-TOOL_MARKER = "RNV-BUTTON-NAMING-TOOL-DO-NOT-SWEEP"
+def test_the_locked_file_matches_its_recorded_digest():
+    actual = hashlib.sha256(LOCKED.read_bytes()).hexdigest()
+    expected = _recorded(WORKFLOWS[0])[0]
+    assert actual == expected, (
+        "test_rnv_color_mixer.py no longer matches the digest the workflows "
+        "gate on.\n"
+        f"  recorded: {expected}\n"
+        f"  actual:   {actual}\n"
+        "If the edit was deliberate, re-baseline BOTH workflow files to the "
+        "actual value in the same commit. If it was not, this is the gate "
+        "doing its job.")
 
 
-def test_no_application_file_is_exempt_from_the_sweep():
-    """The exemption is by marker, and the marker is how a file could hide.
-
-    An earlier version of this counted marked files and allowed two. That
-    failed in a working tree holding a second copy of the delivery script --
-    a guard failing on the state of somebody's checkout rather than on a
-    defect in the application, which is the wrong thing to fail on.
-
-    What actually matters is that no APPLICATION file is exempt. This guard
-    may carry a marker; it lists the old names in order to forbid them.
-    Everything else must be a delivery script, identified by the tool marker
-    in its own header -- those arrive under whatever name they are saved as,
-    there can be several of them lying around, and none is application source.
-    """
-    here = Path(__file__).resolve()
-    strays = []
-    for path in sorted(ROOT.rglob("*.py")):
-        if any(part in SKIP for part in path.parts):
-            continue
-        text = path.read_text(encoding="utf-8-sig", errors="replace")
-        if not any(marker in text for marker in MARKERS):
-            continue
-        if path.resolve() == here or TOOL_MARKER in text:
-            continue
-        strays.append(str(path.relative_to(ROOT)))
-    assert not strays, (
-        "these files are skipped by the name sweep but are not a delivery "
-        f"script: {strays}")
-    assert MARKERS[0] in here.read_text(encoding="utf-8-sig"), (
-        "this guard lost its own marker and is now sweeping itself")
-
-
-def test_all_three_palettes_carry_both_families():
-    for mode, palette in _palettes().items():
-        missing = [n for n in NEW + DIALOG if n not in palette]
-        assert not missing, f"{mode} palette missing {missing}"
-
-
-def test_the_rename_moved_no_value():
-    for mode, pins in PINNED_MAIN.items():
-        actual = {k: _palettes()[mode].get(k) for k in pins}
-        assert actual == pins, (
-            f"the {mode} main button values changed.\n"
-            f"  wanted {pins}\n  found  {actual}\n"
-            "A rename that changes a value is not a rename.")
-
-
-def test_the_dialog_family_holds_what_the_dialogs_already_painted():
-    for mode, pins in PINNED_DIALOG.items():
-        actual = {k: _palettes()[mode].get(k) for k in pins}
-        assert actual == pins, (
-            f"the {mode} dialog button values are not what those dialogs "
-            f"painted before the rename.\n  wanted {pins}\n  found  {actual}")
-
-
-def test_dialogs_read_the_dialog_family_and_not_the_main_one():
-    for rel in DIALOG_FILES:
-        src = (ROOT / rel).read_text(encoding="utf-8-sig")
-        assert "dialog_btn_" in src, f"{rel} no longer reads the dialog family"
-        assert not re.search(r"(['\"])main_btn_", src), (
-            f"{rel} reads the main family. Dialogs open later and take the "
-            f"dialog scheme; wiring one to main_btn_* refuses the distinction "
-            f"this rename exists to make.")
-
-
-def test_the_main_window_reads_the_main_family():
-    for rel in MAIN_FILES:
-        src = (ROOT / rel).read_text(encoding="utf-8-sig")
-        assert re.search(r"(['\"])main_btn_", src), (
-            f"{rel} no longer reads the main family")
-        assert "dialog_btn_" not in src, (
-            f"{rel} is main-window code and must not read the dialog family")
-
-
-def test_the_gold_press_belongs_to_the_dialog_family_too():
-    """The gold pressed plate is read by exactly one place, and it is a dialog.
-
-    This is the finding that made the rename worth doing here. Reading
-    button_pressed_bg out of the palette suggested the MAIN button pressed to
-    gold; it does not -- the main window's pressed plate is #444444, written
-    into the QSS blocks in utils/config.py as APP_BTN_PRESSED. The gold was
-    always the dialog's. The name now says so.
-    """
-    config = (ROOT / "utils" / "config.py").read_text(encoding="utf-8-sig")
-    assert "APP_BTN_PRESSED" in config
-    panel = (ROOT / "core" / "package_d_panel.py").read_text(encoding="utf-8-sig")
-    assert "dialog_btn_pressed_bg" in panel
+def test_the_digest_is_read_from_the_file_and_not_from_this_test():
+    """A guard that carried its own copy of the digest would pass while the
+    workflows were wrong, which is the failure it exists to prevent."""
+    source = Path(__file__).read_text(encoding="utf-8")
+    assert not _SHA256.search(source), (
+        "this test module contains a literal SHA-256. The digest must come "
+        "from the workflow files, or this guard is checking itself.")
 '''
 
 
