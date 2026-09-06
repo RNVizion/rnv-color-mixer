@@ -2619,7 +2619,7 @@ class PackageDPanel(QDialog):
                 border-left: 1px solid {border};
             }}
             QSlider::groove:horizontal {{
-                background: {t['input_bg']};
+                background: {t['slider_groove']};
                 border: 1px solid {border};
                 height: 4px; border-radius: 2px;
             }}

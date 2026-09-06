@@ -325,6 +325,43 @@ APP_BTN_PRESSED: Final[str] = "#444444"
 """The basic button's pressed fill, identical in all three modes. The label
 flips instead -- TRUE_BLACK on dark, WHITE on light."""
 
+# ---- RNV-MIXER-WIRING (2026-09-06): four names for values the palettes
+# ---- already carried as literals. Nothing here is a new colour.
+
+APP_CHROME_DARK: Final[str] = "#444444"
+"""grey(4). The structural grey of a control in dark and image: the slider
+groove, and the border and separator of a menu.
+
+SPLIT, NOT RENAMED. APP_BTN_PRESSED is the same hex and stays exactly as it
+is. That one is a button in its PRESSED state; this one is a resting trough
+and a resting edge. Wiring a groove through the pressed name would claim an
+interaction state for a piece of chrome on the strength of a shared byte --
+the same reasoning this file already gives for APP_HANDLE_HOVER_DARK sharing
+grey(14) with APP_ITEM_HOVER_LIGHT."""
+
+APP_CHROME_LIGHT: Final[str] = "#e0e0e0"
+"""The same job in light: the slider groove. Darker than the #f5f5f5 panel, so
+the groove reads as recessed rather than raised -- which is why it is this
+value and not input_bg's #ffffff.
+
+Soft on its own at 1.21:1 against the panel; the groove's 1px APP_BORDER_LIGHT
+edge does most of the defining. That is the appearance the light fine-tune
+slider already had, and this pass gives it to the other two sliders as well."""
+
+APP_DIM_LIGHT: Final[str] = "#aaaaaa"
+"""grey(10). Disabled text in light. The mirror of APP_CONTROL_DIM's grey(5)
+by the ink grid's own rule -- invert(n) = 15 - n, and 5 + 10 = 15 -- which is
+why the pair is exact and nobody planned it."""
+
+APP_MENU_DIM_DARK: Final[str] = "#666666"
+"""grey(6). The disabled menu label in dark and image.
+
+SPLIT, NOT RENAMED. APP_HANDLE_LIGHT is the same hex and keeps its own job.
+Wiring this through that name would have put a _LIGHT-suffixed constant in the
+DARK palette, and named a menu label after a slider handle. Two wrongs out of
+one shared byte."""
+
+
 # Declarative provenance, read by tests/test_neutral_ramp.py, in the same
 # shape as GOLD_PROVENANCE above. A classification that lives only in a test
 # drifts from the thing it classifies.
@@ -347,6 +384,10 @@ NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
     "APP_CONTROL_DIM": "step",
     "APP_BTN_PRESSED": "step",
     "APP_BTN_HOVER_INVERSE": "alias",
+    "APP_CHROME_DARK": "step",
+    "APP_CHROME_LIGHT": "step",
+    "APP_DIM_LIGHT": "step",
+    "APP_MENU_DIM_DARK": "step",
 }
 
 
@@ -358,7 +399,7 @@ class ThemeManager:
         'window_bg': TRUE_BLACK,
         'text_color': APP_TEXT_DARK,
         'border_color': APP_BORDER_DARK,
-        'hover_color': '#444444',
+        'hover_color': APP_CHROME_DARK,
         'main_btn_bg': APP_SURFACE_DARK,
         'main_btn_text': APP_TEXT_DARK,
         'main_btn_hover_bg': APP_BORDER_DARK,
@@ -385,7 +426,7 @@ class ThemeManager:
         'label_border': APP_BORDER_DARK,
         'tooltip_bg': APP_CARD_DARK,
         'tooltip_border': BRAND_GOLD,
-        'text_disabled': '#555555',
+        'text_disabled': APP_CONTROL_DIM,
         'accent': BRAND_GOLD,
         'accent_ink': BRAND_GOLD,
         'accent_hover': BRAND_GOLD_HOVER,
@@ -399,60 +440,92 @@ class ThemeManager:
         'scrollbar_hover': BRAND_GOLD,
         'slider_handle': APP_TEXT_DARK,
         'text_hint': APP_HINT_DARK,
-        'menu_disabled': '#666666',
+        'menu_disabled': APP_MENU_DIM_DARK,
+        # One key for the slider groove. Before this pass three files painted
+        # it from three different keys -- panel_bg, hover_color and input_bg --
+        # and in dark two of those resolved to the panel's own colour, so the
+        # groove did not exist. RNV-MIXER-WIRING (2026-09-06).
+        'slider_groove': APP_CHROME_DARK,
+        # The menu's border and separator. The dark and light branches of
+        # core/color_slot.py painted these from different keys -- hover_color
+        # and border_color -- so the same two parts had no shared name. Values
+        # unchanged; the difference between the modes is now a value, not a key.
+        'menu_edge': APP_CHROME_DARK,
+        # The label while the main button is hovered. RULED, not chosen: see
+        # claude/ruling-interaction-contrast.md -- the transient states of this
+        # button are exempt from the 4.5 floor and the label dims on purpose.
+        # It held the resting label by inheritance in one file and by an
+        # explicit line in another; this states it once, at the same value.
+        'main_btn_hover_text': APP_TEXT_DARK,
     }
     
     LIGHT_THEME = {
         'name': 'Light',
-        'window_bg': '#f5f5f5',
-        'text_color': '#000000',
-        'border_color': '#cccccc',
-        'hover_color': '#e0e0e0',
-        'main_btn_bg': '#ffffff',
-        'main_btn_text': '#000000',
-        'main_btn_hover_bg': '#333333',
+        'window_bg': APP_WINDOW_LIGHT,
+        'text_color': TRUE_BLACK,
+        'border_color': APP_BORDER_LIGHT,
+        'hover_color': APP_CHROME_LIGHT,
+        'main_btn_bg': WHITE,
+        'main_btn_text': TRUE_BLACK,
+        'main_btn_hover_bg': APP_BTN_HOVER_INVERSE,
         'main_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
-        'main_btn_pressed_text': '#ffffff',
+        'main_btn_pressed_text': WHITE,
         'main_btn_pressed_border': BRAND_DARK_GOLD,
         # The plate, hover and pressed a DIALOG button takes. Added
         # 2026-09-01, holding what the three dialogs already painted.
         # Before this they read the main family, which is how a gold
         # pressed plate that only a QDialog ever used came to look
         # like the main window's.
-        'dialog_btn_bg': '#ffffff',
-        'dialog_btn_hover_bg': '#333333',
+        'dialog_btn_bg': WHITE,
+        'dialog_btn_hover_bg': APP_BTN_HOVER_INVERSE,
         'dialog_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
         'checkbox_bg': 'rgba(255, 255, 255, 200)',
         'checkbox_border': 'gray',
-        'canvas_bg': '#ffffff',
-        'scroll_area_bg': '#ffffff',
-        'input_bg': '#ffffff',
-        'input_text': '#000000',
-        'slot_border': '#000000',
+        'canvas_bg': WHITE,
+        'scroll_area_bg': WHITE,
+        'input_bg': WHITE,
+        'input_text': TRUE_BLACK,
+        'slot_border': TRUE_BLACK,
         'slot_border_width': 1,
         'label_bg': 'white',
         'label_border': 'black',
-        'tooltip_bg': '#ffffff',
+        'tooltip_bg': WHITE,
         'tooltip_border': BRAND_DARK_GOLD,
-        'text_disabled': '#aaaaaa',
+        'text_disabled': APP_DIM_LIGHT,
         'accent': BRAND_DARK_GOLD,
         'accent_ink': BRAND_DARK_GOLD_DEEP,
         'accent_hover': BRAND_DARK_GOLD_HOVER,
-        'accent_text': '#ffffff',
-        'panel_bg': '#f5f5f5',
-        'panel_secondary': '#ffffff',
+        'accent_text': WHITE,
+        'panel_bg': APP_WINDOW_LIGHT,
+        'panel_secondary': WHITE,
         'panel_hover': APP_ITEM_HOVER_LIGHT,
-        'tab_selected_bg': '#ffffff',
-        'scrollbar_bg': '#f5f5f5',
-        'scrollbar_handle': '#cccccc',
+        'tab_selected_bg': WHITE,
+        'scrollbar_bg': APP_WINDOW_LIGHT,
+        'scrollbar_handle': APP_BORDER_LIGHT,
         'scrollbar_hover': BRAND_DARK_GOLD,
-        'slider_handle': '#666666',
+        'slider_handle': APP_HANDLE_LIGHT,
         # The 10px hint under each fine-tune slider is the only consumer, and
         # it sits on the QFrame that section builds -- panel_secondary, not
         # panel_bg. #888888 read 3.5407:1 there, below AA for text this
         # size. #666666 clears 4.5 on every light ground in this app.
-        'text_hint': '#666666',
-        'menu_disabled': '#999999',
+        'text_hint': APP_HANDLE_LIGHT,
+        'menu_disabled': APP_HANDLE_EDGE_LIGHT,
+        # One key for the slider groove. Before this pass three files painted
+        # it from three different keys -- panel_bg, hover_color and input_bg --
+        # and in dark two of those resolved to the panel's own colour, so the
+        # groove did not exist. RNV-MIXER-WIRING (2026-09-06).
+        'slider_groove': APP_CHROME_LIGHT,
+        # The menu's border and separator. The dark and light branches of
+        # core/color_slot.py painted these from different keys -- hover_color
+        # and border_color -- so the same two parts had no shared name. Values
+        # unchanged; the difference between the modes is now a value, not a key.
+        'menu_edge': APP_BORDER_LIGHT,
+        # The label while the main button is hovered. RULED, not chosen: see
+        # claude/ruling-interaction-contrast.md -- the transient states of this
+        # button are exempt from the 4.5 floor and the label dims on purpose.
+        # It held the resting label by inheritance in one file and by an
+        # explicit line in another; this states it once, at the same value.
+        'main_btn_hover_text': TRUE_BLACK,
     }
     
     # NEW: Image Theme - Copy of Dark Theme for Image Mode
@@ -461,7 +534,7 @@ class ThemeManager:
         'window_bg': TRUE_BLACK,
         'text_color': APP_TEXT_DARK,
         'border_color': APP_BORDER_DARK,
-        'hover_color': '#444444',
+        'hover_color': APP_CHROME_DARK,
         'main_btn_bg': APP_SURFACE_DARK,
         'main_btn_text': APP_TEXT_DARK,
         'main_btn_hover_bg': APP_BORDER_DARK,
@@ -488,7 +561,7 @@ class ThemeManager:
         'label_border': APP_BORDER_DARK,
         'tooltip_bg': APP_CARD_DARK,
         'tooltip_border': BRAND_GOLD,
-        'text_disabled': '#555555',
+        'text_disabled': APP_CONTROL_DIM,
         'accent': BRAND_GOLD,
         'accent_ink': BRAND_GOLD,
         'accent_hover': BRAND_GOLD_HOVER,
@@ -502,7 +575,23 @@ class ThemeManager:
         'scrollbar_hover': BRAND_GOLD,
         'slider_handle': APP_TEXT_DARK,
         'text_hint': APP_HINT_DARK,
-        'menu_disabled': '#666666',
+        'menu_disabled': APP_MENU_DIM_DARK,
+        # One key for the slider groove. Before this pass three files painted
+        # it from three different keys -- panel_bg, hover_color and input_bg --
+        # and in dark two of those resolved to the panel's own colour, so the
+        # groove did not exist. RNV-MIXER-WIRING (2026-09-06).
+        'slider_groove': APP_CHROME_DARK,
+        # The menu's border and separator. The dark and light branches of
+        # core/color_slot.py painted these from different keys -- hover_color
+        # and border_color -- so the same two parts had no shared name. Values
+        # unchanged; the difference between the modes is now a value, not a key.
+        'menu_edge': APP_CHROME_DARK,
+        # The label while the main button is hovered. RULED, not chosen: see
+        # claude/ruling-interaction-contrast.md -- the transient states of this
+        # button are exempt from the 4.5 floor and the label dims on purpose.
+        # It held the resting label by inheritance in one file and by an
+        # explicit line in another; this states it once, at the same value.
+        'main_btn_hover_text': APP_TEXT_DARK,
     }
     
     # CACHE OPTIMIZATION: Maximum palette cache size (one per theme type)

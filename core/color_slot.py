@@ -564,7 +564,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QPushButton:hover {{
                     background-color: {theme['main_btn_hover_bg']};
-                    color: {theme['main_btn_text']};
+                    color: {theme['main_btn_hover_text']};
                 }}
                 QPushButton:pressed {{
                     background-color: {theme['main_btn_hover_bg']};
@@ -574,7 +574,7 @@ class ColorSlot(QWidget, SignalMixin):
                 QSlider::groove:horizontal {{
                     border: 1px solid {theme['border_color']};
                     height: 8px;
-                    background: {theme['input_bg']};
+                    background: {theme['slider_groove']};
                     border-radius: 4px;
                 }}
                 QSlider::handle:horizontal {{
@@ -611,7 +611,7 @@ class ColorSlot(QWidget, SignalMixin):
                 QMenu {{
                     background-color: {_m['panel_secondary']};
                     color: {_m['text_color']};
-                    border: 1px solid {_m['hover_color']};
+                    border: 1px solid {_m['menu_edge']};
                     border-radius: 4px;
                     padding: 4px;
                 }}
@@ -628,7 +628,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::separator {{
                     height: 1px;
-                    background-color: {_m['hover_color']};
+                    background-color: {_m['menu_edge']};
                     margin: 4px 8px;
                 }}
             """)
@@ -638,7 +638,7 @@ class ColorSlot(QWidget, SignalMixin):
                 QMenu {{
                     background-color: {_m['panel_secondary']};
                     color: {_m['text_color']};
-                    border: 1px solid {_m['border_color']};
+                    border: 1px solid {_m['menu_edge']};
                     border-radius: 4px;
                     padding: 4px;
                 }}
@@ -655,7 +655,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::separator {{
                     height: 1px;
-                    background-color: {_m['border_color']};
+                    background-color: {_m['menu_edge']};
                     margin: 4px 8px;
                 }}
             """)
@@ -691,7 +691,7 @@ class ColorSlot(QWidget, SignalMixin):
                 QMenu {{
                     background-color: {_m['panel_secondary']};
                     color: {_m['text_color']};
-                    border: 1px solid {_m['hover_color']};
+                    border: 1px solid {_m['menu_edge']};
                     border-radius: 4px;
                     padding: 4px;
                 }}
@@ -705,7 +705,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::separator {{
                     height: 1px;
-                    background-color: {_m['hover_color']};
+                    background-color: {_m['menu_edge']};
                     margin: 4px 8px;
                 }}
             """)
@@ -714,7 +714,7 @@ class ColorSlot(QWidget, SignalMixin):
                 QMenu {{
                     background-color: {_m['panel_secondary']};
                     color: {_m['text_color']};
-                    border: 1px solid {_m['border_color']};
+                    border: 1px solid {_m['menu_edge']};
                     border-radius: 4px;
                     padding: 4px;
                 }}
@@ -728,7 +728,7 @@ class ColorSlot(QWidget, SignalMixin):
                 }}
                 QMenu::separator {{
                     height: 1px;
-                    background-color: {_m['border_color']};
+                    background-color: {_m['menu_edge']};
                     margin: 4px 8px;
                 }}
             """)

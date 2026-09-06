@@ -119,13 +119,53 @@ def test_menu_disabled_is_still_the_literal_that_proves_the_point():
         "menu_disabled moved; the allowlist reasoning above needs re-checking")
 
 
-def test_the_light_palette_was_left_alone():
-    """The light ladder is unruled. Two of its greys -- #aaaaaa and #e0e0e0 --
-    are deliberately still unnamed. If a later pass wires light, this test has
-    to be deleted on purpose."""
-    named = []
-    for key, value in zip(*(lambda n: (n.keys, n.values))(_dicts(("LIGHT_THEME",))["LIGHT_THEME"])):
-        if isinstance(value, ast.Name) and value.id in SUBSTITUTE.values():
-            named.append(f"LIGHT_THEME[{key.value!r}] -> {value.id}")
-    assert not named, ("the light palette now references the dark names:\n  "
-                       + "\n  ".join(named))
+def test_the_light_palette_names_its_own_greys():
+    """RNV-MIXER-WIRING (2026-09-06). This REPLACES
+    test_the_light_palette_was_left_alone, which asserted the light palette
+    referenced no substituted constant at all and said in its own docstring
+    that a later pass wiring light would have to delete it on purpose. This is
+    that pass, and this is that deliberate act.
+
+    What the old test protected is still protected, and more tightly. The
+    concern was never that light must stay unwired -- it was that light must
+    not be wired to the DARK names, which is how a value ends up true by value
+    and false by name. The old form could not express that: it swept
+    SUBSTITUTE.values(), which contains TRUE_BLACK, an anchor belonging to
+    neither mode, so the only way to pass was to name nothing.
+
+    So the successor asserts the positive. The two greys the old test was
+    holding back -- #aaaaaa and #e0e0e0 -- now have names, and every name the
+    light palette reads is a light one, an anchor, or the one dark name it
+    borrows on purpose.
+    """
+    #: TRUE_BLACK and WHITE belong to no mode. APP_BTN_HOVER_INVERSE is the
+    #: dark border step used in light DELIBERATELY -- the basic button's
+    #: scheme inverts on hover, and utils/config.py assigns the alias from
+    #: APP_BORDER_DARK rather than repeating the value so the two cannot drift.
+    ALLOWED_IN_LIGHT = {"TRUE_BLACK", "WHITE", "APP_BTN_HOVER_INVERSE"}
+
+    d = _dicts(("LIGHT_THEME",))["LIGHT_THEME"]
+    leaked = []
+    for key, value in zip(d.keys, d.values):
+        if key is None or not isinstance(value, ast.Name):
+            continue
+        name = value.id
+        if name in ALLOWED_IN_LIGHT or not name.endswith("_DARK"):
+            continue
+        leaked.append(f"LIGHT_THEME[{key.value!r}] -> {name}")
+    assert not leaked, (
+        "a dark name is being read from the light palette, which makes the "
+        "value true and the name false:\n  " + "\n  ".join(leaked)
+        + "\n\nIf the borrow is deliberate, add it to ALLOWED_IN_LIGHT with "
+          "the reason, the way APP_BTN_HOVER_INVERSE is.")
+
+
+def test_the_two_held_back_greys_now_have_light_names():
+    """The other half: the old test's subject, asserted as done rather than as
+    forbidden. An allowlist that permits everything and a wiring that names
+    nothing look identical from the outside, so this states what landed."""
+    assert config.APP_DIM_LIGHT == "#aaaaaa"
+    assert config.APP_CHROME_LIGHT == "#e0e0e0"
+    resolved = ThemeManager.LIGHT_THEME
+    assert resolved["text_disabled"] == config.APP_DIM_LIGHT
+    assert resolved["slider_groove"] == config.APP_CHROME_LIGHT

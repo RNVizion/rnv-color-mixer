@@ -345,6 +345,7 @@ class UIHandler(QObject):
                     }}
                     QPushButton:hover {{
                         background-color: {theme['main_btn_hover_bg']};
+                        color: {theme['main_btn_hover_text']};
                     }}
                     QLabel {{
                         color: {theme['text_color']};

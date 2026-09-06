@@ -410,7 +410,7 @@ class ColorFineTuneDialog(QDialog):
                 QSlider::groove:horizontal {{
                     border: 1px solid {_d['border_color']};
                     height: 8px;
-                    background: {_d['panel_bg']};
+                    background: {_d['slider_groove']};
                     border-radius: 4px;
                 }}
                 QSlider::handle:horizontal {{
@@ -466,7 +466,7 @@ class ColorFineTuneDialog(QDialog):
                 QSlider::groove:horizontal {{
                     border: 1px solid {_l['border_color']};
                     height: 8px;
-                    background: {_l['hover_color']};
+                    background: {_l['slider_groove']};
                     border-radius: 4px;
                 }}
                 QSlider::handle:horizontal {{
