@@ -12,3 +12,15 @@ pytest-qt>=4.2
 pytest-timeout>=2.2
 coverage>=7.3
 hypothesis>=6.90
+
+# ── The brand register (RNV-REGISTER-PIN, 2026-09-07) ──────────────
+# This application mirrors rnv-brand's values in a local PINNED dict,
+# and ~5 tests here compare the two. Until rnv-brand was packaged they
+# were guarded with pytest.importorskip and skipped on every run, in
+# all five applications -- 22 checks that looked like passes.
+#
+# PINNED TO A COMMIT, NOT A BRANCH, on purpose: this line is the
+# written statement of which revision of the brand this app mirrors.
+# A branch ref would let the register move without a commit here.
+# Bumping it is an edit, and an edit is a diff someone can read.
+rnv-brand @ git+https://github.com/RNVizion/rnv-brand@b4fa970babbcb4141d1ea354c77e4d8d78248e82
