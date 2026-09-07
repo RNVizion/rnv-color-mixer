@@ -66,8 +66,8 @@ dependencies = [
 # approach to dev-dependency management.
 [project.optional-dependencies]
 test = [
-    "pytest>=7.4",
-    "pytest-qt>=4.2",
+    "pytest>=8.0,<10.0",
+    "pytest-qt>=4.4,<5.0",
     "coverage>=7.3",
     "hypothesis>=6.90",
 ]

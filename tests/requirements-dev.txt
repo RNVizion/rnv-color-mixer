@@ -7,9 +7,9 @@
 #
 # Test-only dependencies below.
 
-pytest>=7.4
-pytest-qt>=4.2
-pytest-timeout>=2.2
+pytest>=8.0,<10.0
+pytest-qt>=4.4,<5.0
+pytest-timeout>=2.4,<3.0
 coverage>=7.3
 hypothesis>=6.90
 
@@ -24,3 +24,15 @@ hypothesis>=6.90
 # A branch ref would let the register move without a commit here.
 # Bumping it is an edit, and an edit is a diff someone can read.
 rnv-brand @ git+https://github.com/RNVizion/rnv-brand@b4fa970babbcb4141d1ea354c77e4d8d78248e82
+
+# ── Test tooling (RNV-TEST-TOOLING, 2026-09-07) ────────────────────
+# The five RNV applications share one interpreter on a development
+# machine, so their dev-tooling ranges have to be mutually
+# satisfiable. They were not: the picker pinned pytest==9.0.2 while
+# the icon builder capped it below 9.0.0, and pip rewrote
+# site-packages on every switch between them.
+#
+# The ranges above are the fleet standard, identical in all five.
+# tests/test_test_tooling_pins.py fails if this repository drifts
+# from it, if a declaration here disagrees with another file in this
+# repository, or if an exact `==` pin comes back.
