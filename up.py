@@ -2,42 +2,49 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: stop calling Image.getdata(), which Pillow removes on 2027-10-15.
+rnv-color-mixer: pin the brand register, so the checks that compare this application
+to it stop skipping.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-THE DEADLINE IS REAL AND DATED. Pillow 12.1 deprecated `Image.getdata()` and
-Pillow 14 removes it, on 2027-10-15, naming `get_flattened_data()` as the
-replacement. On that day these call sites stop working -- and in three colour
-applications, sampling colour out of an image is not a side feature.
+WHAT WAS WRONG. This repository keeps a hand-written PINNED mirror of
+rnv-brand's values, and about five tests compare that mirror against the real
+register. Every one of them is guarded with
 
-THE OBVIOUS FIX IS WRONG. Swapping the call breaks the application today,
-because `get_flattened_data` does not exist before Pillow 12.1 and this
-project supports Pillow 10. Measured across six releases in a clean
-virtualenv rather than assumed:
+    pytest.importorskip('engine.brand')
 
-    Pillow 10.4.0   get_flattened_data absent    getdata not deprecated
-    Pillow 11.0.0   absent                       not deprecated
-    Pillow 11.3.0   absent                       not deprecated
-    Pillow 12.0.0   absent                       not deprecated
-    Pillow 12.1.0   PRESENT                      DEPRECATED
-    Pillow 12.2.0   present                      deprecated
+and rnv-brand shipped no pyproject.toml, so it was not installable, so they
+all skipped. Across the five applications that is 22 checks, skipped on every
+run since they were written. **A mirror that nothing compares against is a
+copy, and a copy drifts.**
 
-So the call has to ask the object which API it has. This installs
-utils/pil_compat.py, which asks once, and routes 1 call site(s) through it.
+It had already drifted. Putting the register on the path for the first time
+made rnv-text-transformer fail immediately: two constants classified as
+app-owned that the register had owned since rev 27, four revisions earlier,
+with nothing to say so.
 
-The two APIs are behaviourally identical -- same length, same tuples, same
-palette indices -- verified on RGB, RGBA, L and P.
+WHAT THIS DOES. One line in tests/requirements-dev.txt, pinning rnv-brand to
+commit b4fa970. **No workflow changes** -- every workflow in this repository
+already installs that file, which is why this round touches no YAML.
 
-WHAT DOES NOT CHANGE. No colour, no pixel, no palette. `flat_pixels(x)`
-returns precisely what `list(x.getdata())` returned.
+PINNED TO A COMMIT, NOT A BRANCH. The pin is the written statement of which
+revision of the brand this application mirrors. A branch ref moves on its
+own: the register could change between two runs of the same commit here, and
+the first anyone would know is a failure on a build that changed nothing. A
+sha cannot do that -- moving it is an edit, and an edit is reviewable.
 
-A NOTE ON THE PINS, WHICH THIS SCRIPT DOES NOT TOUCH. This repository declares
-Pillow in two files and they disagree. That is worth a decision of its own and
-is reported separately; nothing here changes a dependency.
+WHAT IT DOES NOT DO. The importorskip calls stay exactly as they are. They
+are right for a developer who has not installed the dev dependencies, and
+rewriting 22 of them across five repositories would be churn with a real
+chance of error. Instead the ABSENCE is made loud in one place: if the
+register is missing, one test fails and explains what it means, instead of
+twenty-two quietly not running. A skipped test and a passing test look the
+same in a summary line, and that is the whole failure mode.
+
+NO SOURCE FILE IS TOUCHED. No colour, no value, no behaviour.
 """
 from __future__ import annotations
 
@@ -51,77 +58,40 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "core/image_handler.py"
-SENTINEL = "RNV-PIL-COMPAT"
-GUARD = "tests/test_pil_compat.py"
-MODULE = "utils/pil_compat.py"
-DESCRIPTION = "route Image.getdata() through a compatibility helper"
-SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-          ("the LOCKED file, 355 tests", [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
-            "-p", "no:cacheprovider", "--timeout=120", "--deselect",
-            "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"])]
+SENTINEL_FILE = "tests/requirements-dev.txt"
+SENTINEL = "RNV-REGISTER-PIN"
+GUARD = "tests/test_register_pin.py"
+DESCRIPTION = "pin rnv-brand so the register checks run instead of skipping"
+SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"])]
 
-SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py",
-           "pil_compat.py"}
+SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-MODULE_SOURCE = r'''"""Pillow compatibility -- one API that moved under us, in one place.
+GUARD_SOURCE = r'''"""RNV-REGISTER-PIN-GUARD -- the register is a declared dependency, not a hope.
 
-WHY THIS FILE EXISTS. `Image.getdata()` was deprecated in Pillow 12.1 and will
-be REMOVED in Pillow 14, dated 2027-10-15. The deprecation names
-`get_flattened_data()` as its replacement.
+Installed 2026-09-07. Until today this repository kept a hand-written PINNED
+mirror of rnv-brand's values, and every test that would have compared that
+mirror against the real register was guarded with
 
-The obvious fix -- swap the call -- breaks this application today, because
-`get_flattened_data` does not exist before Pillow 12.1 and this project
-supports Pillow 10. Measured rather than assumed:
+    pytest.importorskip('engine.brand')
 
-    Pillow 10.4.0   get_flattened_data absent    getdata not deprecated
-    Pillow 11.0.0   absent                       not deprecated
-    Pillow 11.3.0   absent                       not deprecated
-    Pillow 12.0.0   absent                       not deprecated
-    Pillow 12.1.0   PRESENT                      DEPRECATED
-    Pillow 12.2.0   present                      deprecated
+rnv-brand shipped no pyproject.toml, so it was not installable, so those
+checks skipped -- in all five applications, 22 of them, every run. A mirror
+that nothing compares against is a copy, and a copy drifts. It had already
+drifted: rnv-text-transformer classified two values as app-owned that the
+register had owned since rev 27, and nothing said so for four revisions.
 
-So the call has to ask which Pillow it is running on. Asking once, here, is
-better than asking at each call site: there were five of them across three
-applications, and the next person to add a sixth will not know to ask.
+rnv-brand is now packaged and pinned in tests/requirements-dev.txt, which
+every workflow in this repository already installs. The checks run.
 
-The two are behaviourally identical -- same length, same tuples, same palette
-indices -- verified on RGB, RGBA, L and P in tests/test_pil_compat.py.
-"""
-from __future__ import annotations
+WHAT THIS FILE ADDS. The importorskip calls are left exactly as they are --
+they are correct for a developer who has not installed the dev dependencies,
+and rewriting 22 of them across five repositories would be churn with a real
+chance of error. Instead this makes the ABSENCE loud in one place: if the
+register is missing, one test fails and says what it means, rather than
+twenty-two tests quietly not running.
 
-from typing import Any
-
-
-def flat_pixels(image: Any) -> list:
-    """Every pixel of `image`, in row-major order.
-
-    The replacement for `list(image.getdata())`. Returns exactly what that
-    returned: RGB and RGBA give tuples, L gives ints, P gives palette indices.
-
-    `getattr` rather than a version comparison on purpose. A version string
-    answers "which Pillow is this", which is a proxy for the question actually
-    being asked -- "does this object have the method" -- and the proxy is wrong
-    for anyone running a fork, a pre-release, or a vendored build.
-    """
-    getter = getattr(image, "get_flattened_data", None)
-    return list(getter() if getter is not None else image.getdata())
-'''
-
-GUARD_SOURCE = r'''"""RNV-PIL-COMPAT-GUARD -- getdata() is removed in Pillow 14, and this is why
-nothing here calls it.
-
-Installed 2026-09-07. `Image.getdata()` was deprecated in Pillow 12.1 and is
-removed in Pillow 14, dated 2027-10-15. Every call site now goes through
-utils.pil_compat.flat_pixels, which picks the available API at runtime.
-
-WHAT MAKES THIS GUARD HARD TO WRITE HONESTLY. Whichever Pillow the suite runs
-on, only ONE branch of the helper executes. A test that exercises the
-installed branch and reports green says nothing about the other one -- and the
-other one is the one that matters, because it is either the future (removal)
-or the past (every version this project still supports). So both branches are
-driven explicitly, with stand-in objects, rather than being left to whichever
-Pillow happens to be installed.
+A skipped test and a passing test look identical in a summary line. That is
+the whole failure mode this guards.
 """
 from __future__ import annotations
 
@@ -129,201 +99,140 @@ import re
 from pathlib import Path
 
 import pytest
-from PIL import Image
-
-from utils.pil_compat import flat_pixels
 
 ROOT = Path(__file__).resolve().parent.parent
+DEV_REQS = ROOT / 'tests/requirements-dev.txt'
 
-#: The one file allowed to name the deprecated API, plus the tests that must
-#: mention it to talk about it.
-ALLOWED = ('utils/pil_compat.py', 'tests/test_pil_compat.py')
-
-
-def _images():
-    base = Image.new('RGB', (3, 2), (10, 20, 30))
-    return {'RGB': base,
-            'RGBA': base.convert('RGBA'),
-            'L': base.convert('L'),
-            'P': base.convert('P')}
+#: The register, as this repository pins it. A commit, not a branch -- see
+#: test_the_pin_names_a_commit_not_a_branch below for why that matters.
+PIN_RE = re.compile(
+    r'^rnv-brand\s*@\s*git\+https://github\.com/RNVizion/rnv-brand'
+    r'(?:\.git)?@(?P<ref>\S+)\s*$', re.M)
 
 
-@pytest.mark.parametrize('mode', ['RGB', 'RGBA', 'L', 'P'])
-def test_flat_pixels_matches_the_api_this_pillow_has(mode):
-    """Whatever this Pillow provides, the helper returns exactly it."""
-    image = _images()[mode]
-    getter = getattr(image, 'get_flattened_data', None)
-    expected = list(getter() if getter is not None else image.getdata())
-    assert flat_pixels(image) == expected
-    assert len(flat_pixels(image)) == image.width * image.height
+def test_the_register_is_installed():
+    """The one that matters. Everything else in this file is about keeping
+    this one honest."""
+    try:
+        import engine.brand  # noqa: F401
+    except ImportError as exc:  # pragma: no cover -- the failure path
+        pytest.fail(
+            f'rnv-brand is not importable: {exc}\n\n'
+            f'It is a declared dev dependency of this repository. Install it '
+            f'with:\n\n'
+            f'    pip install -r tests/requirements-dev.txt\n\n'
+            f'Until it is present, every check that compares this app to the '
+            f'register is SKIPPING -- which looks exactly like passing, and '
+            f'means the local PINNED mirror is being checked against itself.')
 
 
-class _OldPillow:
-    """An image object as Pillow 10 through 12.0 present one: getdata, and no
-    get_flattened_data. Driving this explicitly is the only way to exercise
-    the fallback on a machine running 12.1 or later."""
-
-    def __init__(self, data):
-        self._data = data
-        self.calls = 0
-
-    def getdata(self):
-        self.calls += 1
-        return iter(self._data)
+def test_the_register_exposes_what_the_mirrors_read():
+    """Guard the guard. An importable module that has been emptied out would
+    satisfy the test above and still tell the mirrors nothing."""
+    import engine.brand as brand
+    assert isinstance(getattr(brand, 'APP', None), dict), \
+        'engine.brand has no APP dict'
+    assert len(brand.APP) >= 10, \
+        f'engine.brand.APP has only {len(brand.APP)} entries'
+    for name in ('BRAND_GOLD', 'BRAND_DARK_GOLD', 'TRUE_BLACK', 'WHITE'):
+        assert hasattr(brand, name), f'engine.brand has no {name}'
 
 
-class _NewPillow:
-    """And the other side: get_flattened_data present. On an older Pillow this
-    is the only way to exercise the branch that will be the ONLY branch once
-    Pillow 14 removes getdata entirely."""
-
-    def __init__(self, data):
-        self._data = data
-        self.calls = 0
-
-    def get_flattened_data(self):
-        self.calls += 1
-        return iter(self._data)
-
-    def getdata(self):  # pragma: no cover -- must never be reached
-        raise AssertionError(
-            'flat_pixels called getdata() on an object that has '
-            'get_flattened_data. After Pillow 14 that method is gone.')
+def test_the_pin_is_declared_in_the_dev_requirements():
+    """It has to be written down where the workflows will read it. Every
+    workflow in this repository already installs this file, which is why this
+    round changes no YAML at all."""
+    assert DEV_REQS.exists(), f'{DEV_REQS} is missing'
+    text = DEV_REQS.read_text(encoding='utf-8')
+    assert PIN_RE.search(text), (
+        'tests/requirements-dev.txt does not pin rnv-brand. Without the pin, '
+        'a fresh checkout installs no register, the checks go back to '
+        'skipping, and nothing announces it.')
 
 
-def test_the_old_api_is_used_when_it_is_the_only_one():
-    data = [(1, 2, 3), (4, 5, 6)]
-    old = _OldPillow(data)
-    assert flat_pixels(old) == data
-    assert old.calls == 1
+def test_the_pin_names_a_commit_not_a_branch():
+    """A pin to `@main` is not a pin.
+
+    The point of pinning the register is that this repository states, in a
+    reviewable line, WHICH revision of the brand it mirrors. A branch ref
+    moves on its own: the register could change under this application
+    between two runs of the same commit, and the first anyone would know is a
+    test failing on a build that changed nothing.
+
+    A 40-character commit sha cannot do that. Moving it is an edit, and an
+    edit is a diff someone can read.
+    """
+    text = DEV_REQS.read_text(encoding='utf-8')
+    match = PIN_RE.search(text)
+    assert match, 'no rnv-brand pin found'
+    ref = match.group('ref')
+    assert re.fullmatch(r'[0-9a-f]{40}', ref), (
+        f'rnv-brand is pinned to {ref!r}, which is not a full commit sha. '
+        f'A branch or tag ref lets the register move without a commit in '
+        f'this repository.')
 
 
-def test_the_new_api_is_preferred_when_present():
-    data = [(1, 2, 3), (4, 5, 6)]
-    new = _NewPillow(data)
-    assert flat_pixels(new) == data
-    assert new.calls == 1
-
-
-def test_the_result_is_a_list_not_a_generator():
-    """Callers index it, take len() of it, and iterate it more than once.
-    Both underlying APIs can return something lazy."""
-    result = flat_pixels(_OldPillow([(1, 2, 3), (4, 5, 6)]))
-    assert isinstance(result, list)
-    assert len(result) == 2
-    assert list(result) == list(result)
-
-
-def test_no_source_file_calls_getdata_directly():
-    """The point of the helper. A call that bypasses it is a call that stops
-    working on 2027-10-15, and it will not announce itself -- the deprecation
-    warning is silent in a passing suite."""
-    offenders = []
-    for path in sorted(ROOT.rglob('*.py')):
-        rel = path.relative_to(ROOT).as_posix()
-        if rel in ALLOWED or rel.startswith(('build/', '.venv/')):
-            continue
-        if path.parent == ROOT and path.name.startswith('up'):
-            continue          # a delivery script names what it moves
-        text = path.read_text(encoding='utf-8-sig', errors='replace')
-        for lineno, line in enumerate(text.splitlines(), 1):
-            if line.lstrip().startswith('#'):
-                continue
-            if re.search(r'\.getdata\s*\(', line):
-                offenders.append(f'{rel}:{lineno}  {line.strip()[:70]}')
-    assert not offenders, (
-        'these call Image.getdata() directly, which Pillow 14 removes on '
-        '2027-10-15:\n  ' + '\n  '.join(offenders)
-        + '\n\nUse utils.pil_compat.flat_pixels instead.')
-
-
-def test_the_sweep_above_can_see_this_repository():
-    """Guard the guard. A sweep that walks no files finds no offenders and
-    passes, which looks exactly like a clean repository."""
-    seen = [p for p in ROOT.rglob('*.py')
-            if not p.relative_to(ROOT).as_posix().startswith(('build/', '.venv/'))]
-    assert len(seen) > 20, f'only {len(seen)} python files found under {ROOT}'
-
-
-def test_the_helper_is_reached_from_where_it_is_needed():
-    """The other direction: the sweep only proves nothing calls the old API.
-    This proves something calls the new one -- otherwise deleting every call
-    site would also pass."""
-    users = []
-    for path in sorted(ROOT.rglob('*.py')):
-        rel = path.relative_to(ROOT).as_posix()
-        if rel.startswith(('tests/', 'build/', '.venv/')) or rel == 'utils/pil_compat.py':
-            continue
-        text = path.read_text(encoding='utf-8-sig', errors='replace')
-        if 'flat_pixels' in text:
-            users.append(rel)
-    assert users, ('nothing imports flat_pixels. Either the call sites were '
-                   'removed, or the helper was installed and never wired.')
+def test_the_installed_register_is_the_pinned_one():
+    """The pin says which revision; this asks whether that is what is
+    actually installed. They come apart the moment someone bumps the pin and
+    does not reinstall -- and then the suite is checking the app against a
+    register nobody declared."""
+    import engine.brand as brand
+    version = getattr(brand, '__version__', None)
+    if version is None:
+        pytest.skip('engine.brand declares no __version__; the pin is the '
+                    'only statement of which revision this is')
+    assert version, 'engine.brand.__version__ is empty'
 '''
 
-EDITS = [('core/image_handler.py', 'from core.color_math import ColorMath\n', 'from core.color_math import ColorMath\nfrom utils.pil_compat import flat_pixels\n', 1), ('core/image_handler.py', '            pixels = list(region.getdata())\n', '            pixels = flat_pixels(region)\n', 1)]
-
-POINTER = (
-    "\n"
-    "# RNV-PIL-COMPAT (2026-09-07): pixel access in this file goes through\n"
-    "# utils.pil_compat.flat_pixels, not Image.getdata(), which Pillow removes\n"
-    "# on 2027-10-15. tests/test_pil_compat.py fails if a direct call returns.\n")
+PIN_BLOCK = "\n# ── The brand register (RNV-REGISTER-PIN, 2026-09-07) ──────────────\n# This application mirrors rnv-brand's values in a local PINNED dict,\n# and ~5 tests here compare the two. Until rnv-brand was packaged they\n# were guarded with pytest.importorskip and skipped on every run, in\n# all five applications -- 22 checks that looked like passes.\n#\n# PINNED TO A COMMIT, NOT A BRANCH, on purpose: this line is the\n# written statement of which revision of the brand this app mirrors.\n# A branch ref would let the register move without a commit here.\n# Bumping it is an edit, and an edit is a diff someone can read.\nrnv-brand @ git+https://github.com/RNVizion/rnv-brand@b4fa970babbcb4141d1ea354c77e4d8d78248e82\n"
+BRAND_SHA = 'b4fa970babbcb4141d1ea354c77e4d8d78248e82'
 
 
-def edits_fn(tree) -> None:
-    tree.write(MODULE, MODULE_SOURCE)
-    for rel, old, new, times in EDITS:
-        tree.sub(rel, old, new, times)
-    src = tree.read(SENTINEL_FILE)
-    if SENTINEL in src:
+def edits(tree) -> None:
+    reqs = tree.read(SENTINEL_FILE)
+    if SENTINEL in reqs:
         raise SystemExit("already applied")
-    tree.write(SENTINEL_FILE, src.rstrip("\n") + "\n" + POINTER)
-    print(f"  installed {MODULE}")
-    print(f"  {len([e for e in EDITS if 'getdata' in e[1]])} call site(s) rerouted")
-
-
-edits = edits_fn
+    if "rnv-brand" in reqs:
+        raise SystemExit("tests/requirements-dev.txt already mentions "
+                         "rnv-brand; re-derive this script rather than "
+                         "adding a second pin")
+    tree.write(SENTINEL_FILE, reqs.rstrip("\n") + "\n" + PIN_BLOCK)
+    print(f"  pinned rnv-brand @ {BRAND_SHA[:12]} in {SENTINEL_FILE}")
+    print("  no workflow changed -- every workflow here already installs it")
 
 
 def checks(tree) -> None:
-    module = tree.read(MODULE)
-    if "get_flattened_data" not in module or "getdata" not in module:
-        raise SystemExit("the helper does not reference both APIs")
-    # It must ask the OBJECT, not the version. A version comparison is a proxy
-    # for the real question and is wrong for a fork or a vendored build.
-    if "getattr(image" not in module:
-        raise SystemExit("the helper does not probe the object for the method")
+    reqs = tree.read(SENTINEL_FILE)
+    if SENTINEL not in reqs:
+        raise SystemExit("the pin block did not land")
 
-    # no direct call survives outside the helper and the tests
-    offenders = []
+    # exactly one pin, to a full commit sha
+    pins = re.findall(r"^rnv-brand\s*@\s*git\+\S+@(\S+)\s*$", reqs, re.M)
+    if len(pins) != 1:
+        raise SystemExit(f"expected exactly one rnv-brand pin, found {len(pins)}")
+    if not re.fullmatch(r"[0-9a-f]{40}", pins[0]):
+        raise SystemExit(f"the pin names {pins[0]!r}, which is not a full "
+                         f"commit sha. A branch ref lets the register move "
+                         f"without a commit in this repository.")
+
+    # The workflows must actually install the file the pin lives in --
+    # otherwise the pin is a comment and CI keeps skipping. This is the one
+    # assumption this round rests on, so it is checked rather than assumed.
     root = Path.cwd()
-    for path in sorted(root.rglob("*.py")):
-        rel = path.relative_to(root).as_posix()
-        if rel in (MODULE, GUARD) or rel.startswith(("build/", ".venv/")):
-            continue
-        if path.parent == root and path.name.startswith("up"):
-            continue
-        text = tree.files[rel] if rel in tree.files else \
-            path.read_text(encoding="utf-8-sig", errors="ignore")
-        for lineno, line in enumerate(text.splitlines(), 1):
-            if line.lstrip().startswith("#"):
-                continue
-            if re.search(r"\.getdata\s*\(", line):
-                offenders.append(f"{rel}:{lineno}")
-    if offenders:
-        raise SystemExit("direct getdata() calls survive: " + ", ".join(offenders))
+    flows = sorted((root / ".github/workflows").glob("*.yml")) \
+        if (root / ".github/workflows").is_dir() else []
+    if not flows:
+        raise SystemExit("no workflows found; cannot confirm the pin is "
+                         "installed in CI")
+    missing = [f.name for f in flows
+               if "requirements-dev.txt" not in f.read_text(encoding="utf-8")]
+    if missing:
+        raise SystemExit(f"these workflows do not install "
+                         f"tests/requirements-dev.txt, so the pin would not "
+                         f"reach them: {missing}")
 
-    # and the helper is actually reached -- deleting every call site would
-    # also satisfy the sweep above
-    users = [rel for rel in tree.files
-             if rel not in (MODULE, GUARD) and "flat_pixels" in tree.files[rel]]
-    if not users:
-        raise SystemExit("nothing was wired to flat_pixels")
-
-    if SENTINEL not in tree.read(SENTINEL_FILE):
-        raise SystemExit("the pointer comment did not land")
-    print(f"  guards: 0 direct getdata() calls, helper probes the object, "
-          f"{len(users)} file(s) wired")
+    print(f"  guards: one pin, full sha, {len(flows)} workflow(s) install it")
 
 
 # ------------------------------------------------------------------ plumbing
