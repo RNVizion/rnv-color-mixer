@@ -85,6 +85,14 @@ ACCEPTED: dict[str, str] = {}
 
 #: Below this, the sweep has stopped finding things and is passing for the
 #: wrong reason.
+#:
+#: 8, not the 20 that rnv-color-picker and rnv-icon-builder use. This is the
+#: smallest of the five applications for gold: it resolves 14 gold-as-text
+#: pairs and 2 gold fills, where the picker resolves 63 and 48 and the icon
+#: builder 91 and 47. 8 is what rnv-text-transformer and rnv-color-mixer
+#: already use, and it leaves this app six sites of headroom -- enough that
+#: ordinary editing does not trip it, low enough that a collapse to nothing
+#: still does.
 MIN_RESOLVED = 8
 
 
@@ -134,11 +142,46 @@ def _fstrings(source: str):
     except SyntaxError:
         return []
     out, seen = [], set()
-    scopes = [n for n in ast.walk(tree)
-              if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef))]
+    #: INNERMOST SCOPE FIRST. `ast.walk` yields the Module before the functions
+    #: inside it, and walking the Module collects assignments from EVERY
+    #: function in the file -- last one wins. Since `seen` gives each f-string
+    #: to whichever scope reaches it first, the Module used to claim them all
+    #: with file-global bindings.
+    #:
+    #: That is harmless where an application builds both stylesheets in one
+    #: function with an if/else, because the bindings agree. It is not harmless
+    #: in rnv-color-palette-manager, which has _get_style_dark() and
+    #: _get_style_light() as separate functions: the dark block's
+    #: `pressed_text = TRUE_BLACK` was resolved as the light block's
+    #: `pressed_text = WHITE`, and the sweep reported four failures --
+    #: white-on-gold at 1.85 in DARK -- that cannot render.
+    #:
+    #: Sorting by depth, deepest first, makes the nearest enclosing function
+    #: claim its own f-strings and leaves the Module only what sits outside
+    #: every function.
+    depth = {id(tree): 0}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            depth[id(child)] = depth.get(id(parent), 0) + 1
+    scopes = sorted(
+        (n for n in ast.walk(tree)
+         if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef))),
+        key=lambda n: depth.get(id(n), 0), reverse=True)
     for scope in scopes:
         binds = {}
         for node in ast.walk(scope):
+            #: AN ALIASED IMPORT IS A BINDING. rnv-color-palette-manager binds
+            #: its palette with a lazy import inside each style function --
+            #: `from ui.colors import LIGHT_THEME_COLORS as colors` -- to break
+            #: a circular dependency. Reading only Assign missed that, so a
+            #: light-only block's `{accent_dark}` resolved to a bare local with
+            #: no mode marker in it, the mode reader fell back to all three,
+            #: and the sweep scored a light stylesheet against the dark palette.
+            #: The marker was there; it was on the import line.
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.asname:
+                        binds[alias.asname] = alias.name
             if (isinstance(node, ast.Assign) and len(node.targets) == 1
                     and isinstance(node.targets[0], ast.Name)):
                 try:
@@ -179,6 +222,15 @@ def _resolve(expr: str, palette: dict, binds: dict):
 
 def _modes_for(expr: str, binds: dict):
     expr = expr.strip()
+    #: Expand a bare local through the bindings FIRST, the way _resolve does.
+    #: Without this, `{accent_dark}` is not a lookup, so the mode reader gave
+    #: up and returned all three -- and a light-only stylesheet got scored
+    #: against the dark palette. The two readers have to agree about what an
+    #: expression is, or the value comes from one palette and the mode from
+    #: another.
+    match = BARE.match(expr)
+    if match and match.group(1) in binds:
+        expr = '{' + binds[match.group(1)] + '}'
     match = LOOKUP.match(expr) or GETLOOKUP.match(expr)
     if not match:
         return list(PALETTES)
@@ -287,6 +339,24 @@ def _fill_sweep():
                         continue
                     label = (_resolve(fg_decl.group(1), palette, binds)
                              if fg_decl is not None else None)
+                    if label is None and fg_decl is not None:
+                        #: A DECLARED COLOUR THIS READER CANNOT PARSE IS NOT AN
+                        #: ABSENT ONE. rnv-color-palette-manager writes
+                        #: `color: {WHITE if is_light else TRUE_BLACK}` on its
+                        #: pressed gold button -- correct in both modes, 6.03:1
+                        #: in dark. The resolver does not read conditionals, so
+                        #: the label came back None, fell through to the
+                        #: container rule below, and the sweep reported black
+                        #: text as #dddddd at 1.36 in two files.
+                        #:
+                        #: Inheriting is only right where the rule declares
+                        #: NOTHING. Where it declares something unreadable, the
+                        #: honest answer is "unresolved" -- counted, and visible
+                        #: in the count that test_the_sweep_still_finds_things
+                        #: guards, rather than turned into a failure that cannot
+                        #: render.
+                        unresolved += 1
+                        continue
                     if label is None:
                         if _is_textless(selector):
                             # A painted sub-control. It has no label to
