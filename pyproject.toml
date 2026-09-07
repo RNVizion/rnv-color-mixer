@@ -55,8 +55,8 @@ classifiers = [
     "Topic :: Multimedia :: Graphics :: Editors",
 ]
 dependencies = [
-    "PyQt6>=6.5.0,<7.0.0",
-    "Pillow>=9.0.0,<12.0.0",
+    "PyQt6>=6.5.0,<7.0",
+    "Pillow>=10.0.0,<13.0",
 ]
 
 
@@ -156,3 +156,10 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "PIL.*"
 ignore_missing_imports = true
+
+# ── Dependency coherence (RNV-DEPENDENCY-COHERENCE, 2026-09-07) ────
+# The declarations in this file and in requirements.txt had drifted
+# apart, so which range applied depended on which file you installed
+# from. tests/test_dependency_coherence.py fails if they disagree
+# again, if an exact `==` pin comes back, or if Pillow stops matching
+# the range all five applications share.
