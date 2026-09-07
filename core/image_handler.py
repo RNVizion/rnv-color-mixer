@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from PIL import Image
 from PyQt6.QtCore import QObject, pyqtSignal
 from core.color_math import ColorMath
+from utils.pil_compat import flat_pixels
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QImage
@@ -457,7 +458,7 @@ class ImageHandler(QObject):
         try:
             # Extract region and get pixel data
             region = self.image.crop((x1, y1, x2, y2))
-            pixels = list(region.getdata())
+            pixels = flat_pixels(region)
             
             # Convert to RGB if needed and calculate average
             rgb_pixels = []
@@ -681,3 +682,7 @@ Clears image, cache, and references.
         except Exception as e:
             if logger:
                 logger.error(f"Error during ImageHandler cleanup: {e}")
+
+# RNV-PIL-COMPAT (2026-09-07): pixel access in this file goes through
+# utils.pil_compat.flat_pixels, not Image.getdata(), which Pillow removes
+# on 2027-10-15. tests/test_pil_compat.py fails if a direct call returns.
