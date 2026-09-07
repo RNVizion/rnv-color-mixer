@@ -2,48 +2,59 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: give every palette value a name, split the two colours that
-carry two roles, and give the slider groove one key instead of three.
+rnv-color-mixer: four resolver fixes for the gold-as-text guard
 
     python up.py             # apply, then verify
-    python up.py --check     # rehearse: compose every edit, run every guard,
-                             #           write nothing
+    python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-WHAT MOVES. Three sites, all of them the same widget part:
+WHAT THE GUARD DOES. It reads every f-string in the source, pulls `color:` and
+`background-color:` out of each QSS rule, resolves the placeholders through
+this application's own palettes, and measures. Gold drawn as TEXT below 4.5 on
+its ground fails; a label on a gold FILL below 4.5 fails. It has run in three
+of the five applications since the gold alignment round.
 
-    core/color_fine_tune.py:413   dark slider groove   #1a1a1a -> #444444
-    core/color_slot.py:577        slider groove        #1a1a1a -> #444444  (dark)
-                                                       #ffffff -> #e0e0e0  (light)
-    core/package_d_panel.py:2622  slider groove        same as above
+FOUR RESOLVER DEFECTS, FOUND BY PORTING IT. rnv-color-palette-manager builds
+its two dialog stylesheets in two separate functions -- _get_style_dark() and
+_get_style_light() -- where the other applications use one function with an
+if/else. That difference exposed four blind spots that had been in the sweep
+since it was written:
 
-In dark and image the groove was the SAME COLOUR as the panel the slider sits
-on -- 1.00:1 -- so there was no channel at all; the track read as a handle
-floating on the panel with only its 1px edge to suggest a recess. In light the
-two candidate keys pulled opposite ways: #ffffff is brighter than the #f5f5f5
-panel, so the groove read as raised, while #e0e0e0 is darker, so it reads as
-recessed, which is what a groove is. #e0e0e0 is what the light fine-tune
-slider already painted, so one of the four sites does not move at all.
+  1. THE MODULE SCOPE CLAIMED EVERY F-STRING. `ast.walk` yields the Module
+     before the functions inside it, and walking the Module collects
+     assignments from every function in the file -- last one wins. So the dark
+     block's `pressed_text = TRUE_BLACK` resolved as the light block's
+     `pressed_text = WHITE`, and the sweep reported white-on-gold at 1.85 in
+     DARK: a pairing that cannot render. Scopes are now sorted deepest first.
 
-Everything else in this script is spelling. 32 literals become names; three
-keys are added holding what their sites already paint.
+  2. AN ALIASED IMPORT IS A BINDING. That application binds its palette with a
+     lazy `from ui.colors import LIGHT_THEME_COLORS as colors` inside each
+     function, to break a circular import. Only Assign was read, so the mode
+     marker -- which was sitting on the import line -- was invisible, the mode
+     reader fell back to all three modes, and a light-only stylesheet was
+     scored against the dark palette.
 
-WHAT IS NOT TOUCHED, DELIBERATELY:
+  3. THE TWO READERS DISAGREED. The value resolver expanded a bare local
+     through the bindings; the mode reader did not, and returned all modes for
+     anything that was not literally a subscript. The value then came from one
+     palette and the mode from another.
 
-  * APP_HANDLE_HOVER_DARK and APP_ITEM_HOVER_LIGHT. Both are #eeeeee and both
-    stay. utils/config.py documents them as a deliberate split -- a dark
-    ink-grid step and a light register plate meeting at grey(14) -- and
-    tests/test_ladder_and_plate.py asserts it in both directions.
+  4. A DECLARED COLOUR THAT CANNOT BE PARSED IS NOT AN ABSENT ONE. The pressed
+     gold button is written `color: {WHITE if is_light else TRUE_BLACK}` --
+     correct in both modes, 6.03:1 in dark. The resolver does not read
+     conditionals, returned None, and the code fell through to the CONTAINER
+     rule's label, reporting black text as #dddddd at 1.36 in two files.
+     Inheriting is only right where the rule declares nothing.
 
-  * The _DARK / _LIGHT naming convention. utils/config.py rules it explicitly:
-    "THE NAME STAYS AS IT IS ... the mirror is what carries the ownership, not
-    the spelling." So the four names added below follow THIS application's
-    convention, not the fleet's GREY_* spelling.
+WHAT THIS MEANS FOR THE THREE THAT ALREADY HAD IT. All three were re-run with
+the fixed sweep and all three are still clean -- the blind spots were hiding
+nothing here. They would have started hiding things the first time a
+stylesheet was split into two functions, which is a refactor nobody would
+think to check a contrast guard against.
 
-  * The main button's hover label. claude/ruling-interaction-contrast.md rules
-    the transient states exempt from the 4.5 floor: the label dims on purpose.
-    This script adds the key that STATES that value; it does not change it.
+NO SOURCE FILE IS TOUCHED except for one pointer comment. This round changes
+what is checked, not what is painted.
 """
 from __future__ import annotations
 
@@ -58,710 +69,629 @@ from pathlib import Path
 
 REPO = "rnv-color-mixer"
 SENTINEL_FILE = "utils/config.py"
-SENTINEL = "RNV-MIXER-WIRING"
-GUARD = "tests/test_mixer_wiring.py"
-DESCRIPTION = "name every mixer palette value; one key for the slider groove"
-_LOCKED_IMAGE_TEST = ("test_rnv_color_mixer.py::TestImageHandler::"
-                      "test_load_real_image_if_available")
-SUITES = [("pytest tests/",
-           [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-          # The LOCKED file, run through pytest rather than through the command
-          # CI uses. TWO REASONS, and both are worth knowing:
-          #
-          #   1. CI runs `unittest test_rnv_color_mixer -k "not test_load_..."`.
-          #      unittest's -k is a SUBSTRING pattern, not a pytest expression,
-          #      so "not test_load_real_image_if_available" matches no test
-          #      name and the suite runs ZERO of its 356 tests, reporting OK.
-          #      A verification step that inherits that command proves nothing.
-          #   2. Plain `unittest test_rnv_color_mixer` does not finish here --
-          #      it was still running after ten minutes. Under pytest the same
-          #      file collects 356, deselects the one image test by node id,
-          #      and passes 355 in about nineteen seconds.
-          #
-          # Same file, same tests, a command that actually runs them.
-          ("the LOCKED file, 355 tests",
-           [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
-            "-p", "no:cacheprovider", "--timeout=120",
-            "--deselect", _LOCKED_IMAGE_TEST])]
+SENTINEL = "RNV-GOLD-GUARD"
+GUARD = "tests/test_gold_as_text.py"
+DESCRIPTION = "four resolver fixes for the gold-as-text guard"
+SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"])]
 
-PALETTES = ["DARK_THEME", "LIGHT_THEME", "IMAGE_THEME"]
+SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py",
+           "dialog_styles.py"}
 
-#: Basenames this script must never be run AS -- copying it over one of these
-#: would shadow the module it is meant to edit, and the import it then breaks
-#: is the file it was supposed to fix.
-SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
+IS_NEW = False
 
-GUARD_SOURCE = r'''"""RNV-MIXER-WIRING-GUARD -- every palette value has a name, and the splits hold.
+GUARD_SOURCE = r'''"""Gold drawn as TEXT must clear the text floor on the ground it is drawn on.
 
-Installed 2026-09-06. What it pins:
+WHY THIS EXISTS. The gold family has two members that look interchangeable and
+are not. BRAND_DARK_GOLD #8c7337 fills and bounds correctly on light surfaces
+and FAILS as text on them; BRAND_DARK_GOLD_DEEP #7e6529 is the derivative that
+exists for text, and the palettes name it `accent_ink` -- "Accent when it
+carries text". In DARK MODE THE TWO ARE THE SAME VALUE, so every check written
+where they coincide is blind to the case where they diverge, and that is
+exactly what happened: gold-as-text sites shipped in light mode at 3.71 and
+4.17 against a 4.5 floor, in more than one application, for as long as the
+dialogs have existed.
 
-  * no value in any of the three palettes is a bare hex -- a literal cannot
-    follow the register, so one appearing here is a value that will be
-    orphaned the first time the brand moves;
-  * the two SPLITS: #444444 and #666666 each carry two constants, because each
-    plays two roles, and the guard states which name goes with which role;
-  * `slider_groove` is the ONLY key any QSlider groove reads, in every file;
-  * `main_btn_hover_text` states the ruled dimming rather than inheriting it;
-  * every name a palette uses is assigned ABOVE the palette that uses it.
+WHAT IT DOES. Reads every f-string in the source, pulls `color:` and
+`background-color:` out of each QSS rule, resolves the placeholders through
+this app's own palettes, and measures. A declaration whose foreground is a
+gold-family value and whose contrast falls below the floor fails.
 
-The palettes here are CLASS ATTRIBUTES of ThemeManager, not module-level
-dicts, so everything below descends into the ClassDef. A sweep written for the
-other four applications finds nothing in this one and passes for the wrong
-reason -- which is what `test_this_guard_can_see_the_palettes` is for.
+WHAT IT CANNOT SEE, stated because a sweep that reports only what it found
+looks identical to one that found nothing:
+
+  - a placeholder that is not a palette lookup, a module constant or a local
+    bound to one is UNRESOLVED and skipped
+  - a rule with no background-color of its own INHERITS, and the ground is
+    taken from the palette's window or panel value, which is a guess
+
+Both counts are asserted rather than printed: if the resolved count collapses,
+the sweep has gone blind and says so instead of passing.
+
+READING THE MODE. A block written inside `if self._is_dark:` and bound with
+`_d = ThemeManager.DARK_THEME` is dark-only, and scoring it against the light
+palette invents a pairing that never renders. Declarations are restricted to
+the mode their variable came from. The first version of this sweep, without
+that, reported five impossible failures including gold on #333333 at 2.78.
 """
 from __future__ import annotations
 
 import ast
+import pathlib
 import re
-from pathlib import Path
 
 import pytest
 
-from utils import config as C
+from utils import config as colors
+from utils.config import ThemeManager
 
-ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / 'utils/config.py'
-PALETTES = ['DARK_THEME', 'LIGHT_THEME', 'IMAGE_THEME']
-HEX = re.compile(r"#[0-9a-fA-F]{3,8}$")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-#: hex -> the two constants that share it, and the role each one plays. A
-#: second name for one colour is either a split with a stated role or a
-#: defect; these two are splits, ruled 2026-09-06.
-SPLITS = {
-    '#444444': {'APP_BTN_PRESSED': 'the pressed plate of the basic button',
-                'APP_CHROME_DARK': 'the dark control trough and menu edge'},
-    '#666666': {'APP_HANDLE_LIGHT': 'the light slider handle at rest',
-                'APP_MENU_DIM_DARK': 'the disabled menu label in dark and image'},
-    '#eeeeee': {'APP_HANDLE_HOVER_DARK': 'a dark ink-grid step, app-owned',
-                'APP_ITEM_HOVER_LIGHT': 'the light register plate APP["hover-light"]'},
-}
+TEXT_FLOOR = 4.5
+HEX = re.compile(r'^#[0-9a-fA-F]{6}$')
+BLOCK = re.compile(r'([^{}\n][^{}]*?)\{\{(.*?)\}\}', re.S)
+DECL = re.compile(r'(?<!-)\bcolor\s*:\s*([^;\n]+)')
+BGDECL = re.compile(r'background-color\s*:\s*([^;\n]+)')
+LOOKUP = re.compile(r"^\{\s*([A-Za-z_][A-Za-z_0-9]*)\s*\[\s*['\"]([a-z_0-9]+)['\"]\s*\]\s*\}$")
+#: `{t.get('tab_selected_bg', bg)}` is a lookup wearing a fallback. Reading it
+#: as unresolvable made the sweep guess the ground from the palette and score
+#: rnv-color-mixer's selected tab at 4.1670 when it actually sits on #ffffff
+#: and clears at 4.5429 -- a failure that does not exist.
+GETLOOKUP = re.compile(
+    r"^\{\s*([A-Za-z_][A-Za-z_0-9]*)\s*\.get\(\s*['\"]([a-z_0-9]+)['\"]\s*(?:,.*)?\)\s*\}$",
+    re.S)
+BARE = re.compile(r'^\{\s*([A-Za-z_][A-Za-z_0-9]*)\s*\}$')
 
-#: The four names this pass introduced, with the value each must hold.
-ADDED = {
-    'APP_CHROME_DARK': '#444444',
-    'APP_CHROME_LIGHT': '#e0e0e0',
-    'APP_DIM_LIGHT': '#aaaaaa',
-    'APP_MENU_DIM_DARK': '#666666',
-}
+MODE_MARKERS = (('DARK', ('DARK_THEME', '.DARK', 'DARK_THEME_COLORS')),
+                ('LIGHT', ('LIGHT_THEME', '.LIGHT', 'LIGHT_THEME_COLORS')),
+                ('IMAGE', ('IMAGE_THEME', '.IMAGE', 'IMAGE_MODE_COLORS')))
+
+#: mode -> the live palette.
+PALETTES = {'DARK': ThemeManager.DARK_THEME,
+            'LIGHT': ThemeManager.LIGHT_THEME,
+            'IMAGE': ThemeManager.IMAGE_THEME}
+
+#: Keys tried, in order, when a rule inherits its ground.
+GROUND_KEYS = ('panel_bg', 'window_bg', 'panel_secondary')
+
+#: Declarations that are below the floor and are CORRECT ANYWAY, keyed by the
+#: declaration text rather than by line number -- an edit above a site shifts
+#: its line and would silently un-review it, while the declaration itself is
+#: stable. Same form as REVIEWED in tests/test_brand_contrast.py.
+#:
+#: An entry here is an exemption, so it has to earn its place twice: the
+#: reason must be true, and test_no_exemption_has_outlived_its_reason below
+#: fails when the site it names has stopped failing, so a fix cannot leave a
+#: licence standing behind it.
+ACCEPTED: dict[str, str] = {}
+
+#: Below this, the sweep has stopped finding things and is passing for the
+#: wrong reason.
+#:
+#: 8, not the 20 that rnv-color-picker and rnv-icon-builder use. This is the
+#: smallest of the five applications for gold: it resolves 14 gold-as-text
+#: pairs and 2 gold fills, where the picker resolves 63 and 48 and the icon
+#: builder 91 and 47. 8 is what rnv-text-transformer and rnv-color-mixer
+#: already use, and it leaves this app six sites of headroom -- enough that
+#: ordinary editing does not trip it, low enough that a collapse to nothing
+#: still does.
+MIN_RESOLVED = 8
 
 
-def _class_body():
-    mod = ast.parse(SOURCE.read_text(encoding='utf-8-sig'))
-    for node in mod.body:
-        if isinstance(node, ast.ClassDef) and node.name == 'ThemeManager':
-            return node
-    raise AssertionError('ThemeManager is no longer a class in utils/config.py')
+def _luminance(value: str) -> float:
+    channels = [int(value.lstrip('#')[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+                for c in channels]
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
 
 
-def _palette_dicts():
-    out = {}
-    for node in _class_body().body:
-        target = value = None
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            target, value = node.target.id, node.value
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                and isinstance(node.targets[0], ast.Name):
-            target, value = node.targets[0].id, node.value
-        if target in PALETTES and isinstance(value, ast.Dict):
-            out[target] = value
+def _contrast(a: str, b: str) -> float:
+    high, low = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+#: Names that contain GOLD and are not a gold. GOLD_TEXT_GROUND_FLOOR is the
+#: light GROUND the gold family is calibrated against -- #e8e8e8 -- and a
+#: name-based sweep swept it into the family, after which every disabled
+#: control drawn on it was reported as gold-on-gold at 1.8960. Those pairs are
+#: real and already exempt as WCAG-exempt disabled text; they are not gold.
+#: Match what the name CLAIMS, not the substring it contains.
+NOT_A_GOLD = ('GROUND', 'FLOOR', 'RGB')
+
+
+def _golds() -> set:
+    """Every gold-family value this app holds, by name rather than by list."""
+    out = set()
+    for name in dir(colors):
+        if 'GOLD' not in name or any(w in name for w in NOT_A_GOLD):
+            continue
+        value = getattr(colors, name)
+        if isinstance(value, str) and HEX.match(value):
+            out.add(value.lower())
     return out
 
 
-def _entries(d):
-    """(key, value) for the literal entries of a dict node, skipping any
-    `**OTHER` expansion, which ast records as a key of None."""
-    for k, v in zip(d.keys, d.values):
-        if k is None:
+def _fstrings(source: str):
+    """(lineno, text, local bindings) for every f-string mentioning a colour.
+
+    Read through ast.JoinedStr, NOT the token stream. Python 3.12 splits an
+    f-string into FSTRING_START/MIDDLE/END tokens (PEP 701) rather than one
+    STRING token, so a tokenising version finds every f-string on 3.11 and none
+    on 3.12 -- reporting zero sites, which reads as clean and is blind.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    out, seen = [], set()
+    #: INNERMOST SCOPE FIRST. `ast.walk` yields the Module before the functions
+    #: inside it, and walking the Module collects assignments from EVERY
+    #: function in the file -- last one wins. Since `seen` gives each f-string
+    #: to whichever scope reaches it first, the Module used to claim them all
+    #: with file-global bindings.
+    #:
+    #: That is harmless where an application builds both stylesheets in one
+    #: function with an if/else, because the bindings agree. It is not harmless
+    #: in rnv-color-palette-manager, which has _get_style_dark() and
+    #: _get_style_light() as separate functions: the dark block's
+    #: `pressed_text = TRUE_BLACK` was resolved as the light block's
+    #: `pressed_text = WHITE`, and the sweep reported four failures --
+    #: white-on-gold at 1.85 in DARK -- that cannot render.
+    #:
+    #: Sorting by depth, deepest first, makes the nearest enclosing function
+    #: claim its own f-strings and leaves the Module only what sits outside
+    #: every function.
+    depth = {id(tree): 0}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            depth[id(child)] = depth.get(id(parent), 0) + 1
+    scopes = sorted(
+        (n for n in ast.walk(tree)
+         if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef))),
+        key=lambda n: depth.get(id(n), 0), reverse=True)
+    for scope in scopes:
+        binds = {}
+        for node in ast.walk(scope):
+            #: AN ALIASED IMPORT IS A BINDING. rnv-color-palette-manager binds
+            #: its palette with a lazy import inside each style function --
+            #: `from ui.colors import LIGHT_THEME_COLORS as colors` -- to break
+            #: a circular dependency. Reading only Assign missed that, so a
+            #: light-only block's `{accent_dark}` resolved to a bare local with
+            #: no mode marker in it, the mode reader fell back to all three,
+            #: and the sweep scored a light stylesheet against the dark palette.
+            #: The marker was there; it was on the import line.
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.asname:
+                        binds[alias.asname] = alias.name
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)):
+                try:
+                    binds[node.targets[0].id] = ast.unparse(node.value)
+                except Exception:
+                    continue
+        for node in ast.walk(scope):
+            if not isinstance(node, ast.JoinedStr):
+                continue
+            segment = ast.get_source_segment(source, node)
+            if not segment or 'color' not in segment:
+                continue
+            key = (node.lineno, segment[:80])
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append((node.lineno, segment, dict(binds)))
+    return out
+
+
+def _resolve(expr: str, palette: dict, binds: dict):
+    expr = expr.strip()
+    match = BARE.match(expr)
+    if match and match.group(1) in binds:
+        expr = '{' + binds[match.group(1)] + '}'
+    if HEX.match(expr):
+        return expr.lower()
+    match = LOOKUP.match(expr) or GETLOOKUP.match(expr)
+    if match:
+        value = palette.get(match.group(2))
+        return value.lower() if isinstance(value, str) and HEX.match(value) else None
+    match = BARE.match(expr)
+    if match:
+        value = getattr(colors, match.group(1), None)
+        return value.lower() if isinstance(value, str) and HEX.match(value) else None
+    return None
+
+
+def _modes_for(expr: str, binds: dict):
+    expr = expr.strip()
+    #: Expand a bare local through the bindings FIRST, the way _resolve does.
+    #: Without this, `{accent_dark}` is not a lookup, so the mode reader gave
+    #: up and returned all three -- and a light-only stylesheet got scored
+    #: against the dark palette. The two readers have to agree about what an
+    #: expression is, or the value comes from one palette and the mode from
+    #: another.
+    match = BARE.match(expr)
+    if match and match.group(1) in binds:
+        expr = '{' + binds[match.group(1)] + '}'
+    match = LOOKUP.match(expr) or GETLOOKUP.match(expr)
+    if not match:
+        return list(PALETTES)
+    bound = binds.get(match.group(1), '')
+    for mode, markers in MODE_MARKERS:
+        if any(marker in bound for marker in markers):
+            return [mode] if mode in PALETTES else []
+    return list(PALETTES)
+
+
+#: Rules whose background is what an unstyled child sits on.
+CONTAINER_SELECTORS = ('body', '*', 'QDialog', 'QWidget', 'QFrame', 'QMainWindow')
+
+
+def _enclosing_ground(text: str, palette: dict, binds: dict):
+    """The ground an inheriting rule actually sits on: the background painted
+    by the container rule in the same stylesheet."""
+    for selector, body in BLOCK.findall(text):
+        name = ' '.join(selector.split())
+        if not any(name == c or name.startswith(c + ' ') or name.startswith(c + ',')
+                   for c in CONTAINER_SELECTORS):
             continue
-        yield ast.literal_eval(k), v
+        decl = BGDECL.search(body)
+        if decl:
+            resolved = _resolve(decl.group(1), palette, binds)
+            if resolved:
+                return resolved
+    return None
+
+
+#: Qt sub-controls that PAINT rather than draw text. A scrollbar handle, a
+#: progress-bar chunk and a checkbox indicator carry no label, so inheriting a
+#: foreground onto them invents a pairing that never renders.
+#:
+#: The first version of this sweep did exactly that and reported eleven
+#: failures in rnv-text-transformer -- APP_TEXT on the brand gold at 1.3616,
+#: on scrollbar handles and progress chunks. Every one impossible.
+#:
+#: Not every sub-control is textless: ::item, ::tab, ::section and ::title all
+#: draw labels, which is why this is a list and not a rule about `::`. The
+#: form and the first seven entries are taken from
+#: tests/test_contrast_pairs.py, which already had to make this distinction.
+TEXTLESS = ('add-line', 'add-page', 'corner', 'down-button', 'drop-down', 'groove', 'handle', 'indicator', 'separator', 'sub-line', 'sub-page', 'up-button')
+
+
+def _is_textless(selector: str) -> bool:
+    if '::' not in selector:
+        return False
+    part = selector.split('::', 1)[1]
+    name = re.split(r'[:\[ ,]', part)[0].strip()
+    return name in TEXTLESS
+
+
+def _enclosing_label(text: str, palette: dict, binds: dict):
+    """The label an inheriting rule actually draws: the `color:` declared by
+    the container rule in the same stylesheet.
+
+    A fill rule often sets only a background -- `QPushButton:hover { background
+    -color: ... }` -- and the label comes from the base `QPushButton` rule.
+    Reading it is what makes the fill direction checkable at all: six of the
+    ten gold fills across these apps declare no colour of their own.
+    """
+    for selector, body in BLOCK.findall(text):
+        name = ' '.join(selector.split())
+        if ':' in name or '::' in name:
+            continue          # a state rule, not the base it inherits from
+        decl = DECL.search(body)
+        if decl:
+            resolved = _resolve(decl.group(1), palette, binds)
+            if resolved:
+                return resolved
+    return None
+
+
+def _fill_sweep():
+    """(key, mode, label, fill, ratio, where) for every rule whose BACKGROUND
+    is a gold-family value, with the label drawn on it."""
+    rows, unresolved = [], 0
+    golds = _golds()
+    for path in sorted(ROOT.rglob('*.py')):
+        if any(part in {'.git', 'tests', 'build'} for part in path.parts):
+            continue
+        if path.name == 'up.py':
+            continue
+        source = path.read_text(encoding='utf-8-sig', errors='replace')
+        if 'background-color' not in source:
+            continue
+        for lineno, text, binds in _fstrings(source):
+            for selector, body in BLOCK.findall(text):
+                bg_decl = BGDECL.search(body)
+                if not bg_decl:
+                    continue
+                fg_decl = DECL.search(body)
+                key = f'{path.relative_to(ROOT)} :: {" ".join(bg_decl.group(0).split())}'
+                modes = _modes_for(bg_decl.group(1), binds)
+                if fg_decl is not None:
+                    modes = [m for m in modes
+                             if m in _modes_for(fg_decl.group(1), binds)]
+                for mode in modes:
+                    palette = PALETTES[mode]
+                    fill = _resolve(bg_decl.group(1), palette, binds)
+                    if fill is None:
+                        unresolved += 1
+                        continue
+                    if fill not in golds:
+                        continue
+                    label = (_resolve(fg_decl.group(1), palette, binds)
+                             if fg_decl is not None else None)
+                    if label is None and fg_decl is not None:
+                        #: A DECLARED COLOUR THIS READER CANNOT PARSE IS NOT AN
+                        #: ABSENT ONE. rnv-color-palette-manager writes
+                        #: `color: {WHITE if is_light else TRUE_BLACK}` on its
+                        #: pressed gold button -- correct in both modes, 6.03:1
+                        #: in dark. The resolver does not read conditionals, so
+                        #: the label came back None, fell through to the
+                        #: container rule below, and the sweep reported black
+                        #: text as #dddddd at 1.36 in two files.
+                        #:
+                        #: Inheriting is only right where the rule declares
+                        #: NOTHING. Where it declares something unreadable, the
+                        #: honest answer is "unresolved" -- counted, and visible
+                        #: in the count that test_the_sweep_still_finds_things
+                        #: guards, rather than turned into a failure that cannot
+                        #: render.
+                        unresolved += 1
+                        continue
+                    if label is None:
+                        if _is_textless(selector):
+                            # A painted sub-control. It has no label to
+                            # inherit, and giving it one manufactures a
+                            # failure that cannot render.
+                            continue
+                        label = _enclosing_label(text, palette, binds)
+                    if label is None:
+                        # No text is drawn here that this reader can find --
+                        # a checkbox indicator or a progress chunk. Counted,
+                        # not guessed at.
+                        unresolved += 1
+                        continue
+                    rows.append((key, mode, label, fill, _contrast(label, fill),
+                                 f'{path.relative_to(ROOT)}:{lineno} '
+                                 f'{" ".join(selector.split())}'))
+    return rows, unresolved
+
+
+def _sweep():
+    """(key, mode, fg, bg, ratio, where) for every resolved gold-as-text pair,
+    plus the count of declarations that could not be resolved."""
+    rows, unresolved = [], 0
+    golds = _golds()
+    for path in sorted(ROOT.rglob('*.py')):
+        if any(part in {'.git', 'tests', 'build'} for part in path.parts):
+            continue
+        if path.name == 'up.py':
+            continue
+        source = path.read_text(encoding='utf-8-sig', errors='replace')
+        if 'color:' not in source:
+            continue
+        for lineno, text, binds in _fstrings(source):
+            for selector, body in BLOCK.findall(text):
+                fg_decl = DECL.search(body)
+                if not fg_decl:
+                    continue
+                bg_decl = BGDECL.search(body)
+                key = f'{path.relative_to(ROOT)} :: {" ".join(fg_decl.group(0).split())}'
+                modes = _modes_for(fg_decl.group(1), binds)
+                if bg_decl is not None:
+                    modes = [m for m in modes
+                             if m in _modes_for(bg_decl.group(1), binds)]
+                for mode in modes:
+                    palette = PALETTES[mode]
+                    fg = _resolve(fg_decl.group(1), palette, binds)
+                    if fg is None:
+                        unresolved += 1
+                        continue
+                    if fg not in golds:
+                        continue
+                    bg = (_resolve(bg_decl.group(1), palette, binds)
+                          if bg_decl is not None else None)
+                    if bg is None:
+                        # INHERITANCE, in three steps, most specific first.
+                        # A rule with no ground of its own sits on whatever the
+                        # enclosing rule painted -- usually `body` or the
+                        # top-level widget in the SAME stylesheet. Reading that
+                        # is the difference between measuring what renders and
+                        # measuring a guess: rnv-text-transformer's exported
+                        # h1 inherits #ffffff from `body` and clears at 4.5429,
+                        # and a palette guess of #f5f5f5 scored it 4.1670 and
+                        # called it a failure.
+                        bg = _enclosing_ground(text, palette, binds)
+                    if bg is None:
+                        for candidate in GROUND_KEYS:
+                            value = palette.get(candidate)
+                            if isinstance(value, str) and HEX.match(value):
+                                bg = value.lower()
+                                break
+                    if bg is None:
+                        unresolved += 1
+                        continue
+                    rows.append((key, mode, fg, bg, _contrast(fg, bg),
+                                 f'{path.relative_to(ROOT)}:{lineno} {" ".join(selector.split())}'))
+    return rows, unresolved
 
 
 # ------------------------------------------------------------- guard the guard
 
-def test_this_guard_can_see_the_palettes():
-    """These palettes are class attributes. A sweep written for the other four
-    applications looks at module level, finds nothing, and passes on an empty
-    set -- so the first thing to assert is that the sweep has a subject."""
-    found = _palette_dicts()
-    assert set(found) == set(PALETTES), (
-        f'palettes not found as dict literals inside ThemeManager: '
-        f'{set(PALETTES) - set(found)}')
-    for name, d in found.items():
-        assert len(list(_entries(d))) > 20, (
-            f'{name} has {len(list(_entries(d)))} entries; the sweep below '
-            f'would pass on almost nothing')
+def test_the_sweep_still_finds_things():
+    """Every assertion below reads this sweep. One that resolves nothing
+    reports no failures and passes -- which is what a blind check looks like
+    from the outside."""
+    rows, _ = _sweep()
+    assert len(rows) >= MIN_RESOLVED, (
+        f'only {len(rows)} gold-as-text pairs resolved, expected at least '
+        f'{MIN_RESOLVED}. Either the QSS moved out of f-strings or the '
+        f'resolver stopped following it. A sweep that finds nothing is not a '
+        f'clean sweep.')
 
 
-# --------------------------------------------------------------- the wiring
-
-@pytest.mark.parametrize('palette', PALETTES)
-def test_no_palette_value_is_a_bare_hex(palette):
-    """Read from SOURCE rather than from the imported dict, because the
-    imported dict cannot tell a literal from a constant -- both are plain
-    strings by the time they are values."""
-    bad = [(key, v.value) for key, v in _entries(_palette_dicts()[palette])
-           if isinstance(v, ast.Constant) and isinstance(v.value, str)
-           and HEX.match(v.value)]
-    assert not bad, (
-        f'{palette} writes these as literals; a literal cannot follow the '
-        f'register and will be orphaned the first time it moves: {bad}')
+def test_the_gold_family_is_not_empty():
+    """The sweep filters on this set. Empty, it matches nothing."""
+    golds = _golds()
+    assert len(golds) >= 3, f'only {sorted(golds)} found as gold values'
 
 
-def test_every_name_a_palette_uses_is_defined_above_it():
-    """Wiring gives constants callers they did not have. A constant assigned
-    below the palette that reads it is a NameError at import, which surfaces as
-    a collection error naming one symbol and explaining nothing. Read from the
-    source, because by the time the module imports this has either worked or
-    taken the whole suite down with it."""
-    mod = ast.parse(SOURCE.read_text(encoding='utf-8-sig'))
-    assigned = {}
-    for node in mod.body:
-        target = None
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            target = node.target.id
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                and isinstance(node.targets[0], ast.Name):
-            target = node.targets[0].id
-        if target:
-            assigned.setdefault(target, node.lineno)
-    late = set()
-    for name, d in _palette_dicts().items():
-        for sub in ast.walk(d):
-            if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load):
-                at = assigned.get(sub.id)
-                if at is not None and at > d.lineno:
-                    late.add((name, sub.id, at))
-    assert not late, (
-        f'assigned below the palette that reads them, which is a NameError at '
-        f'import, not a style point: {sorted(late)}')
+def test_the_two_golds_actually_differ_in_light():
+    """The premise of this whole file. If accent and accent_ink ever hold the
+    same value in light mode, the distinction it enforces has gone and the
+    tests below would pass without meaning anything."""
+    light = PALETTES.get('LIGHT')
+    if light is None or 'accent' not in light or 'accent_ink' not in light:
+        pytest.skip('this app does not name accent and accent_ink')
+    assert light['accent'] != light['accent_ink'], (
+        'accent and accent_ink are the same value in light mode. In dark they '
+        'legitimately are; in light the whole point is that they are not.')
 
 
-@pytest.mark.parametrize('name,value', sorted(ADDED.items()))
-def test_the_names_this_pass_added_hold_what_they_say(name, value):
-    assert getattr(C, name) == value
+# ------------------------------------------------------------------- the floor
 
-
-# ---------------------------------------------------------------- the splits
-
-@pytest.mark.parametrize('hexv', sorted(SPLITS))
-def test_a_declared_split_keeps_both_names(hexv):
-    """Both halves must exist and both must still hold the shared value. If a
-    later pass 'tidies' one away, the role it carried is silently merged into
-    the other -- which is exactly what naming them was meant to prevent."""
-    for name in SPLITS[hexv]:
-        assert hasattr(C, name), (
-            f'{name} is gone. It is half of a declared split on {hexv}, and '
-            f'the role it names -- {SPLITS[hexv][name]} -- has nowhere to go.')
-        assert getattr(C, name) == hexv
-
-
-def test_no_undeclared_second_name_for_one_colour():
-    """The other direction. A colour with two names is a split with a stated
-    role, or a defect. This is what stops a third name appearing for #444444
-    with nobody having decided that it should."""
-    src = SOURCE.read_text(encoding='utf-8-sig')
-    pat = re.compile(r"^([A-Z][A-Z0-9_]+)\s*:\s*Final\[str\]\s*=\s*"
-                     r"['\"](#[0-9a-fA-F]{6})['\"]", re.M)
-    by_hex = {}
-    for name, hexv in pat.findall(src):
-        by_hex.setdefault(hexv.lower(), []).append(name)
-    for hexv, names in sorted(by_hex.items()):
-        if len(names) < 2:
+def test_no_gold_is_drawn_as_text_below_the_floor():
+    rows, _unresolved = _sweep()
+    failures = []
+    for key, mode, fg, bg, ratio, where in rows:
+        if ratio >= TEXT_FLOOR or key in ACCEPTED:
             continue
-        declared = set(SPLITS.get(hexv, {}))
-        extra = set(names) - declared - {'INITIAL_COLOR_HEX'}
-        assert not extra or set(names) <= declared | {'INITIAL_COLOR_HEX'}, (
-            f'{hexv} has the names {sorted(names)}. Declared for it: '
-            f'{sorted(declared) or "none"}. Either one is a duplicate, or a '
-            f'split needs declaring in SPLITS with the role each name plays.')
+        failures.append(f'{ratio:.4f}  {mode}  {fg} on {bg}  {where}')
+    assert not failures, (
+        'gold drawn as text below the 4.5 floor:\n  ' + '\n  '.join(sorted(failures))
+        + '\n\nThe palette names a derivative for this: accent_ink. In dark it '
+          'is the same value as accent, which is why the difference only shows '
+          'in light.')
 
 
-# ------------------------------------------------------------ the split keys
-
-@pytest.mark.parametrize('key', ['slider_groove', 'menu_edge', 'main_btn_hover_text'])
-def test_the_keys_this_pass_added_exist_in_every_mode(key):
-    for palette in PALETTES:
-        keys = {k for k, _ in _entries(_palette_dicts()[palette])}
-        assert key in keys, f'{palette} has no {key!r}'
-
-
-def test_the_slider_groove_is_read_from_one_key_everywhere():
-    """Before this pass the same widget part was painted from three different
-    keys in three files -- panel_bg, hover_color and input_bg -- and in dark
-    two of them resolved to the panel's own colour, so the groove did not
-    exist. One key now, and this asserts nothing has drifted back."""
-    offenders = []
-    for path in sorted(ROOT.rglob('*.py')):
-        rel = path.relative_to(ROOT).as_posix()
-        if rel.startswith(('tests/', 'build/', '.venv/')) or rel == 'up.py':
-            continue
-        lines = path.read_text(encoding='utf-8-sig', errors='ignore').splitlines()
-        selector = None
-        for i, line in enumerate(lines):
-            s = line.strip()
-            if s.endswith('{{'):
-                selector = s.rstrip('{ ') if 'QSlider::groove' in s else None
-            elif selector and 'background' in s and '[' in s:
-                m = re.search(r"\['([a-z_0-9]+)'\]", s)
-                if m and m.group(1) != 'slider_groove':
-                    offenders.append(f'{rel}:{i + 1} groove reads {m.group(1)!r}')
-    assert not offenders, (
-        'a QSlider groove is painted from something other than slider_groove:'
-        '\n  ' + '\n  '.join(offenders))
+def test_no_exemption_has_outlived_its_reason():
+    """An exemption whose site has stopped failing is a licence with no
+    subject -- it would let a future regression at the same declaration pass
+    unseen. Fixing a site means deleting its entry in the same commit."""
+    rows, _unresolved = _sweep()
+    failing = {key for key, _m, _f, _b, ratio, _w in rows if ratio < TEXT_FLOOR}
+    stale = sorted(set(ACCEPTED) - failing)
+    assert not stale, (
+        'these ACCEPTED entries no longer describe a failing site:\n  '
+        + '\n  '.join(stale)
+        + '\n\nDelete the entry in the commit that fixed it.')
 
 
-def test_the_hover_label_states_the_ruled_dimming():
-    """rnv-brand / claude/ruling-interaction-contrast.md: the main button's
-    transient states are exempt from the 4.5 floor and the label DIMS on
-    purpose. Two files disagreed about whether to say so -- one set the hover
-    colour explicitly, the other let Qt inherit it -- so the ruled behaviour
-    was half stated and half accidental.
+# ------------------------------------------------------- the other direction
 
-    It is one key now, holding what each mode already painted. This test
-    asserts the value did NOT change: hover keeps the resting label."""
-    for palette in PALETTES:
-        d = dict(_entries(_palette_dicts()[palette]))
-        resolved = getattr(C.ThemeManager, palette)
-        assert resolved['main_btn_hover_text'] == resolved['main_btn_text'], (
-            f'{palette}: the hover label is no longer the resting label. That '
-            f'is a change to a RULED transition -- see '
-            f'claude/ruling-interaction-contrast.md -- not a wiring fix.')
+def test_no_gold_fill_carries_a_label_below_the_floor():
+    """THE OTHER HALF OF THE RULE, and it is not symmetric.
 
+    rnv-brand rev 25 publishes it bidirectionally:
 
-def test_the_light_button_hover_uses_the_alias_that_exists_for_it():
-    """APP_BTN_HOVER_INVERSE was defined for exactly this and the light palette
-    wrote the value out by hand instead. Assigned from APP_BORDER_DARK rather
-    than repeating #333333, so the two cannot drift apart."""
-    d = dict(_entries(_palette_dicts()['LIGHT_THEME']))
-    for key in ('main_btn_hover_bg', 'dialog_btn_hover_bg'):
-        v = d[key]
-        assert isinstance(v, ast.Name) and v.id == 'APP_BTN_HOVER_INVERSE', (
-            f'LIGHT {key} does not read APP_BTN_HOVER_INVERSE')
-    assert C.APP_BTN_HOVER_INVERSE == C.APP_BORDER_DARK == '#333333'
-'''
+        On a light ground, gold as TEXT is BRAND_DARK_GOLD_DEEP.
+        Gold as a FILL or an EDGE is BRAND_DARK_GOLD.
 
-CONSTANTS = r'''
-# ---- RNV-MIXER-WIRING (2026-09-06): four names for values the palettes
-# ---- already carried as literals. Nothing here is a new colour.
+    The second sentence is not politeness. BRAND_DARK_GOLD_DEEP is derived for
+    text and FAILS the fill job -- black on it reads 3.7806 against a 4.5
+    floor, where BRAND_DARK_GOLD reads 4.6226. So a sweep that replaced every
+    BRAND_DARK_GOLD with the derivative, reading the rule as "prefer DEEP",
+    would fix the text sites and break the fills.
 
-APP_CHROME_DARK: Final[str] = "#444444"
-"""grey(4). The structural grey of a control in dark and image: the slider
-groove, and the border and separator of a menu.
-
-SPLIT, NOT RENAMED. APP_BTN_PRESSED is the same hex and stays exactly as it
-is. That one is a button in its PRESSED state; this one is a resting trough
-and a resting edge. Wiring a groove through the pressed name would claim an
-interaction state for a piece of chrome on the strength of a shared byte --
-the same reasoning this file already gives for APP_HANDLE_HOVER_DARK sharing
-grey(14) with APP_ITEM_HOVER_LIGHT."""
-
-APP_CHROME_LIGHT: Final[str] = "#e0e0e0"
-"""The same job in light: the slider groove. Darker than the #f5f5f5 panel, so
-the groove reads as recessed rather than raised -- which is why it is this
-value and not input_bg's #ffffff.
-
-Soft on its own at 1.21:1 against the panel; the groove's 1px APP_BORDER_LIGHT
-edge does most of the defining. That is the appearance the light fine-tune
-slider already had, and this pass gives it to the other two sliders as well."""
-
-APP_DIM_LIGHT: Final[str] = "#aaaaaa"
-"""grey(10). Disabled text in light. The mirror of APP_CONTROL_DIM's grey(5)
-by the ink grid's own rule -- invert(n) = 15 - n, and 5 + 10 = 15 -- which is
-why the pair is exact and nobody planned it."""
-
-APP_MENU_DIM_DARK: Final[str] = "#666666"
-"""grey(6). The disabled menu label in dark and image.
-
-SPLIT, NOT RENAMED. APP_HANDLE_LIGHT is the same hex and keeps its own job.
-Wiring this through that name would have put a _LIGHT-suffixed constant in the
-DARK palette, and named a menu label after a slider handle. Two wrongs out of
-one shared byte."""
-
-'''
-
-LIGHT_TEST_NEW = r'''def test_the_light_palette_names_its_own_greys():
-    """RNV-MIXER-WIRING (2026-09-06). This REPLACES
-    test_the_light_palette_was_left_alone, which asserted the light palette
-    referenced no substituted constant at all and said in its own docstring
-    that a later pass wiring light would have to delete it on purpose. This is
-    that pass, and this is that deliberate act.
-
-    What the old test protected is still protected, and more tightly. The
-    concern was never that light must stay unwired -- it was that light must
-    not be wired to the DARK names, which is how a value ends up true by value
-    and false by name. The old form could not express that: it swept
-    SUBSTITUTE.values(), which contains TRUE_BLACK, an anchor belonging to
-    neither mode, so the only way to pass was to name nothing.
-
-    So the successor asserts the positive. The two greys the old test was
-    holding back -- #aaaaaa and #e0e0e0 -- now have names, and every name the
-    light palette reads is a light one, an anchor, or the one dark name it
-    borrows on purpose.
+    Nothing fails this today, in any of the five applications. That is the
+    reason to arm it now: a guard proposed against a live defect writes
+    itself, and a guard proposed against a clean sweep gets harder to justify
+    every month the sweep stays clean.
     """
-    #: TRUE_BLACK and WHITE belong to no mode. APP_BTN_HOVER_INVERSE is the
-    #: dark border step used in light DELIBERATELY -- the basic button's
-    #: scheme inverts on hover, and utils/config.py assigns the alias from
-    #: APP_BORDER_DARK rather than repeating the value so the two cannot drift.
-    ALLOWED_IN_LIGHT = {"TRUE_BLACK", "WHITE", "APP_BTN_HOVER_INVERSE"}
-
-    d = _dicts(("LIGHT_THEME",))["LIGHT_THEME"]
-    leaked = []
-    for key, value in zip(d.keys, d.values):
-        if key is None or not isinstance(value, ast.Name):
+    rows, _unresolved = _fill_sweep()
+    failures = []
+    for key, mode, label, fill, ratio, where in rows:
+        if ratio >= TEXT_FLOOR or key in ACCEPTED:
             continue
-        name = value.id
-        if name in ALLOWED_IN_LIGHT or not name.endswith("_DARK"):
+        failures.append(f'{ratio:.4f}  {mode}  {label} on {fill}  {where}')
+    assert not failures, (
+        'a label falls below the floor on a gold fill:\n  '
+        + '\n  '.join(sorted(failures))
+        + '\n\nA FILL takes BRAND_DARK_GOLD, not the text derivative. Black '
+          'on the derivative is 3.7806.')
+
+
+def test_the_fill_sweep_still_finds_things():
+    """Guard the guard, on the half with no failures. A sweep over a clean
+    codebase and a sweep that resolves nothing produce the same report, and
+    this is the only thing that tells them apart."""
+    rows, _unresolved = _fill_sweep()
+    assert rows, (
+        'no gold fills resolved at all. Either this app draws none -- in '
+        'which case delete this test rather than leave it passing over '
+        'nothing -- or the resolver has stopped following the expressions '
+        'that reach them.')
+
+
+def test_every_textless_entry_is_a_real_sub_control():
+    """TEXTLESS is an exclusion list, so it is an exemption: an entry that
+    names nothing excludes nothing, and one that names a sub-control which
+    actually draws text excludes a site that should be checked.
+
+    Only the first half can be asserted -- that every entry appears as a
+    `::name` somewhere in this app's stylesheets. Whether a sub-control draws
+    text is a fact about Qt, not about this repository, and it lives in the
+    comment beside the list.
+    """
+    seen = set()
+    for path in ROOT.rglob('*.py'):
+        if any(part in {'.git', 'build'} for part in path.parts):
             continue
-        leaked.append(f"LIGHT_THEME[{key.value!r}] -> {name}")
-    assert not leaked, (
-        "a dark name is being read from the light palette, which makes the "
-        "value true and the name false:\n  " + "\n  ".join(leaked)
-        + "\n\nIf the borrow is deliberate, add it to ALLOWED_IN_LIGHT with "
-          "the reason, the way APP_BTN_HOVER_INVERSE is.")
-
-
-def test_the_two_held_back_greys_now_have_light_names():
-    """The other half: the old test's subject, asserted as done rather than as
-    forbidden. An allowlist that permits everything and a wiring that names
-    nothing look identical from the outside, so this states what landed."""
-    assert config.APP_DIM_LIGHT == "#aaaaaa"
-    assert config.APP_CHROME_LIGHT == "#e0e0e0"
-    resolved = ThemeManager.LIGHT_THEME
-    assert resolved["text_disabled"] == config.APP_DIM_LIGHT
-    assert resolved["slider_groove"] == config.APP_CHROME_LIGHT
+        source = path.read_text(encoding='utf-8-sig', errors='replace')
+        for match in re.finditer(r'::([a-z][a-z-]*)', source):
+            seen.add(match.group(1))
+    stale = [name for name in TEXTLESS if name not in seen]
+    assert not stale, (
+        f'TEXTLESS names sub-controls this app never styles: {stale}. An '
+        f'exclusion that excludes nothing is a licence with no subject -- '
+        f'delete it, or find out why the sub-control went away.')
 '''
 
 
-# --------------------------------------------------------------- the constants
-# Four names, in this application's role+mode convention. Two of them are the
-# second half of a split: the colour already had a name, playing a different
-# role, and wiring through that name would have claimed the role along with
-# the value.
-# name -> the line it is inserted after (the last line of APP_BTN_PRESSED's
-# docstring). Anchored on text rather than a line number so a shifted file
-# refuses rather than lands in the wrong place.
-CONST_ANCHOR = ('flips instead -- TRUE_BLACK on dark, WHITE on light."""\n')
-
-PROVENANCE_ANCHOR = '    "APP_BTN_HOVER_INVERSE": "alias",\n}\n'
-PROVENANCE_ADD = ('    "APP_CHROME_DARK": "step",\n'
-                  '    "APP_CHROME_LIGHT": "step",\n'
-                  '    "APP_DIM_LIGHT": "step",\n'
-                  '    "APP_MENU_DIM_DARK": "step",\n')
-
-# ---------------------------------------------------------------- the palettes
-# hex -> constant, per palette. Written per palette rather than per hex because
-# this application's names carry the mode, so the same byte takes a different
-# name on each side.
-WIRE = {
-    "DARK_THEME": {"#444444": "APP_CHROME_DARK", "#555555": "APP_CONTROL_DIM",
-                   "#666666": "APP_MENU_DIM_DARK"},
-    "IMAGE_THEME": {"#444444": "APP_CHROME_DARK", "#555555": "APP_CONTROL_DIM",
-                    "#666666": "APP_MENU_DIM_DARK"},
-    "LIGHT_THEME": {"#f5f5f5": "APP_WINDOW_LIGHT", "#000000": "TRUE_BLACK",
-                    "#cccccc": "APP_BORDER_LIGHT", "#e0e0e0": "APP_CHROME_LIGHT",
-                    "#ffffff": "WHITE", "#aaaaaa": "APP_DIM_LIGHT",
-                    "#666666": "APP_HANDLE_LIGHT", "#999999": "APP_HANDLE_EDGE_LIGHT",
-                    "#333333": "APP_BTN_HOVER_INVERSE"},
-}
-# (palette, key) -> constant, where the key plays a role the default name would
-# misdescribe. #333333 in light is the inverse button scheme, and the alias for
-# it already exists; every other light #333333 would be a plain dark border.
-EXPECTED = {"DARK_THEME": 3, "LIGHT_THEME": 26, "IMAGE_THEME": 3}
-
-# key -> (dark, light, image) constant, appended to each palette. Every one
-# holds what its call sites already paint.
-NEW_KEYS = [
-    ("slider_groove", "APP_CHROME_DARK", "APP_CHROME_LIGHT", "APP_CHROME_DARK",
-     "# One key for the slider groove. Before this pass three files painted\n"
-     "# it from three different keys -- panel_bg, hover_color and input_bg --\n"
-     "# and in dark two of those resolved to the panel's own colour, so the\n"
-     "# groove did not exist. RNV-MIXER-WIRING (2026-09-06)."),
-    ("menu_edge", "APP_CHROME_DARK", "APP_BORDER_LIGHT", "APP_CHROME_DARK",
-     "# The menu's border and separator. The dark and light branches of\n"
-     "# core/color_slot.py painted these from different keys -- hover_color\n"
-     "# and border_color -- so the same two parts had no shared name. Values\n"
-     "# unchanged; the difference between the modes is now a value, not a key."),
-    ("main_btn_hover_text", "APP_TEXT_DARK", "TRUE_BLACK", "APP_TEXT_DARK",
-     "# The label while the main button is hovered. RULED, not chosen: see\n"
-     "# claude/ruling-interaction-contrast.md -- the transient states of this\n"
-     "# button are exempt from the 4.5 floor and the label dims on purpose.\n"
-     "# It held the resting label by inheritance in one file and by an\n"
-     "# explicit line in another; this states it once, at the same value."),
-]
-
-# ------------------------------------------------------- the deliberate delete
-# tests/test_register_wiring.py pins the light palette as UNWIRED and says in
-# its own docstring: "If a later pass wires light, this test has to be deleted
-# on purpose." This is that pass and this is that purpose. It is REPLACED
-# rather than deleted, because the ruling it protected -- light must not read
-# the dark names -- is still live and the successor states it directly.
-LIGHT_TEST_OLD = (
-    'def test_the_light_palette_was_left_alone():\n'
-    '    """The light ladder is unruled. Two of its greys -- #aaaaaa and #e0e0e0 --\n'
-    '    are deliberately still unnamed. If a later pass wires light, this test has\n'
-    '    to be deleted on purpose."""\n'
-    '    named = []\n'
-    '    for key, value in zip(*(lambda n: (n.keys, n.values))(_dicts(("LIGHT_THEME",))["LIGHT_THEME"])):\n'
-    '        if isinstance(value, ast.Name) and value.id in SUBSTITUTE.values():\n'
-    '            named.append(f"LIGHT_THEME[{key.value!r}] -> {value.id}")\n'
-    '    assert not named, ("the light palette now references the dark names:\\n  "\n'
-    '                       + "\\n  ".join(named))\n')
-
-# ------------------------------------------------------------------- the QSS
-# (file, old, new, times). Every one of these is anchored on enough context to
-# be unique or to state its count -- `border_color` alone appears in a dozen
-# rules that are not menus.
-QSS_EDITS = [
-    # --- the slider groove, three files. THIS IS WHERE PIXELS MOVE.
-    ("core/color_fine_tune.py",
-     "                QSlider::groove:horizontal {{\n"
-     "                    border: 1px solid {_d['border_color']};\n"
-     "                    height: 8px;\n"
-     "                    background: {_d['panel_bg']};\n",
-     "                QSlider::groove:horizontal {{\n"
-     "                    border: 1px solid {_d['border_color']};\n"
-     "                    height: 8px;\n"
-     "                    background: {_d['slider_groove']};\n", 1),
-    ("core/color_fine_tune.py",
-     "                    background: {_l['hover_color']};\n",
-     "                    background: {_l['slider_groove']};\n", 1),
-    ("core/color_slot.py",
-     "                QSlider::groove:horizontal {{\n"
-     "                    border: 1px solid {theme['border_color']};\n"
-     "                    height: 8px;\n"
-     "                    background: {theme['input_bg']};\n",
-     "                QSlider::groove:horizontal {{\n"
-     "                    border: 1px solid {theme['border_color']};\n"
-     "                    height: 8px;\n"
-     "                    background: {theme['slider_groove']};\n", 1),
-    ("core/package_d_panel.py",
-     "            QSlider::groove:horizontal {{\n"
-     "                background: {t['input_bg']};\n",
-     "            QSlider::groove:horizontal {{\n"
-     "                background: {t['slider_groove']};\n", 1),
-    # --- the menu edge, four blocks in one file: two dark, two light.
-    ("core/color_slot.py",
-     "                    border: 1px solid {_m['hover_color']};\n",
-     "                    border: 1px solid {_m['menu_edge']};\n", 2),
-    ("core/color_slot.py",
-     "                QMenu::separator {{\n"
-     "                    height: 1px;\n"
-     "                    background-color: {_m['hover_color']};\n",
-     "                QMenu::separator {{\n"
-     "                    height: 1px;\n"
-     "                    background-color: {_m['menu_edge']};\n", 2),
-    ("core/color_slot.py",
-     "                QMenu {{\n"
-     "                    background-color: {_m['panel_secondary']};\n"
-     "                    color: {_m['text_color']};\n"
-     "                    border: 1px solid {_m['border_color']};\n",
-     "                QMenu {{\n"
-     "                    background-color: {_m['panel_secondary']};\n"
-     "                    color: {_m['text_color']};\n"
-     "                    border: 1px solid {_m['menu_edge']};\n", 2),
-    ("core/color_slot.py",
-     "                QMenu::separator {{\n"
-     "                    height: 1px;\n"
-     "                    background-color: {_m['border_color']};\n",
-     "                QMenu::separator {{\n"
-     "                    height: 1px;\n"
-     "                    background-color: {_m['menu_edge']};\n", 2),
-    # --- the hover label, stated in both files that paint it.
-    ("ui/ui_handler.py",
-     "                    QPushButton:hover {{\n"
-     "                        background-color: {theme['main_btn_hover_bg']};\n"
-     "                    }}\n",
-     "                    QPushButton:hover {{\n"
-     "                        background-color: {theme['main_btn_hover_bg']};\n"
-     "                        color: {theme['main_btn_hover_text']};\n"
-     "                    }}\n", 1),
-    ("core/color_slot.py",
-     "                QPushButton:hover {{\n"
-     "                    background-color: {theme['main_btn_hover_bg']};\n"
-     "                    color: {theme['main_btn_text']};\n",
-     "                QPushButton:hover {{\n"
-     "                    background-color: {theme['main_btn_hover_bg']};\n"
-     "                    color: {theme['main_btn_hover_text']};\n", 1),
-]
-
-LINE = re.compile(r"^(\s+)'([a-z_0-9]+)':(\s+)'(#[0-9a-fA-F]{3,8})'(,.*)$")
-
-
-def _palette_span(src: str, name: str):
-    """(start, end) of the dict assigned to `name` -- a CLASS ATTRIBUTE here,
-    indented four spaces, not a module-level assignment."""
-    m = re.search(r"^    %s\s*=\s*\{\n" % re.escape(name), src, re.M)
-    if not m:
-        raise SystemExit(f"{SENTINEL_FILE}: no palette named {name}. These are "
-                         f"class attributes of ThemeManager in this repo; a "
-                         f"module-level search finds nothing.")
-    start = m.end()
-    end = src.index("\n    }\n", start)
-    return start, end
+POINTER = (
+    "\n"
+    "# RNV-GOLD-GUARD (2026-09-07): the values below are swept by\n"
+    "# tests/test_gold_as_text.py, which resolves every QSS f-string in this\n"
+    "# repository through these palettes and measures the gold family as text\n"
+    "# and as a fill. A gold that reads correctly here can still be drawn on\n"
+    "# the wrong ground three files away, and that is what it is for.\n")
 
 
 def edits(tree) -> None:
     src = tree.read(SENTINEL_FILE)
-
-    # --- 1. the four constants, after the pressed plate they split from.
-    if src.count(CONST_ANCHOR) != 1:
-        raise SystemExit(f"{SENTINEL_FILE}: the APP_BTN_PRESSED anchor is not "
-                         f"where this script expects it")
-    for name in ("APP_CHROME_DARK", "APP_CHROME_LIGHT", "APP_DIM_LIGHT",
-                 "APP_MENU_DIM_DARK"):
-        if re.search(r"^%s\b" % name, src, re.M):
-            raise SystemExit(f"{name} already exists in {SENTINEL_FILE}")
-    src = src.replace(CONST_ANCHOR, CONST_ANCHOR + CONSTANTS, 1)
-
-    # --- 2. the palettes: every literal to its constant, per mode.
-    rewired = []
-    for pal in PALETTES:
-        table = WIRE[pal]
-        start, end = _palette_span(src, pal)
-        out = []
-        for line in src[start:end].split("\n"):
-            m = LINE.match(line)
-            if not m:
-                out.append(line)
-                continue
-            indent, key, gap, hexv, rest = m.groups()
-            const = table.get(hexv.lower())
-            if const is None:
-                raise SystemExit(f"{pal}: {key!r} holds {hexv}, which this "
-                                 f"script has no name for in this mode")
-            pad = gap if len(gap) > 1 else " "
-            out.append(f"{indent}'{key}':{pad}{const}{rest}")
-            rewired.append((pal, key, hexv, const))
-        src = src[:start] + "\n".join(out) + src[end:]
-        got = sum(1 for r in rewired if r[0] == pal)
-        if got != EXPECTED[pal]:
-            raise SystemExit(f"{pal}: rewired {got}, expected {EXPECTED[pal]}. "
-                             f"The palette has changed shape since this script "
-                             f"was derived; re-derive rather than trust it.")
-
-    # --- 3. the three new keys, appended to each palette.
-    for key, dark, light, image, note in NEW_KEYS:
-        for pal, const in (("DARK_THEME", dark), ("LIGHT_THEME", light),
-                           ("IMAGE_THEME", image)):
-            start, end = _palette_span(src, pal)
-            body = src[start:end]
-            if f"'{key}'" in body:
-                raise SystemExit(f"{pal} already has a {key!r} key")
-            block = "".join(f"        {l}\n" for l in note.split("\n"))
-            src = src[:end] + "\n" + block + f"        '{key}': {const}," + src[end:]
-
-    tree.write(SENTINEL_FILE, src)
-
-    # --- 4. NEUTRAL_PROVENANCE, which tests/test_neutral_ramp.py reads. A
-    # classification that lives only in a test drifts from what it classifies.
-    tree.sub(SENTINEL_FILE, PROVENANCE_ANCHOR,
-             PROVENANCE_ANCHOR.replace("}\n", PROVENANCE_ADD + "}\n"), 1)
-
-    # --- 5. the deliberate replacement in tests/test_register_wiring.py.
-    tree.sub("tests/test_register_wiring.py", LIGHT_TEST_OLD, LIGHT_TEST_NEW, 1)
-
-    # --- 6. the stylesheets.
-    for rel, old, new, times in QSS_EDITS:
-        tree.sub(rel, old, new, times)
-
-    print(f"  4 constants added, {len(rewired)} palette entries wired, "
-          f"3 keys added to each of {len(PALETTES)} palettes")
-    for pal, key, hexv, const in rewired:
-        print(f"     {pal[:5]:5} {key:26} {hexv:9} -> {const}")
+    if SENTINEL in src:
+        raise SystemExit("already applied")
+    # One pointer comment, at the end of the module. The palette file is where
+    # someone changes a gold; the guard is two directories away and they will
+    # not find it by accident.
+    tree.write(SENTINEL_FILE, src.rstrip("\n") + "\n" + POINTER)
+    print(f"  {'installed' if IS_NEW else 'updated'} {GUARD}")
+    print("  one pointer comment added to " + SENTINEL_FILE)
 
 
 def checks(tree) -> None:
-    src = tree.read(SENTINEL_FILE)
-    mod = ast.parse(src.lstrip("﻿"))
-
-    cls = next((n for n in mod.body
-                if isinstance(n, ast.ClassDef) and n.name == "ThemeManager"), None)
-    if cls is None:
-        raise SystemExit("ThemeManager is no longer a class")
-
-    dicts = {}
-    for node in cls.body:
-        target = value = None
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            target, value = node.target.id, node.value
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                and isinstance(node.targets[0], ast.Name):
-            target, value = node.targets[0].id, node.value
-        if target in PALETTES and isinstance(value, ast.Dict):
-            dicts[target] = value
-    if set(dicts) != set(PALETTES):
-        raise SystemExit(f"palettes not found: {set(PALETTES) - set(dicts)}")
-
-    # no string hex survives inside a palette
-    for name, d in dicts.items():
-        for k, v in zip(d.keys, d.values):
-            if k is None:
-                continue
-            if isinstance(v, ast.Constant) and isinstance(v.value, str) \
-                    and re.fullmatch(r"#[0-9a-fA-F]{3,8}", v.value):
-                raise SystemExit(f"{name}[{ast.literal_eval(k)!r}] is still "
-                                 f"the literal {v.value}")
-
-    # the three new keys landed in all three
-    for key, *_ in NEW_KEYS:
-        for name, d in dicts.items():
-            keys = {ast.literal_eval(k) for k in d.keys if k is not None}
-            if key not in keys:
-                raise SystemExit(f"{name} has no {key!r}")
-
-    # every name a palette reads is assigned above it -- the guard the light
-    # pass was missing, which turned a module into a NameError at import.
-    assigned = {}
-    for node in mod.body:
-        t = None
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            t = node.target.id
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                and isinstance(node.targets[0], ast.Name):
-            t = node.targets[0].id
-        if t:
-            assigned.setdefault(t, node.lineno)
-    late = set()
-    for name, d in dicts.items():
-        for sub in ast.walk(d):
-            if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load):
-                at = assigned.get(sub.id)
-                if at is not None and at > d.lineno:
-                    late.add((name, sub.id, at))
-    if late:
-        raise SystemExit(f"assigned below the palette that reads them, which "
-                         f"is a NameError at import: {sorted(late)}")
-
-    # no QSlider groove reads anything but slider_groove
-    offenders = []
-    root = Path.cwd()
-    for path in sorted(root.rglob("*.py")):
-        rel = path.relative_to(root).as_posix()
-        if rel.startswith(("tests/", "build/", ".venv/")) or rel in ("up.py", GUARD):
-            continue
-        # tree.files holds the edited copy of anything this run touched; a
-        # file it did not touch is still only on disk. Reading the wrong one
-        # is how a sweep passes on the pre-edit text.
-        text = (tree.files[rel] if rel in tree.files
-                else path.read_text(encoding="utf-8-sig", errors="ignore"))
-        selector = None
-        for i, line in enumerate(text.splitlines()):
-            s = line.strip()
-            if s.endswith("{{"):
-                selector = s if "QSlider::groove" in s else None
-            elif selector and "background" in s and "[" in s:
-                m = re.search(r"\['([a-z_0-9]+)'\]", s)
-                if m and m.group(1) != "slider_groove":
-                    offenders.append(f"{rel}:{i + 1} reads {m.group(1)!r}")
-    if offenders:
-        raise SystemExit("a QSlider groove still reads another key:\n  "
-                         + "\n  ".join(offenders))
-
-    if SENTINEL not in src:
-        raise SystemExit("the wiring note did not land")
-    print(f"  guards: 0 literals left in 3 palettes, 4 constants in, "
-          f"3 keys added per palette, every name defined above its use, "
-          f"one key for every slider groove")
+    guard = tree.read(GUARD)
+    for marker in ("INNERMOST SCOPE FIRST",
+                   "AN ALIASED IMPORT IS A BINDING",
+                   "Expand a bare local",
+                   "A DECLARED COLOUR THIS READER CANNOT PARSE"):
+        if marker not in guard:
+            raise SystemExit(f"the guard is missing the fix marked {marker!r}")
+    # the sweep must have a subject: PALETTES has to name things the import
+    # block actually provides, which is the check whose absence let an earlier
+    # build of this script ship a file that could not be collected.
+    head = guard[:guard.index("ROOT =")]
+    pal = re.search(r"^PALETTES = \{.*?\}$", guard, re.M | re.S).group(0)
+    used = {n.id for n in ast.walk(ast.parse(pal))
+            if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+    missing = sorted(n for n in used if n not in head)
+    if missing:
+        raise SystemExit(f"PALETTES uses {missing}, which the guard's import "
+                         f"block does not provide")
+    if SENTINEL not in tree.read(SENTINEL_FILE):
+        raise SystemExit("the pointer comment did not land")
+    print("  guards: four resolver fixes present, PALETTES fully imported, "
+          "pointer landed")
 
 
 # ------------------------------------------------------------------ plumbing
