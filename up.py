@@ -2,47 +2,64 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: pin the brand register, so the checks that compare this application
-to it stop skipping.
+rnv-color-mixer: make the test-tooling pins agree with the other four applications.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-WHAT WAS WRONG. This repository keeps a hand-written PINNED mirror of
-rnv-brand's values, and about five tests compare that mirror against the real
-register. Every one of them is guarded with
+WHAT WAS WRONG, AND IT IS ARITHMETIC RATHER THAN OPINION. Across the five
+applications, two packages are declared with ranges that NO single version
+satisfies:
 
-    pytest.importorskip('engine.brand')
+    pytest       picker  ==9.0.2          icon builder  >=8.0.0,<9.0.0
+    pytest-cov   picker  ==7.1.0          icon builder  >=5.0.0,<7.0.0
 
-and rnv-brand shipped no pyproject.toml, so it was not installable, so they
-all skipped. Across the five applications that is 22 checks, skipped on every
-run since they were written. **A mirror that nothing compares against is a
-copy, and a copy drifts.**
+There is no version of pytest that is both exactly 9.0.2 and below 9.0.0.
+So on one interpreter -- which is what a laptop is -- installing the
+picker's dev requirements and then the icon builder's UNINSTALLS pytest 9
+and installs pytest 8; going the other way undoes it. Every switch between
+those two repositories rewrites site-packages, and the window while pip is
+mid-swap is a partially-populated _pytest package. That is exactly the
+shape of
 
-It had already drifted. Putting the register on the path for the first time
-made rnv-text-transformer fail immediately: two constants classified as
-app-owned that the register had owned since rev 27, four revisions earlier,
-with nothing to say so.
+    ModuleNotFoundError: No module named '_pytest.compat'
 
-WHAT THIS DOES. One line in tests/requirements-dev.txt, pinning rnv-brand to
-commit b4fa970. **No workflow changes** -- every workflow in this repository
-already installs that file, which is why this round touches no YAML.
+appearing seconds after the same command had succeeded. No amount of care
+about install order fixes it, because the constraint is unsatisfiable.
 
-PINNED TO A COMMIT, NOT A BRANCH. The pin is the written statement of which
-revision of the brand this application mirrors. A branch ref moves on its
-own: the register could change between two runs of the same commit here, and
-the first anyone would know is a failure on a build that changed nothing. A
-sha cannot do that -- moving it is an edit, and an edit is reviewable.
+THE CAPS HAD NO EVIDENCE BEHIND THEM. The icon builder's `pytest<9.0.0` and
+`pytest-cov<7.0.0` were tested rather than trusted. On pytest 9.1.1 with
+pytest-cov 7.1.0 -- both past its own ceiling -- its suite passes 632 tests.
+All five were run on the exact set these new ranges resolve to today:
 
-WHAT IT DOES NOT DO. The importorskip calls stay exactly as they are. They
-are right for a developer who has not installed the dev dependencies, and
-rewriting 22 of them across five repositories would be churn with a real
-chance of error. Instead the ABSENCE is made loud in one place: if the
-register is missing, one test fails and explains what it means, instead of
-twenty-two quietly not running. A skipped test and a passing test look the
-same in a summary line, and that is the whole failure mode.
+    rnv-text-transformer        669 passed, 1 skipped
+    rnv-color-picker           1452 passed, 4 skipped
+    rnv-color-palette-manager   564 passed, 1 skipped
+    rnv-color-mixer             723 passed, 14 skipped  + 355 locked
+    rnv-icon-builder            632 passed, 2 skipped
+
+WHAT THIS DOES. Rewrites 5 specifier(s) in 2 file(s) to the fleet
+standard, identical in all five:
+
+        pytest>=8.0,<10.0
+        pytest-qt>=4.4,<5.0
+        pytest-cov>=5.0,<8.0
+        pytest-timeout>=2.4,<3.0
+        pytest-benchmark>=4.0,<6.0
+
+The floor of each is the highest floor any of the five already declared, so
+no repository gives up ground. The ceiling is the next MAJOR version, which
+is the thing the old caps were reaching for and the thing `==` cannot
+express: nothing crosses a major boundary without someone editing a line.
+
+WHY NOT `==`. An exact pin on a shared tool makes one repository fight the
+other four every time anything moves. It belongs in a lock file, not in the
+dev requirements of five applications developed together on one machine.
+
+NO PACKAGE IS ADDED OR REMOVED. This repository declares exactly the
+packages it declared before; only the specifiers change.
 
 NO SOURCE FILE IS TOUCHED. No colour, no value, no behaviour.
 """
@@ -50,7 +67,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import importlib.util
 import os
 import re
 import subprocess
@@ -60,39 +76,53 @@ from pathlib import Path
 
 REPO = "rnv-color-mixer"
 SENTINEL_FILE = "tests/requirements-dev.txt"
-SENTINEL = "RNV-REGISTER-PIN"
-GUARD = "tests/test_register_pin.py"
-DESCRIPTION = "pin rnv-brand so the register checks run instead of skipping"
-SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"])]
+SENTINEL = "RNV-TEST-TOOLING"
+GUARD = "tests/test_test_tooling_pins.py"
+DESCRIPTION = "align the test-tooling pins with the other four applications"
+SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
+          ("the LOCKED file, 355 tests", [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
+            "-p", "no:cacheprovider", "--timeout=120", "--deselect",
+            "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"])]
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-REGISTER-PIN-GUARD -- the register is a declared dependency, not a hope.
+GUARD_SOURCE = r'''"""RNV-TEST-TOOLING-GUARD -- the five applications share one interpreter, so
+their dev-tooling ranges have to be mutually satisfiable.
 
-Installed 2026-09-07. Until today this repository kept a hand-written PINNED
-mirror of rnv-brand's values, and every test that would have compared that
-mirror against the real register was guarded with
+Installed 2026-09-07. Until today they were not, and it was arithmetic rather
+than a matter of taste:
 
-    pytest.importorskip('engine.brand')
+    pytest       picker  ==9.0.2      icon builder  >=8.0.0,<9.0.0
+    pytest-cov   picker  ==7.1.0      icon builder  >=5.0.0,<7.0.0
 
-rnv-brand shipped no pyproject.toml, so it was not installable, so those
-checks skipped -- in all five applications, 22 of them, every run. A mirror
-that nothing compares against is a copy, and a copy drifts. It had already
-drifted: rnv-text-transformer classified two values as app-owned that the
-register had owned since rev 27, and nothing said so for four revisions.
+No version of pytest is both exactly 9.0.2 and below 9.0.0. On a development
+machine -- one interpreter, five checkouts -- installing one repository's dev
+requirements and then the other's UNINSTALLS pytest 9 and installs pytest 8,
+and going back undoes it. While pip is mid-swap the _pytest package on disk is
+partially populated, which is where
 
-rnv-brand is now packaged and pinned in tests/requirements-dev.txt, which
-every workflow in this repository already installs. The checks run.
+    ModuleNotFoundError: No module named '_pytest.compat'
 
-WHAT THIS FILE ADDS. The importorskip calls are left exactly as they are --
-they are correct for a developer who has not installed the dev dependencies,
-and rewriting 22 of them across five repositories would be churn with a real
-chance of error. Instead this makes the ABSENCE loud in one place: if the
-register is missing, one test fails and says what it means, rather than
-twenty-two tests quietly not running.
+comes from, seconds after the same command had just succeeded. No install
+order avoids it. The constraint itself was impossible.
 
-A skipped test and a passing test look identical in a summary line. That is
-the whole failure mode this guards.
+WHAT THIS FILE GUARDS. Four things, in the order they are likely to break:
+
+  1. This repository's ranges are still the fleet's.
+  2. Every file in this repository that declares them agrees with the others.
+     Both pyproject.toml files in the fleet SAY IN A COMMENT that they mirror
+     tests/requirements-dev.txt. Nothing checked it. Now something does.
+  3. No exact `==` pin has come back. That is the mechanism, not the symptom:
+     an exact pin on a shared tool makes one repository fight the other four
+     every time anything moves.
+  4. The pytest actually running this test satisfies what the file declares.
+     Points 1 to 3 read files; this one looks at the machine, and it is the
+     one that would have caught the failure that started all this.
+
+WHAT IT CANNOT DO. A test in this repository cannot see the other four. If
+someone edits a range here, this fails here -- which is the point. If someone
+edits it in all five identically, that is a fleet decision and this agrees
+with it, as it should.
 """
 from __future__ import annotations
 
@@ -102,218 +132,260 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-DEV_REQS = ROOT / 'tests/requirements-dev.txt'
 
-#: The register, as this repository pins it. A commit, not a branch -- see
-#: test_the_pin_names_a_commit_not_a_branch below for why that matters.
-PIN_RE = re.compile(
-    r'^rnv-brand\s*@\s*git\+https://github\.com/RNVizion/rnv-brand'
-    r'(?:\.git)?@(?P<ref>\S+)\s*$', re.M)
+#: The fleet standard, identical in all five applications. The floor of each
+#: is the highest floor any of the five already declared; the ceiling is the
+#: next MAJOR version, so nothing crosses a major boundary without an edit.
+#:
+#: Measured at the top, not assumed: every one of the five suites was run on
+#: pytest 9.1.1, pytest-qt 4.5.0, pytest-cov 7.1.0, pytest-timeout 2.4.0 and
+#: pytest-benchmark 5.3.0 -- the exact set a fresh install resolves these to.
+FLEET = {
+    'pytest': '>=8.0,<10.0',
+    'pytest-qt': '>=4.4,<5.0',
+    'pytest-cov': '>=5.0,<8.0',
+    'pytest-timeout': '>=2.4,<3.0',
+    'pytest-benchmark': '>=4.0,<6.0',
+}
 
+#: Every file in THIS repository that may declare them. Absent ones are
+#: skipped: the five do not all use the same layout, and a repository that
+#: has no pyproject.toml is not thereby in breach.
+#:
+#: THE RETIRED ROOT-LEVEL requirements-dev PATH IS DELIBERATELY NOT HERE. All
+#: six RNV repositories moved that file under tests/, and
+#: tests/test_dependency_file_placement.py sweeps the tree to keep it moved.
+#: The first build of this file listed the root path as a candidate 'just in
+#: case', which is how a retired path comes back -- and that sweep caught it,
+#: which is exactly what it is for. (Named without its extension here on
+#: purpose: the sweep is scoped to the filename WITH extension so that prose
+#: can still discuss it.)
+CANDIDATES = ('tests/requirements-dev.txt', 'requirements.txt',
+              'pyproject.toml')
 
-def test_the_register_is_installed():
-    """The one that matters. Everything else in this file is about keeping
-    this one honest."""
-    try:
-        import engine.brand  # noqa: F401
-    except ImportError as exc:  # pragma: no cover -- the failure path
-        pytest.fail(
-            f'rnv-brand is not importable: {exc}\n\n'
-            f'It is a declared dev dependency of this repository. Install it '
-            f'with:\n\n'
-            f'    pip install -r tests/requirements-dev.txt\n\n'
-            f'Until it is present, every check that compares this app to the '
-            f'register is SKIPPING -- which looks exactly like passing, and '
-            f'means the local PINNED mirror is being checked against itself.')
-
-
-def test_the_register_exposes_what_the_mirrors_read():
-    """Guard the guard. An importable module that has been emptied out would
-    satisfy the test above and still tell the mirrors nothing."""
-    import engine.brand as brand
-    assert isinstance(getattr(brand, 'APP', None), dict), \
-        'engine.brand has no APP dict'
-    assert len(brand.APP) >= 10, \
-        f'engine.brand.APP has only {len(brand.APP)} entries'
-    for name in ('BRAND_GOLD', 'BRAND_DARK_GOLD', 'TRUE_BLACK', 'WHITE'):
-        assert hasattr(brand, name), f'engine.brand has no {name}'
-
-
-def test_the_pin_is_declared_in_the_dev_requirements():
-    """It has to be written down where the workflows will read it. Every
-    workflow in this repository already installs this file, which is why this
-    round changes no YAML at all."""
-    assert DEV_REQS.exists(), f'{DEV_REQS} is missing'
-    text = DEV_REQS.read_text(encoding='utf-8')
-    assert PIN_RE.search(text), (
-        'tests/requirements-dev.txt does not pin rnv-brand. Without the pin, '
-        'a fresh checkout installs no register, the checks go back to '
-        'skipping, and nothing announces it.')
+_LINE = re.compile(
+    r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
+    r'(\s*(?:[<>=!~]=?\s*[0-9][^,"#\n]*)(?:\s*,\s*[<>=!~]=?\s*[0-9][^,"#\n]*)*)')
 
 
-def test_the_pin_names_a_commit_not_a_branch():
-    """A pin to `@main` is not a pin.
+def _declared(path: Path) -> dict:
+    """The test-tooling requirements in one file, as {name: specifier}."""
+    found = {}
+    for line in path.read_text(encoding='utf-8', errors='replace').splitlines():
+        if line.lstrip().startswith('#'):
+            continue
+        match = _LINE.match(line)
+        if not match:
+            continue
+        name = match.group(1).lower()
+        if name in FLEET:
+            found[name] = match.group(2).strip().replace(' ', '').rstrip('",')
+    return found
 
-    The point of pinning the register is that this repository states, in a
-    reviewable line, WHICH revision of the brand it mirrors. A branch ref
-    moves on its own: the register could change under this application
-    between two runs of the same commit, and the first anyone would know is a
-    test failing on a build that changed nothing.
 
-    A 40-character commit sha cannot do that. Moving it is an edit, and an
-    edit is a diff someone can read.
+def _files():
+    return [ROOT / rel for rel in CANDIDATES if (ROOT / rel).exists()]
+
+
+def test_the_ranges_are_the_fleet_s():
+    """Every test-tooling requirement this repository declares, anywhere, is
+    the one all five agree on."""
+    wrong = []
+    for path in _files():
+        for name, spec in _declared(path).items():
+            if spec != FLEET[name]:
+                wrong.append(
+                    f'{path.relative_to(ROOT).as_posix()}: {name}{spec} '
+                    f'(fleet: {name}{FLEET[name]})')
+    assert not wrong, (
+        'these ranges have drifted from the fleet standard:\n  '
+        + '\n  '.join(wrong)
+        + '\n\nThe five applications share one interpreter. A range only this '
+          'repository holds is a range that fights the other four, and pip '
+          'resolves that fight by rewriting site-packages.')
+
+
+def test_the_declaring_files_in_this_repository_agree():
+    """pyproject.toml and tests/requirements-dev.txt say the same thing.
+
+    Both pyproject files in the fleet carry a comment claiming exactly this.
+    A comment is a promise; this is the part that keeps it.
     """
-    text = DEV_REQS.read_text(encoding='utf-8')
-    match = PIN_RE.search(text)
-    assert match, 'no rnv-brand pin found'
-    ref = match.group('ref')
-    assert re.fullmatch(r'[0-9a-f]{40}', ref), (
-        f'rnv-brand is pinned to {ref!r}, which is not a full commit sha. '
-        f'A branch or tag ref lets the register move without a commit in '
-        f'this repository.')
+    per_file = {p.relative_to(ROOT).as_posix(): _declared(p) for p in _files()}
+    disagreements = []
+    names = {n for d in per_file.values() for n in d}
+    for name in sorted(names):
+        specs = {rel: d[name] for rel, d in per_file.items() if name in d}
+        if len(set(specs.values())) > 1:
+            disagreements.append(
+                f'{name}: ' + ', '.join(f'{r} says {s}' for r, s in specs.items()))
+    assert not disagreements, (
+        'two files in this repository declare different versions of the same '
+        'package:\n  ' + '\n  '.join(disagreements)
+        + '\n\nWhichever one you install from wins, and which one that is '
+          'depends on the command someone happened to type.')
 
 
-def test_the_installed_register_is_the_pinned_one():
-    """The pin says which revision; this asks whether that is what is
-    actually installed. They come apart the moment someone bumps the pin and
-    does not reinstall -- and then the suite is checking the app against a
-    register nobody declared."""
-    import engine.brand as brand
-    version = getattr(brand, '__version__', None)
-    if version is None:
-        pytest.skip('engine.brand declares no __version__; the pin is the '
-                    'only statement of which revision this is')
-    assert version, 'engine.brand.__version__ is empty'
+def test_no_exact_pin_came_back():
+    """`==` is the mechanism, not the symptom.
+
+    An exact pin on a tool five repositories share means this one demands a
+    version the others merely tolerate. It is right for a lock file, which
+    is regenerated, and wrong for dev requirements that are read by hand.
+    """
+    exact = []
+    for path in _files():
+        for name, spec in _declared(path).items():
+            if spec.startswith('=='):
+                exact.append(f'{path.relative_to(ROOT).as_posix()}: {name}{spec}')
+    assert not exact, (
+        'exact pins on shared test tooling:\n  ' + '\n  '.join(exact)
+        + '\n\nUse a range with a major-version ceiling instead.')
+
+
+def test_every_range_has_an_upper_bound():
+    """A ceiling is the whole reason these are ranges and not floors.
+
+    Without one, the next major release of pytest lands silently on the first
+    machine that installs after it ships, and the first anyone knows is a
+    suite failing on a commit that changed nothing.
+    """
+    unbounded = []
+    for path in _files():
+        for name, spec in _declared(path).items():
+            if '<' not in spec:
+                unbounded.append(
+                    f'{path.relative_to(ROOT).as_posix()}: {name}{spec}')
+    assert not unbounded, (
+        'these declare a floor and no ceiling:\n  ' + '\n  '.join(unbounded)
+        + '\n\nAdd a major-version ceiling.')
+
+
+def test_the_installed_pytest_satisfies_what_this_repository_declares():
+    """The one that looks at the machine rather than the files.
+
+    Everything above reads text. This asks whether the pytest currently
+    running is the pytest this repository asked for -- and a mismatch here
+    means the last `pip install` someone ran was for a different repository.
+    """
+    try:
+        from packaging.specifiers import SpecifierSet
+        from packaging.version import Version
+    except ImportError:  # pragma: no cover -- packaging ships with pytest
+        pytest.skip('packaging is not importable')
+
+    # EVERY declaring file, separately. Merging them into one dict lets
+    # whichever file sorts last overwrite the others, and the file that
+    # loses is tests/requirements-dev.txt -- the one people actually
+    # install from. The first build of this guard did exactly that and
+    # reported green against a range it was not testing.
+    running = Version(pytest.__version__)
+    declared = [(path.relative_to(ROOT).as_posix(), spec['pytest'])
+                for path, spec in ((p, _declared(p)) for p in _files())
+                if 'pytest' in spec]
+    if not declared:
+        pytest.skip('this repository declares no pytest requirement')
+
+    outside = [f'{rel} declares pytest{spec}'
+               for rel, spec in declared
+               if running not in SpecifierSet(spec)]
+    assert not outside, (
+        f'pytest {running} is running, but:\n  ' + '\n  '.join(outside)
+        + '\n\nOn a machine with all five checkouts this usually means the '
+          'last `pip install -r tests/requirements-dev.txt` you ran was in a '
+          'different repository. Re-run it here:\n\n'
+          '    python -m pip install -r tests/requirements-dev.txt')
+
+
+def test_this_guard_can_see_the_files_it_judges():
+    """Guard the guard. A parser that matches nothing finds no drift and
+    passes, which looks exactly like a repository in perfect order."""
+    files = _files()
+    assert files, f'no requirements files found under {ROOT}'
+    total = sum(len(_declared(p)) for p in files)
+    assert total >= 2, (
+        f'only {total} test-tooling requirement(s) were parsed out of '
+        f'{[p.name for p in files]}. Every one of the five declares at least '
+        f'pytest and pytest-qt, so this parser is not reading what it thinks.')
 '''
 
-PIN_BLOCK = "\n# ── The brand register (RNV-REGISTER-PIN, 2026-09-07) ──────────────\n# This application mirrors rnv-brand's values in a local PINNED dict,\n# and ~5 tests here compare the two. Until rnv-brand was packaged they\n# were guarded with pytest.importorskip and skipped on every run, in\n# all five applications -- 22 checks that looked like passes.\n#\n# PINNED TO A COMMIT, NOT A BRANCH, on purpose: this line is the\n# written statement of which revision of the brand this app mirrors.\n# A branch ref would let the register move without a commit here.\n# Bumping it is an edit, and an edit is a diff someone can read.\nrnv-brand @ git+https://github.com/RNVizion/rnv-brand@b4fa970babbcb4141d1ea354c77e4d8d78248e82\n"
-BRAND_SHA = 'b4fa970babbcb4141d1ea354c77e4d8d78248e82'
+EDITS = [('tests/requirements-dev.txt', 'pytest>=7.4\n', 'pytest>=8.0,<10.0\n', 1), ('tests/requirements-dev.txt', 'pytest-qt>=4.2\n', 'pytest-qt>=4.4,<5.0\n', 1), ('tests/requirements-dev.txt', 'pytest-timeout>=2.2\n', 'pytest-timeout>=2.4,<3.0\n', 1), ('pyproject.toml', '    "pytest>=7.4",\n', '    "pytest>=8.0,<10.0",\n', 1), ('pyproject.toml', '    "pytest-qt>=4.2",\n', '    "pytest-qt>=4.4,<5.0",\n', 1)]
+CANON = {'pytest': '>=8.0,<10.0', 'pytest-qt': '>=4.4,<5.0', 'pytest-cov': '>=5.0,<8.0', 'pytest-timeout': '>=2.4,<3.0', 'pytest-benchmark': '>=4.0,<6.0'}
+DECLARING_FILES = ['tests/requirements-dev.txt', 'pyproject.toml']
+
+NOTE = (
+    "\n"
+    "# ── Test tooling (RNV-TEST-TOOLING, 2026-09-07) ────────────────────\n"
+    "# The five RNV applications share one interpreter on a development\n"
+    "# machine, so their dev-tooling ranges have to be mutually\n"
+    "# satisfiable. They were not: the picker pinned pytest==9.0.2 while\n"
+    "# the icon builder capped it below 9.0.0, and pip rewrote\n"
+    "# site-packages on every switch between them.\n"
+    "#\n"
+    "# The ranges above are the fleet standard, identical in all five.\n"
+    "# tests/test_test_tooling_pins.py fails if this repository drifts\n"
+    "# from it, if a declaration here disagrees with another file in this\n"
+    "# repository, or if an exact `==` pin comes back.\n")
 
 
 def edits(tree) -> None:
     reqs = tree.read(SENTINEL_FILE)
     if SENTINEL in reqs:
         raise SystemExit("already applied")
-    if "rnv-brand" in reqs:
-        raise SystemExit("tests/requirements-dev.txt already mentions "
-                         "rnv-brand; re-derive this script rather than "
-                         "adding a second pin")
-    tree.write(SENTINEL_FILE, reqs.rstrip("\n") + "\n" + PIN_BLOCK)
-    print(f"  pinned rnv-brand @ {BRAND_SHA[:12]} in {SENTINEL_FILE}")
-    print("  no workflow changed -- every workflow here already installs it")
+    for rel, old, new, times in EDITS:
+        tree.sub(rel, old, new, times)
+    tree.write(SENTINEL_FILE, tree.read(SENTINEL_FILE).rstrip("\n") + "\n" + NOTE)
+    touched = sorted({e[0] for e in EDITS})
+    print(f"  {len(EDITS)} specifier(s) rewritten across {len(touched)} file(s)")
+    for rel in touched:
+        n = len([e for e in EDITS if e[0] == rel])
+        print(f"    {rel}  ({n})")
 
 
-def _register_importable() -> bool:
-    """Whether `engine.brand` can be imported, asked by importing it.
-
-    NOT importlib.util.find_spec("engine.brand"): find_spec on a SUBMODULE
-    imports the parent package first, so when `engine` is absent it raises
-    ModuleNotFoundError rather than returning None -- which is exactly the
-    case this function exists to detect, and it took the script down instead
-    of answering.
-    """
-    try:
-        import engine.brand  # noqa: F401
-    except ImportError:
-        return False
-    return True
-
-
-def _install_the_pin() -> None:
-    """Install the register this script just declared.
-
-    WITHOUT THIS THE SCRIPT CANNOT VERIFY ITS OWN WORK. A pin is a line in a
-    file; declaring it does not put the package on the path. The first build
-    of this script wrote the line and went straight to the suites -- which
-    passed here, because this machine happened to have the register installed
-    already, and failed everywhere else with three ModuleNotFoundErrors.
-
-    CI does exactly this step, from the same file, before running anything.
-    A local run has to as well or it is testing a different environment from
-    the one the pin is for.
-    """
-    if _register_importable():
-        print("  the register is already importable; nothing to install")
-        return
-    print(f"  installing the register from {SENTINEL_FILE} ...")
-    cmd = [sys.executable, "-m", "pip", "install", "-q", "-r", SENTINEL_FILE]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        out = (proc.stderr or "") + (proc.stdout or "")
-        tail = out.strip().splitlines()[-4:]
-        # PEP 668: a distribution-managed Python refuses to install into
-        # itself. That is a DIFFERENT problem from a failed download, and the
-        # generic "check your network" advice sends people the wrong way.
-        # This script will not pass --break-system-packages on someone's
-        # behalf: the protection exists because overriding it can break the
-        # operating system's own Python, and that is not a delivery script's
-        # call to make.
-        managed = ("externally-managed-environment" in out
-                   or "externally managed environment" in out)
-        if managed:
-            raise SystemExit(
-                "could not install the register: this Python is "
-                "externally managed (PEP 668), so pip will not install into "
-                "it.\n\nThe pin IS written to " + SENTINEL_FILE + " and the "
-                "edit is sound. Install the register in whichever environment "
-                "you run the tests from, then re-run `python up.py --verify`. "
-                "Either of these:\n\n"
-                "    python -m venv .venv && .venv/bin/pip install -r "
-                + SENTINEL_FILE + "\n"
-                "    pip install --break-system-packages -r " + SENTINEL_FILE
-                + "\n\nThe second overrides your distribution's protection; "
-                "it is offered because you may already work that way, not "
-                "because this script recommends it.")
-        raise SystemExit(
-            "could not install the register:\n    " + "\n    ".join(tail)
-            + "\n\nThe pin IS written to " + SENTINEL_FILE + " and the edit "
-            "is sound -- only the install failed. Install it yourself and "
-            "re-run `python up.py --verify`:\n\n"
-            "    pip install -r " + SENTINEL_FILE)
-    importlib.invalidate_caches()
-    if not _register_importable():
-        raise SystemExit(
-            "pip reported success but engine.brand is still not importable. "
-            "Check that the pin line in " + SENTINEL_FILE + " is intact.")
-    print("  the register is importable")
-
-
-#: Called by the harness after the files are written and before the suites
-#: run. See _install_the_pin above for why it cannot happen any earlier.
-post_write = _install_the_pin
+def _declared(text: str):
+    """Every test-tooling requirement in one file, as {name: specifier}."""
+    found = {}
+    line_re = re.compile(
+        r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
+        r'(\s*(?:[<>=!~]=?\s*[0-9][^,"#\n]*)(?:\s*,\s*[<>=!~]=?\s*[0-9][^,"#\n]*)*)')
+    for line in text.splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        m = line_re.match(line)
+        if not m:
+            continue
+        name = m.group(1).lower()
+        if name in CANON:
+            found[name] = m.group(2).strip().replace(" ", "").rstrip('",')
+    return found
 
 
 def checks(tree) -> None:
-    reqs = tree.read(SENTINEL_FILE)
-    if SENTINEL not in reqs:
-        raise SystemExit("the pin block did not land")
+    # 1. every declaration in every declaring file is now the fleet's
+    seen = {}
+    for rel in DECLARING_FILES:
+        got = _declared(tree.read(rel))
+        for name, spec in got.items():
+            if spec != CANON[name]:
+                raise SystemExit(f"{rel}: {name}{spec} is not the fleet's "
+                                 f"{name}{CANON[name]}")
+            seen.setdefault(name, set()).add(rel)
+    if not seen:
+        raise SystemExit("no test-tooling requirement was found at all; the "
+                         "rewrite matched nothing, which is not a clean repo")
 
-    # exactly one pin, to a full commit sha
-    pins = re.findall(r"^rnv-brand\s*@\s*git\+\S+@(\S+)\s*$", reqs, re.M)
-    if len(pins) != 1:
-        raise SystemExit(f"expected exactly one rnv-brand pin, found {len(pins)}")
-    if not re.fullmatch(r"[0-9a-f]{40}", pins[0]):
-        raise SystemExit(f"the pin names {pins[0]!r}, which is not a full "
-                         f"commit sha. A branch ref lets the register move "
-                         f"without a commit in this repository.")
+    # 2. no exact pin survives anywhere in a declaring file
+    for rel in DECLARING_FILES:
+        for name, spec in _declared(tree.read(rel)).items():
+            if spec.startswith("=="):
+                raise SystemExit(f"{rel}: {name}{spec} is an exact pin")
 
-    # The workflows must actually install the file the pin lives in --
-    # otherwise the pin is a comment and CI keeps skipping. This is the one
-    # assumption this round rests on, so it is checked rather than assumed.
-    root = Path.cwd()
-    flows = sorted((root / ".github/workflows").glob("*.yml")) \
-        if (root / ".github/workflows").is_dir() else []
-    if not flows:
-        raise SystemExit("no workflows found; cannot confirm the pin is "
-                         "installed in CI")
-    missing = [f.name for f in flows
-               if "requirements-dev.txt" not in f.read_text(encoding="utf-8")]
-    if missing:
-        raise SystemExit(f"these workflows do not install "
-                         f"tests/requirements-dev.txt, so the pin would not "
-                         f"reach them: {missing}")
+    # 3. the note landed
+    if SENTINEL not in tree.read(SENTINEL_FILE):
+        raise SystemExit("the explanatory note did not land")
 
-    print(f"  guards: one pin, full sha, {len(flows)} workflow(s) install it")
+    print(f"  guards: {len(seen)} package(s) aligned, "
+          f"{len(DECLARING_FILES)} declaring file(s) agree, no exact pins")
 
 
 # ------------------------------------------------------------------ plumbing
