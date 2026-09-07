@@ -2,66 +2,64 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: make the test-tooling pins agree with the other four applications.
+rnv-color-mixer: make the dependency declarations coherent.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-WHAT WAS WRONG, AND IT IS ARITHMETIC RATHER THAN OPINION. Across the five
-applications, two packages are declared with ranges that NO single version
-satisfies:
+THIS IS THE SECOND HALF OF THE PYTEST ROUND. That round fixed the one
+conflict that was actively breaking: pytest==9.0.2 against pytest<9.0.0, no
+version satisfying both, site-packages rewritten on every switch between two
+repositories. This one fixes the same CLASS of defect everywhere else it
+appears, before any of it costs anybody a morning.
 
-    pytest       picker  ==9.0.2          icon builder  >=8.0.0,<9.0.0
-    pytest-cov   picker  ==7.1.0          icon builder  >=5.0.0,<7.0.0
+Three findings, all measured across the five rather than assumed.
 
-There is no version of pytest that is both exactly 9.0.2 and below 9.0.0.
-So on one interpreter -- which is what a laptop is -- installing the
-picker's dev requirements and then the icon builder's UNINSTALLS pytest 9
-and installs pytest 8; going the other way undoes it. Every switch between
-those two repositories rewrites site-packages, and the window while pip is
-mid-swap is a partially-populated _pytest package. That is exactly the
-shape of
+1. SIX PLACES WHERE ONE REPOSITORY DISAGREES WITH ITSELF.
 
-    ModuleNotFoundError: No module named '_pytest.compat'
+       transformer  chardet    pyproject >=5.0.0        requirements >=5.2.0
+       transformer  watchdog   pyproject >=3.0.0        requirements >=4.0.0
+       mixer        Pillow     pyproject >=9.0.0,<12.0  requirements >=10.0
+       mixer        PyQt6      pyproject >=6.5.0,<7.0.0 requirements >=6.5
+       palette mgr  Pillow     pyproject >=10.0.0,<12.0 requirements >=10.0.0
+       palette mgr  PyQt6      pyproject >=6.5.0,<7.0   requirements >=6.5.0
 
-appearing seconds after the same command had succeeded. No amount of care
-about install order fixes it, because the constraint is unsatisfiable.
+   Whichever file you install from wins, and which one that is depends on
+   the command somebody typed. Both pyproject files in the fleet carry a
+   comment SAYING they mirror the requirements. Nothing checked it.
 
-THE CAPS HAD NO EVIDENCE BEHIND THEM. The icon builder's `pytest<9.0.0` and
-`pytest-cov<7.0.0` were tested rather than trusted. On pytest 9.1.1 with
-pytest-cov 7.1.0 -- both past its own ceiling -- its suite passes 632 tests.
-All five were run on the exact set these new ranges resolve to today:
+2. TWO EXACT PINS LEFT, both in rnv-color-picker: PyQt6==6.10.2 and
+   hypothesis==6.152.4. Currently satisfiable, so nothing is breaking today
+   -- but it is the identical mechanism to pytest==9.0.2, one release away
+   from doing the identical thing on a much heavier package. Each becomes a
+   range whose FLOOR is the version it was pinned to, because that is the
+   version this application is known to work on and a lower floor would be
+   a claim nothing has tested.
 
-    rnv-text-transformer        669 passed, 1 skipped
-    rnv-color-picker           1452 passed, 4 skipped
-    rnv-color-palette-manager   564 passed, 1 skipped
-    rnv-color-mixer             723 passed, 14 skipped  + 355 locked
-    rnv-icon-builder            632 passed, 2 skipped
+3. PILLOW'S `<12.0` CAP EXCLUDED THE API THE FLEET JUST ADOPTED.
+   `get_flattened_data` arrived in Pillow 12.1. utils/pil_compat.py was
+   installed to prefer it. The cap meant the pyproject install path could
+   never reach it -- and the cap has to move before 2027-10-15 regardless,
+   because that is the day Pillow 14 removes `getdata()`.
 
-WHAT THIS DOES. Rewrites 5 specifier(s) in 2 file(s) to the fleet
-standard, identical in all five:
+   All five suites were run on Pillow 12.2.0 before this change. Lifted to
+   `<13.0`, fleet-wide and identical in all five: past the version that
+   matters, still short of a major boundary nobody has tested.
 
-        pytest>=8.0,<10.0
-        pytest-qt>=4.4,<5.0
-        pytest-cov>=5.0,<8.0
-        pytest-timeout>=2.4,<3.0
-        pytest-benchmark>=4.0,<6.0
+WHAT THIS DOES HERE. Rewrites 4 specifier(s) in 2 file(s).
 
-The floor of each is the highest floor any of the five already declared, so
-no repository gives up ground. The ceiling is the next MAJOR version, which
-is the thing the old caps were reaching for and the thing `==` cannot
-express: nothing crosses a major boundary without someone editing a line.
+WHAT IT DOES NOT DO. No package is added or removed. No floor is lowered.
+No source file is touched. The test-tooling ranges are governed separately
+by tests/test_test_tooling_pins.py and are not in scope here.
 
-WHY NOT `==`. An exact pin on a shared tool makes one repository fight the
-other four every time anything moves. It belongs in a lock file, not in the
-dev requirements of five applications developed together on one machine.
-
-NO PACKAGE IS ADDED OR REMOVED. This repository declares exactly the
-packages it declared before; only the specifiers change.
-
-NO SOURCE FILE IS TOUCHED. No colour, no value, no behaviour.
+STILL OPEN, AND NOT DECIDED BY THIS SCRIPT: rnv-text-transformer and
+rnv-icon-builder declare PyQt6 with no upper bound at all, while the mixer
+and the palette manager cap it below 7.0. That asymmetry is reported rather
+than fixed -- adding a ceiling to a runtime dependency is a decision about
+what an application claims to support, and it is not a delivery script's to
+make.
 """
 from __future__ import annotations
 
@@ -75,10 +73,10 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "tests/requirements-dev.txt"
-SENTINEL = "RNV-TEST-TOOLING"
-GUARD = "tests/test_test_tooling_pins.py"
-DESCRIPTION = "align the test-tooling pins with the other four applications"
+SENTINEL_FILE = "pyproject.toml"
+SENTINEL = "RNV-DEPENDENCY-COHERENCE"
+GUARD = "tests/test_dependency_coherence.py"
+DESCRIPTION = "make the dependency declarations agree with each other"
 SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
           ("the LOCKED file, 355 tests", [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
             "-p", "no:cacheprovider", "--timeout=120", "--deselect",
@@ -86,43 +84,59 @@ SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-TEST-TOOLING-GUARD -- the five applications share one interpreter, so
-their dev-tooling ranges have to be mutually satisfiable.
+GUARD_SOURCE = r'''"""RNV-DEPENDENCY-COHERENCE-GUARD -- one repository, one answer per package.
 
-Installed 2026-09-07. Until today they were not, and it was arithmetic rather
-than a matter of taste:
+Installed 2026-09-07, as the second half of the pytest round. That round
+fixed the conflict that was actively breaking:
 
     pytest       picker  ==9.0.2      icon builder  >=8.0.0,<9.0.0
-    pytest-cov   picker  ==7.1.0      icon builder  >=5.0.0,<7.0.0
 
-No version of pytest is both exactly 9.0.2 and below 9.0.0. On a development
-machine -- one interpreter, five checkouts -- installing one repository's dev
-requirements and then the other's UNINSTALLS pytest 9 and installs pytest 8,
-and going back undoes it. While pip is mid-swap the _pytest package on disk is
-partially populated, which is where
+No version is both. On one interpreter, pip rewrote site-packages on every
+switch between those two repositories, and a half-rewritten _pytest package
+is where `ModuleNotFoundError: No module named '_pytest.compat'` came from.
 
-    ModuleNotFoundError: No module named '_pytest.compat'
+This file guards the same CLASS of defect in the packages that had not yet
+bitten -- and one of them is PyQt6, where it would have cost a great deal
+more than a morning.
 
-comes from, seconds after the same command had just succeeded. No install
-order avoids it. The constraint itself was impossible.
+WHAT THIS FILE GUARDS.
 
-WHAT THIS FILE GUARDS. Four things, in the order they are likely to break:
+  1. Two files in this repository do not declare different ranges for the
+     same package. Six such disagreements existed across the fleet. Both
+     pyproject.toml files in it carry a comment SAYING they mirror the
+     requirements; a comment is a promise, and this is the part that keeps
+     it. Whichever file you install from wins, and which one that is
+     depends on the command somebody happened to type.
+  2. No exact `==` pin. Two were left -- PyQt6==6.10.2 and
+     hypothesis==6.152.4, both in rnv-color-picker. Neither was breaking
+     anything, which is the point: neither was pytest==9.0.2 either, until
+     the day another repository disagreed with it.
+  3. Pillow matches the range all five share. It is the one package with a
+     DATED deadline behind it: the old pixel-access method is removed in
+     Pillow 14 on 2027-10-15, and `get_flattened_data` -- the replacement
+     that utils/pil_compat.py prefers -- arrived in Pillow 12.1. The old
+     `<12.0` cap excluded it.
 
-  1. This repository's ranges are still the fleet's.
-  2. Every file in this repository that declares them agrees with the others.
-     Both pyproject.toml files in the fleet SAY IN A COMMENT that they mirror
-     tests/requirements-dev.txt. Nothing checked it. Now something does.
-  3. No exact `==` pin has come back. That is the mechanism, not the symptom:
-     an exact pin on a shared tool makes one repository fight the other four
-     every time anything moves.
-  4. The pytest actually running this test satisfies what the file declares.
-     Points 1 to 3 read files; this one looks at the machine, and it is the
-     one that would have caught the failure that started all this.
+     (Named indirectly on purpose. tests/test_pil_compat.py sweeps every
+     file for the retired call and this one is not exempt from that sweep,
+     so writing the call form here -- even in prose -- fails it. Use versus
+     mention, and this file was the tenth instance in this programme.)
+  4. What is installed satisfies what is declared. Everything above reads
+     text; this one looks at the machine, and it is the shape of check that
+     would have caught the failure that started all this.
 
-WHAT IT CANNOT DO. A test in this repository cannot see the other four. If
-someone edits a range here, this fails here -- which is the point. If someone
-edits it in all five identically, that is a fleet decision and this agrees
-with it, as it should.
+WHAT IT DELIBERATELY DOES NOT DO.
+
+  It does not require every range to have a ceiling, and it does not require
+  the five to agree on floors other than Pillow's. Applications legitimately
+  support different minimum versions of the same library. What they may not
+  do is contradict themselves, pin exactly, or make a version no combination
+  can satisfy.
+
+  The test-tooling packages are excluded here. They have a fleet standard of
+  their own and their own guard, tests/test_test_tooling_pins.py, because a
+  tool five repositories run on one interpreter is a different question from
+  a library one application imports.
 """
 from __future__ import annotations
 
@@ -133,35 +147,26 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: The fleet standard, identical in all five applications. The floor of each
-#: is the highest floor any of the five already declared; the ceiling is the
-#: next MAJOR version, so nothing crosses a major boundary without an edit.
-#:
-#: Measured at the top, not assumed: every one of the five suites was run on
-#: pytest 9.1.1, pytest-qt 4.5.0, pytest-cov 7.1.0, pytest-timeout 2.4.0 and
-#: pytest-benchmark 5.3.0 -- the exact set a fresh install resolves these to.
-FLEET = {
-    'pytest': '>=8.0,<10.0',
-    'pytest-qt': '>=4.4,<5.0',
-    'pytest-cov': '>=5.0,<8.0',
-    'pytest-timeout': '>=2.4,<3.0',
-    'pytest-benchmark': '>=4.0,<6.0',
-}
+#: The one package with a fleet-wide range this round. See the docstring for
+#: why it is the one: a dated removal, and an API the fleet has already
+#: adopted that the old cap excluded.
+FLEET = {'pillow': '>=10.0.0,<13.0'}
 
-#: Every file in THIS repository that may declare them. Absent ones are
-#: skipped: the five do not all use the same layout, and a repository that
-#: has no pyproject.toml is not thereby in breach.
-#:
-#: THE RETIRED ROOT-LEVEL requirements-dev PATH IS DELIBERATELY NOT HERE. All
-#: six RNV repositories moved that file under tests/, and
-#: tests/test_dependency_file_placement.py sweeps the tree to keep it moved.
-#: The first build of this file listed the root path as a candidate 'just in
-#: case', which is how a retired path comes back -- and that sweep caught it,
-#: which is exactly what it is for. (Named without its extension here on
-#: purpose: the sweep is scoped to the filename WITH extension so that prose
-#: can still discuss it.)
-CANDIDATES = ('tests/requirements-dev.txt', 'requirements.txt',
-              'pyproject.toml')
+#: Governed by tests/test_test_tooling_pins.py instead. Checking them here
+#: as well would mean two files disagreeing about the same thing, which is
+#: the exact failure this one exists to prevent.
+TEST_TOOLING = {'pytest', 'pytest-qt', 'pytest-cov', 'pytest-timeout',
+                'pytest-benchmark'}
+
+#: Lines that look like a requirement and are not. `line-length = 100` in
+#: ruff's config and `precision = 0` in coverage's both parse as a name
+#: followed by a number, and a sweep that rewrote them would break the tool
+#: rather than the pin.
+NOT_REQUIREMENTS = {'line-length', 'precision', 'python', 'name', 'version',
+                    'requires-python', 'description', 'target-version'}
+
+CANDIDATES = ('pyproject.toml', 'requirements.txt',
+              'tests/requirements-dev.txt')
 
 _LINE = re.compile(
     r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
@@ -169,7 +174,7 @@ _LINE = re.compile(
 
 
 def _declared(path: Path) -> dict:
-    """The test-tooling requirements in one file, as {name: specifier}."""
+    """The dependencies one file declares, as {name: specifier}."""
     found = {}
     for line in path.read_text(encoding='utf-8', errors='replace').splitlines():
         if line.lstrip().startswith('#'):
@@ -178,8 +183,9 @@ def _declared(path: Path) -> dict:
         if not match:
             continue
         name = match.group(1).lower()
-        if name in FLEET:
-            found[name] = match.group(2).strip().replace(' ', '').rstrip('",')
+        if name in NOT_REQUIREMENTS or name in TEST_TOOLING:
+            continue
+        found[name] = match.group(2).strip().replace(' ', '').rstrip('",')
     return found
 
 
@@ -187,150 +193,175 @@ def _files():
     return [ROOT / rel for rel in CANDIDATES if (ROOT / rel).exists()]
 
 
-def test_the_ranges_are_the_fleet_s():
-    """Every test-tooling requirement this repository declares, anywhere, is
-    the one all five agree on."""
-    wrong = []
-    for path in _files():
-        for name, spec in _declared(path).items():
-            if spec != FLEET[name]:
-                wrong.append(
-                    f'{path.relative_to(ROOT).as_posix()}: {name}{spec} '
-                    f'(fleet: {name}{FLEET[name]})')
-    assert not wrong, (
-        'these ranges have drifted from the fleet standard:\n  '
-        + '\n  '.join(wrong)
-        + '\n\nThe five applications share one interpreter. A range only this '
-          'repository holds is a range that fights the other four, and pip '
-          'resolves that fight by rewriting site-packages.')
+def _per_file():
+    return {p.relative_to(ROOT).as_posix(): _declared(p) for p in _files()}
 
 
-def test_the_declaring_files_in_this_repository_agree():
-    """pyproject.toml and tests/requirements-dev.txt say the same thing.
+def test_this_repository_does_not_contradict_itself():
+    """One package, one answer.
 
-    Both pyproject files in the fleet carry a comment claiming exactly this.
-    A comment is a promise; this is the part that keeps it.
+    Six of these existed across the five applications. None of them broke
+    anything on its own -- they decide which range applies based on which
+    file somebody installed from, which is a coin flip dressed as a
+    declaration.
     """
-    per_file = {p.relative_to(ROOT).as_posix(): _declared(p) for p in _files()}
+    per_file = _per_file()
     disagreements = []
-    names = {n for d in per_file.values() for n in d}
-    for name in sorted(names):
+    for name in sorted({n for d in per_file.values() for n in d}):
         specs = {rel: d[name] for rel, d in per_file.items() if name in d}
         if len(set(specs.values())) > 1:
             disagreements.append(
                 f'{name}: ' + ', '.join(f'{r} says {s}' for r, s in specs.items()))
     assert not disagreements, (
-        'two files in this repository declare different versions of the same '
+        'two files in this repository declare different ranges for the same '
         'package:\n  ' + '\n  '.join(disagreements)
         + '\n\nWhichever one you install from wins, and which one that is '
           'depends on the command someone happened to type.')
 
 
-def test_no_exact_pin_came_back():
-    """`==` is the mechanism, not the symptom.
+def test_no_dependency_is_pinned_exactly():
+    """`==` is the mechanism behind the pytest failure, not the symptom.
 
-    An exact pin on a tool five repositories share means this one demands a
-    version the others merely tolerate. It is right for a lock file, which
-    is regenerated, and wrong for dev requirements that are read by hand.
+    An exact pin means this repository demands a version the others merely
+    tolerate. Installing it downgrades or upgrades the package for every
+    checkout sharing that interpreter, and the window while pip is mid-swap
+    is a partially-populated package on disk.
+
+    It is right in a lock file, which is regenerated. It is wrong in a
+    declaration that is read by hand.
     """
     exact = []
-    for path in _files():
-        for name, spec in _declared(path).items():
+    for rel, declared in _per_file().items():
+        for name, spec in declared.items():
             if spec.startswith('=='):
-                exact.append(f'{path.relative_to(ROOT).as_posix()}: {name}{spec}')
+                exact.append(f'{rel}: {name}{spec}')
     assert not exact, (
-        'exact pins on shared test tooling:\n  ' + '\n  '.join(exact)
-        + '\n\nUse a range with a major-version ceiling instead.')
+        'exact pins:\n  ' + '\n  '.join(exact)
+        + '\n\nUse a range whose floor is the version you know works.')
 
 
-def test_every_range_has_an_upper_bound():
-    """A ceiling is the whole reason these are ranges and not floors.
+def test_pillow_matches_the_range_all_five_share():
+    """The one package with a dated deadline behind it.
 
-    Without one, the next major release of pytest lands silently on the first
-    machine that installs after it ships, and the first anyone knows is a
-    suite failing on a commit that changed nothing.
+    Pillow 14 removes the old pixel-access method on 2027-10-15.
+    `get_flattened_data`, which utils/pil_compat.py prefers, arrived in
+    Pillow 12.1 -- so the old `<12.0` cap excluded the API the fleet had
+    just adopted. The ceiling is what makes somebody look before 14 lands.
     """
-    unbounded = []
-    for path in _files():
-        for name, spec in _declared(path).items():
-            if '<' not in spec:
-                unbounded.append(
-                    f'{path.relative_to(ROOT).as_posix()}: {name}{spec}')
-    assert not unbounded, (
-        'these declare a floor and no ceiling:\n  ' + '\n  '.join(unbounded)
-        + '\n\nAdd a major-version ceiling.')
+    wrong = []
+    for rel, declared in _per_file().items():
+        for name, want in FLEET.items():
+            if name in declared and declared[name] != want:
+                wrong.append(f'{rel}: {name}{declared[name]} (fleet: {name}{want})')
+    assert not wrong, (
+        'these have drifted from the range all five applications share:\n  '
+        + '\n  '.join(wrong))
 
 
-def test_the_installed_pytest_satisfies_what_this_repository_declares():
+def test_what_is_installed_satisfies_what_is_declared():
     """The one that looks at the machine rather than the files.
 
-    Everything above reads text. This asks whether the pytest currently
-    running is the pytest this repository asked for -- and a mismatch here
-    means the last `pip install` someone ran was for a different repository.
+    A package that is not installed is skipped -- plenty of these are
+    optional development tools. A package installed at a version this
+    repository forbids is a real disagreement between the declaration and
+    the environment, and one of the two is wrong.
     """
     try:
         from packaging.specifiers import SpecifierSet
         from packaging.version import Version
     except ImportError:  # pragma: no cover -- packaging ships with pytest
         pytest.skip('packaging is not importable')
+    from importlib.metadata import PackageNotFoundError, version as installed_version
 
-    # EVERY declaring file, separately. Merging them into one dict lets
-    # whichever file sorts last overwrite the others, and the file that
-    # loses is tests/requirements-dev.txt -- the one people actually
-    # install from. The first build of this guard did exactly that and
-    # reported green against a range it was not testing.
-    running = Version(pytest.__version__)
-    declared = [(path.relative_to(ROOT).as_posix(), spec['pytest'])
-                for path, spec in ((p, _declared(p)) for p in _files())
-                if 'pytest' in spec]
-    if not declared:
-        pytest.skip('this repository declares no pytest requirement')
-
-    outside = [f'{rel} declares pytest{spec}'
-               for rel, spec in declared
-               if running not in SpecifierSet(spec)]
+    # Every declaring file separately. Merging them into one mapping lets
+    # whichever file sorts last silently overwrite the others, and then the
+    # check reports green against a range it never tested.
+    outside = []
+    for rel, declared in _per_file().items():
+        for name, spec in sorted(declared.items()):
+            try:
+                have = Version(installed_version(name))
+            except PackageNotFoundError:
+                continue
+            except Exception:               # pragma: no cover
+                continue
+            if have not in SpecifierSet(spec):
+                outside.append(f'{rel} declares {name}{spec}, but {have} is installed')
     assert not outside, (
-        f'pytest {running} is running, but:\n  ' + '\n  '.join(outside)
-        + '\n\nOn a machine with all five checkouts this usually means the '
-          'last `pip install -r tests/requirements-dev.txt` you ran was in a '
-          'different repository. Re-run it here:\n\n'
-          '    python -m pip install -r tests/requirements-dev.txt')
+        'the environment does not match the declarations:\n  '
+        + '\n  '.join(outside)
+        + '\n\nEither the declaration is wrong or the install is stale:\n\n'
+          '    python -m pip install -r requirements.txt')
 
 
 def test_this_guard_can_see_the_files_it_judges():
-    """Guard the guard. A parser that matches nothing finds no drift and
-    passes, which looks exactly like a repository in perfect order."""
+    """Guard the guard. A parser that matches nothing finds no disagreement
+    and passes, which looks exactly like a repository in perfect order."""
     files = _files()
-    assert files, f'no requirements files found under {ROOT}'
+    assert files, f'no dependency files found under {ROOT}'
     total = sum(len(_declared(p)) for p in files)
-    assert total >= 2, (
-        f'only {total} test-tooling requirement(s) were parsed out of '
+    assert total >= 3, (
+        f'only {total} dependency declaration(s) parsed out of '
         f'{[p.name for p in files]}. Every one of the five declares at least '
-        f'pytest and pytest-qt, so this parser is not reading what it thinks.')
+        f'PyQt6 and Pillow, so this parser is not reading what it thinks.')
+
+
+def test_a_tool_setting_is_not_read_as_a_dependency():
+    """The exclusion list, tested by behaviour rather than by census.
+
+    `line-length = 100` in ruff's config and `precision = 0` in coverage's
+    both parse as a name followed by a comparison and a number -- the regex
+    cannot tell them from `chardet >= 5.2.0`, because structurally they are
+    the same. A sweep without the exclusion would report ruff's config as a
+    dependency disagreement, and a REWRITE without it would set
+    `line-length` to a version range.
+
+    Driven with a stand-in file rather than asserted against this
+    repository's, so it holds whether or not this particular repository
+    happens to configure those tools today.
+    """
+    import tempfile
+    sample = ('[tool.ruff]\n'
+              'line-length = 100\n'
+              'target-version = "py311"\n'
+              '\n'
+              '[tool.coverage.report]\n'
+              'precision = 0\n'
+              '\n'
+              'dependencies = [\n'
+              '    "Pillow>=10.0.0,<13.0",\n'
+              ']\n')
+    with tempfile.NamedTemporaryFile('w', suffix='.toml', delete=False,
+                                     encoding='utf-8') as handle:
+        handle.write(sample)
+        path = Path(handle.name)
+    try:
+        found = _declared(path)
+    finally:
+        path.unlink()
+    assert 'line-length' not in found, 'ruff config read as a dependency'
+    assert 'precision' not in found, 'coverage config read as a dependency'
+    assert found.get('pillow') == '>=10.0.0,<13.0', (
+        f'the parser missed the real requirement in the same file: {found}')
 '''
 
-EDITS = [('tests/requirements-dev.txt', 'pytest>=7.4\n', 'pytest>=8.0,<10.0\n', 1), ('tests/requirements-dev.txt', 'pytest-qt>=4.2\n', 'pytest-qt>=4.4,<5.0\n', 1), ('tests/requirements-dev.txt', 'pytest-timeout>=2.2\n', 'pytest-timeout>=2.4,<3.0\n', 1), ('pyproject.toml', '    "pytest>=7.4",\n', '    "pytest>=8.0,<10.0",\n', 1), ('pyproject.toml', '    "pytest-qt>=4.2",\n', '    "pytest-qt>=4.4,<5.0",\n', 1)]
-CANON = {'pytest': '>=8.0,<10.0', 'pytest-qt': '>=4.4,<5.0', 'pytest-cov': '>=5.0,<8.0', 'pytest-timeout': '>=2.4,<3.0', 'pytest-benchmark': '>=4.0,<6.0'}
-DECLARING_FILES = ['tests/requirements-dev.txt', 'pyproject.toml']
+EDITS = [('pyproject.toml', '    "PyQt6>=6.5.0,<7.0.0",\n', '    "PyQt6>=6.5.0,<7.0",\n', 1), ('pyproject.toml', '    "Pillow>=9.0.0,<12.0.0",\n', '    "Pillow>=10.0.0,<13.0",\n', 1), ('requirements.txt', 'PyQt6>=6.5\n', 'PyQt6>=6.5.0,<7.0\n', 1), ('requirements.txt', 'Pillow>=10.0\n', 'Pillow>=10.0.0,<13.0\n', 1)]
+DECLARING_FILES = ['pyproject.toml', 'requirements.txt', 'tests/requirements-dev.txt']
+FLEET = {'pillow': '>=10.0.0,<13.0'}
 
 NOTE = (
     "\n"
-    "# ── Test tooling (RNV-TEST-TOOLING, 2026-09-07) ────────────────────\n"
-    "# The five RNV applications share one interpreter on a development\n"
-    "# machine, so their dev-tooling ranges have to be mutually\n"
-    "# satisfiable. They were not: the picker pinned pytest==9.0.2 while\n"
-    "# the icon builder capped it below 9.0.0, and pip rewrote\n"
-    "# site-packages on every switch between them.\n"
-    "#\n"
-    "# The ranges above are the fleet standard, identical in all five.\n"
-    "# tests/test_test_tooling_pins.py fails if this repository drifts\n"
-    "# from it, if a declaration here disagrees with another file in this\n"
-    "# repository, or if an exact `==` pin comes back.\n")
+    "# ── Dependency coherence (RNV-DEPENDENCY-COHERENCE, 2026-09-07) ────\n"
+    "# The declarations in this file and in requirements.txt had drifted\n"
+    "# apart, so which range applied depended on which file you installed\n"
+    "# from. tests/test_dependency_coherence.py fails if they disagree\n"
+    "# again, if an exact `==` pin comes back, or if Pillow stops matching\n"
+    "# the range all five applications share.\n")
 
 
 def edits(tree) -> None:
-    reqs = tree.read(SENTINEL_FILE)
-    if SENTINEL in reqs:
+    src = tree.read(SENTINEL_FILE)
+    if SENTINEL in src:
         raise SystemExit("already applied")
     for rel, old, new, times in EDITS:
         tree.sub(rel, old, new, times)
@@ -338,54 +369,72 @@ def edits(tree) -> None:
     touched = sorted({e[0] for e in EDITS})
     print(f"  {len(EDITS)} specifier(s) rewritten across {len(touched)} file(s)")
     for rel in touched:
-        n = len([e for e in EDITS if e[0] == rel])
-        print(f"    {rel}  ({n})")
+        for _, old, new, _ in [e for e in EDITS if e[0] == rel]:
+            print(f"    {rel}:  {old.strip()}  ->  {new.strip()}")
 
 
-def _declared(text: str):
-    """Every test-tooling requirement in one file, as {name: specifier}."""
+NOT_REQUIREMENTS = {"line-length", "precision", "python", "name", "version",
+                    "requires-python", "description", "target-version"}
+TEST_TOOLING = {"pytest", "pytest-qt", "pytest-cov", "pytest-timeout",
+                "pytest-benchmark"}
+
+_LINE = re.compile(
+    r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
+    r'(\s*(?:[<>=!~]=?\s*[0-9][^,"#\n]*)(?:\s*,\s*[<>=!~]=?\s*[0-9][^,"#\n]*)*)')
+
+
+def _declared(text: str) -> dict:
     found = {}
-    line_re = re.compile(
-        r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
-        r'(\s*(?:[<>=!~]=?\s*[0-9][^,"#\n]*)(?:\s*,\s*[<>=!~]=?\s*[0-9][^,"#\n]*)*)')
     for line in text.splitlines():
         if line.lstrip().startswith("#"):
             continue
-        m = line_re.match(line)
+        m = _LINE.match(line)
         if not m:
             continue
         name = m.group(1).lower()
-        if name in CANON:
-            found[name] = m.group(2).strip().replace(" ", "").rstrip('",')
+        if name in NOT_REQUIREMENTS or name in TEST_TOOLING:
+            continue
+        found[name] = m.group(2).strip().replace(" ", "").rstrip('",')
     return found
 
 
 def checks(tree) -> None:
-    # 1. every declaration in every declaring file is now the fleet's
-    seen = {}
+    per_file = {}
     for rel in DECLARING_FILES:
-        got = _declared(tree.read(rel))
-        for name, spec in got.items():
-            if spec != CANON[name]:
-                raise SystemExit(f"{rel}: {name}{spec} is not the fleet's "
-                                 f"{name}{CANON[name]}")
-            seen.setdefault(name, set()).add(rel)
-    if not seen:
-        raise SystemExit("no test-tooling requirement was found at all; the "
-                         "rewrite matched nothing, which is not a clean repo")
+        try:
+            per_file[rel] = _declared(tree.read(rel))
+        except SystemExit:
+            continue                       # the repo does not have that file
 
-    # 2. no exact pin survives anywhere in a declaring file
-    for rel in DECLARING_FILES:
-        for name, spec in _declared(tree.read(rel)).items():
-            if spec.startswith("=="):
-                raise SystemExit(f"{rel}: {name}{spec} is an exact pin")
+    # 1. no two files in this repository disagree
+    disagreements = []
+    for name in sorted({n for d in per_file.values() for n in d}):
+        specs = {rel: d[name] for rel, d in per_file.items() if name in d}
+        if len(set(specs.values())) > 1:
+            disagreements.append(f"{name}: " + ", ".join(
+                f"{r} says {s}" for r, s in specs.items()))
+    if disagreements:
+        raise SystemExit("files still disagree: " + "; ".join(disagreements))
 
-    # 3. the note landed
+    # 2. no exact pin survives
+    exact = [f"{rel}: {n}{s}" for rel, d in per_file.items()
+             for n, s in d.items() if s.startswith("==")]
+    if exact:
+        raise SystemExit("exact pins survive: " + ", ".join(exact))
+
+    # 3. the fleet-wide ranges are what they should be
+    for rel, d in per_file.items():
+        for name, want in FLEET.items():
+            if name in d and d[name] != want:
+                raise SystemExit(f"{rel}: {name}{d[name]} is not the fleet's "
+                                 f"{name}{want}")
+
     if SENTINEL not in tree.read(SENTINEL_FILE):
         raise SystemExit("the explanatory note did not land")
 
-    print(f"  guards: {len(seen)} package(s) aligned, "
-          f"{len(DECLARING_FILES)} declaring file(s) agree, no exact pins")
+    n = len({n for d in per_file.values() for n in d})
+    print(f"  guards: {len(per_file)} file(s) agree on {n} package(s), "
+          f"no exact pins, Pillow at the fleet range")
 
 
 # ------------------------------------------------------------------ plumbing
