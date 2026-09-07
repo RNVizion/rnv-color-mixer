@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import importlib.util
 import os
 import re
 import subprocess
@@ -200,6 +201,86 @@ def edits(tree) -> None:
     tree.write(SENTINEL_FILE, reqs.rstrip("\n") + "\n" + PIN_BLOCK)
     print(f"  pinned rnv-brand @ {BRAND_SHA[:12]} in {SENTINEL_FILE}")
     print("  no workflow changed -- every workflow here already installs it")
+
+
+def _register_importable() -> bool:
+    """Whether `engine.brand` can be imported, asked by importing it.
+
+    NOT importlib.util.find_spec("engine.brand"): find_spec on a SUBMODULE
+    imports the parent package first, so when `engine` is absent it raises
+    ModuleNotFoundError rather than returning None -- which is exactly the
+    case this function exists to detect, and it took the script down instead
+    of answering.
+    """
+    try:
+        import engine.brand  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def _install_the_pin() -> None:
+    """Install the register this script just declared.
+
+    WITHOUT THIS THE SCRIPT CANNOT VERIFY ITS OWN WORK. A pin is a line in a
+    file; declaring it does not put the package on the path. The first build
+    of this script wrote the line and went straight to the suites -- which
+    passed here, because this machine happened to have the register installed
+    already, and failed everywhere else with three ModuleNotFoundErrors.
+
+    CI does exactly this step, from the same file, before running anything.
+    A local run has to as well or it is testing a different environment from
+    the one the pin is for.
+    """
+    if _register_importable():
+        print("  the register is already importable; nothing to install")
+        return
+    print(f"  installing the register from {SENTINEL_FILE} ...")
+    cmd = [sys.executable, "-m", "pip", "install", "-q", "-r", SENTINEL_FILE]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        out = (proc.stderr or "") + (proc.stdout or "")
+        tail = out.strip().splitlines()[-4:]
+        # PEP 668: a distribution-managed Python refuses to install into
+        # itself. That is a DIFFERENT problem from a failed download, and the
+        # generic "check your network" advice sends people the wrong way.
+        # This script will not pass --break-system-packages on someone's
+        # behalf: the protection exists because overriding it can break the
+        # operating system's own Python, and that is not a delivery script's
+        # call to make.
+        managed = ("externally-managed-environment" in out
+                   or "externally managed environment" in out)
+        if managed:
+            raise SystemExit(
+                "could not install the register: this Python is "
+                "externally managed (PEP 668), so pip will not install into "
+                "it.\n\nThe pin IS written to " + SENTINEL_FILE + " and the "
+                "edit is sound. Install the register in whichever environment "
+                "you run the tests from, then re-run `python up.py --verify`. "
+                "Either of these:\n\n"
+                "    python -m venv .venv && .venv/bin/pip install -r "
+                + SENTINEL_FILE + "\n"
+                "    pip install --break-system-packages -r " + SENTINEL_FILE
+                + "\n\nThe second overrides your distribution's protection; "
+                "it is offered because you may already work that way, not "
+                "because this script recommends it.")
+        raise SystemExit(
+            "could not install the register:\n    " + "\n    ".join(tail)
+            + "\n\nThe pin IS written to " + SENTINEL_FILE + " and the edit "
+            "is sound -- only the install failed. Install it yourself and "
+            "re-run `python up.py --verify`:\n\n"
+            "    pip install -r " + SENTINEL_FILE)
+    importlib.invalidate_caches()
+    if not _register_importable():
+        raise SystemExit(
+            "pip reported success but engine.brand is still not importable. "
+            "Check that the pin line in " + SENTINEL_FILE + " is intact.")
+    print("  the register is importable")
+
+
+#: Called by the harness after the files are written and before the suites
+#: run. See _install_the_pin above for why it cannot happen any earlier.
+post_write = _install_the_pin
 
 
 def checks(tree) -> None:
@@ -396,6 +477,20 @@ def _step(label: str, args: list[str]) -> int:
 
 
 def verify() -> int:
+    # A script that changes the ENVIRONMENT its suites run in does it here,
+    # not in checks(): checks() runs against the in-memory tree before
+    # anything is on disk. The register pin is the case that needed it -- it
+    # writes a dependency line and then runs tests that import what the line
+    # declares, and DECLARING IS NOT INSTALLING.
+    #
+    # In verify() rather than apply() so that `--verify` gets it too; that is
+    # the entry point someone uses to re-check a repository, and it has to
+    # prepare the same environment.
+    hook = globals().get("post_write")
+    if hook is not None:
+        hook()
+        print()
+
     code = _step("guard",
                  [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
                   GUARD])
