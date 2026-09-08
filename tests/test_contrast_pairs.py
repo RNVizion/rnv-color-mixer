@@ -64,7 +64,7 @@ def _norm(value: str) -> str | None:
 
 
 def _rules(css: str):
-    """Linear scan, not a regex.
+    r"""Linear scan, not a regex.
 
     A regex over `\{\{([^{}]*)\}\}` once found 23 of 173 rules in a sibling
     repo and every contrast test passed vacuously. Walk the string.
@@ -275,3 +275,10 @@ def test_gold_text_never_lands_below_the_coverage_floor():
             continue
         assert _luminance(bg) <= _luminance("#ffffff"), bg
         assert contrast(fg, bg) >= TEXT_FLOOR, f"{fg} on {bg}"
+
+# ── Escape sequences (RNV-ESCAPE-SEQUENCES, 2026-09-08) ────────────
+# The docstring of _rules() was made raw. It contains \{ , which is
+# not a recognised escape: a warning today, and a SyntaxError from
+# Python 3.14 that would stop this module importing at all.
+# tests/test_escape_sequences.py sweeps every file for the same
+# thing, and found this was the only one in the fleet.
