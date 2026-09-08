@@ -2,43 +2,59 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: one character, before Python 3.14 makes it a SyntaxError.
+rnv-color-mixer: give Linux CI back the 12 tests it has been skipping.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-WHAT IS WRONG. tests/test_contrast_pairs.py:67 explains, inside a NON-raw
-docstring, that
+WHY NOW. TestAsyncFileOpsErrorPaths and TestAsyncFileOpsFormatPaths were
+deselected on Linux because they aborted the interpreter (SIGABRT, exit
+134). The thread-ownership round removed the defect that caused it. That is
+not an inference -- it was measured, matched and interleaved, on the tree
+before and after that fix, with these two classes INCLUDED:
 
-    A regex over `\{\{([^{}]*)\}\}` once found 23 of 173 rules ...
+        before the fix   70 aborts / 120 runs   (58.3%)
+        after the fix     0 aborts / 120 runs
 
-Backslash-brace is not a recognised escape sequence. Python keeps the
-backslash and warns, and that warning has been getting louder:
+P(0 in 120 at 58.3%) = 2e-46. The deselects were load-bearing; they are not
+any more.
 
-    3.6 - 3.11   DeprecationWarning   invisible unless you look
-    3.12         SyntaxWarning        printed on every run
-    3.14         SyntaxError          the module stops importing
+CREDIT WHERE IT IS DUE. KNOWN_ISSUES.md had this right on 22 August, three
+weeks before the fix was written:
 
-A dated removal, the same shape as Pillow's -- and this one takes a whole
-test module with it rather than one call.
+    "qtbot.waitSignal returns the instant `finished` fires; the `thread`
+     local then goes out of scope at the end of the test, and Qt can find
+     itself destroying a QThread that has not finished unwinding."
 
-HOW IT SURFACED. tests/test_thread_ownership.py, installed in the previous
-round, walks every test file with ast.parse. That re-triggers the warning on
-each pass, so one warning in the CI log became three. Fixing the string
-clears all three; silencing them in the walker would have hidden a deadline.
+and prescribed the remedy -- "hold the thread on the object, not on the
+stack". What the recent round added was the SCOPE (seventeen sites, not the
+two or three named), the implementation, and the proof. The diagnosis was
+already in this repository.
 
-WHAT THIS DOES. Makes that one docstring raw -- adds a single `r`. **The
-text of the docstring does not change**, and neither does any behaviour: the
-string was never used as anything but documentation, which is precisely why
-nobody noticed the backslashes were being kept.
+WHAT THIS TOUCHES, AND WHY IT IS FOUR EDITS RATHER THAN TWO DELETIONS.
+Removing the arguments alone would leave three statements that are then
+false:
 
-The whole fleet was swept before writing this: **exactly one instance across
-all five repositories**. The guard is armed anyway, because a guard proposed
-against a clean sweep only gets harder to justify later.
+  1. .github/workflows/tests-linux.yml -- the two --deselect arguments.
+  2. The comment block above them, which lists the skips and their reasons.
+  3. KNOWN_ISSUES.md, whose 31 Aug update records the family as deselected
+     and prescribes keeping it that way.
+  4. tests/test_ci_deselects.py::test_the_documented_family_is_the_one_that
+     _is_deselected, which asserts that BOTH classes are deselected. Its
+     premise inverts, so the test is replaced by its opposite: the family
+     must NOT be deselected, and KNOWN_ISSUES.md must say why it came back.
 
-NO APPLICATION FILE IS TOUCHED.
+That fourth one is the reason this is a round of its own. A guard whose
+premise has reversed is not a guard to delete quietly -- it is one to point
+the other way, so the next person to add a deselect for this family has to
+justify it against a written record.
+
+WHAT DOES NOT CHANGE. The unittest deselect for
+test_load_real_image_if_available stays: that is a different problem (an
+offscreen hang loading the background image) and this round has no evidence
+about it. No application file is touched. No test is skipped or removed.
 """
 from __future__ import annotations
 
@@ -49,15 +65,14 @@ import re
 import subprocess
 import sys
 import tempfile
-import warnings
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "tests/test_contrast_pairs.py"
-SENTINEL = "RNV-ESCAPE-SEQUENCES"
-GUARD = "tests/test_escape_sequences.py"
-DESCRIPTION = "make one docstring raw before 3.14 makes it fatal"
-SUITES = [("\"pytest tests/\"",
+SENTINEL_FILE = ".github/workflows/tests-linux.yml"
+SENTINEL = "RESTORED 2026-09-08"
+GUARD = "tests/test_restored_classes.py"
+DESCRIPTION = "restore the two deselected AsyncFileOps classes to Linux CI"
+SUITES = [("\"pytest tests/ -- exactly as Linux CI now runs it\"",
            [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
           ("\"the LOCKED file, 355 tests\"",
            [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
@@ -66,199 +81,202 @@ SUITES = [("\"pytest tests/\"",
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''r"""RNV-ESCAPE-SEQUENCES-GUARD -- every string literal here is still legal
-Python, and will still be legal in Python 3.14.
+GUARD_SOURCE = r'''"""RNV-RESTORED-CLASSES-GUARD -- the 12 tests Linux CI stopped skipping
+actually run there, and keep running.
 
-THIS DOCSTRING IS RAW ON PURPOSE, and the first draft was not. It quotes the
-offending text, so it reproduced the offence: the guard against invalid
-escape sequences contained an invalid escape sequence, and failed itself on
-the first run. Use versus mention -- the eleventh instance in this
-programme. A file that must SHOW a bad escape has to be raw, or say it in
-words.
+Installed 2026-09-08. `tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths`
+and `tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths` were
+deselected on Linux from 31 August because they aborted the interpreter
+(SIGABRT, exit 134). The thread-ownership fix removed the cause, measured on
+the tree before and after with both classes included:
 
-Installed 2026-09-08. tests/test_contrast_pairs.py carried
+    before   70 aborts / 120 runs   (58.3%)
+    after     0 aborts / 120 runs
 
-    A regex over `\{\{([^{}]*)\}\}` once found 23 of 173 rules ...
-
-inside a NON-RAW docstring. Backslash-brace is not a recognised escape, so
-Python kept the backslash and warned. That warning has been:
-
-    3.6 - 3.11   DeprecationWarning  (invisible unless you look)
-    3.12         SyntaxWarning       (visible on every run)
-    3.14         SyntaxError         (the file stops importing)
-
-A dated removal, like Pillow's, and this one takes the whole module with it.
-
-WHY IT SURFACED NOW. tests/test_thread_ownership.py walks every test file
-with ast.parse, which re-triggers the warning on each pass -- one warning
-became three in the CI log. Fixing the string fixes all three; suppressing
-them in the walker would have hidden a real deadline.
-
-WHY A GUARD FOR A ONE-CHARACTER FIX. Because the fix is one character, the
-next one will be too, and nothing would have caught it. The whole fleet was
-swept when this was written: exactly one instance in five repositories. A
-guard armed against a clean sweep is the cheapest it will ever be.
+WHAT THIS ADDS THAT tests/test_ci_deselects.py DOES NOT. That file reads the
+workflow: it proves the arguments are gone and that the prose agrees. This
+one proves the tests THEMSELVES are real, present and exercising the thing
+they were written for -- because a restored deselect achieves nothing if the
+class was quietly emptied or renamed in the meantime, and both files would
+pass over the silence.
 """
 from __future__ import annotations
 
-import warnings
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-SKIP_DIRS = {'.git', 'build', 'dist', '__pycache__', '.venv', '.pytest_cache',
-             'htmlcov', '.benchmarks', '.hypothesis'}
+#: (file, class, the number of tests it held when the deselects came off)
+RESTORED = (
+    ('tests/test_error_recovery_paths.py', 'TestAsyncFileOpsErrorPaths', 4),
+    ('tests/test_lifecycle_handlers.py', 'TestAsyncFileOpsFormatPaths', 6),
+)
 
 
-def _sources():
-    for path in sorted(ROOT.rglob('*.py')):
-        if any(part in SKIP_DIRS for part in path.parts):
-            continue
-        # a delivery script is a tool passing through, not application source
-        if path.parent == ROOT and path.name.startswith('up'):
-            continue
-        yield path
+def _methods(rel: str, cls: str):
+    path = ROOT / rel
+    assert path.exists(), f'{rel} is missing'
+    tree = ast.parse(path.read_text(encoding='utf-8'))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == cls:
+            return [n.name for n in node.body
+                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and n.name.startswith('test')]
+    return None
 
 
-def _offenders():
-    found = []
-    for path in _sources():
-        try:
-            source = path.read_text(encoding='utf-8-sig')
-        except OSError:  # pragma: no cover
-            continue
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter('always')
-            try:
-                compile(source, str(path), 'exec')
-            except SyntaxError:  # a different problem, and a louder one
+def test_both_restored_classes_still_exist():
+    """A class that was renamed or removed leaves the workflow clean and the
+    coverage gone, with nothing to say so."""
+    missing = [f'{rel}::{cls}' for rel, cls, _ in RESTORED
+               if _methods(rel, cls) is None]
+    assert not missing, (
+        'these classes were restored to Linux CI on 2026-09-08 and no longer '
+        'exist:\n  ' + '\n  '.join(missing))
+
+
+def test_they_still_hold_the_tests_they_held():
+    """Counted, not assumed. Twelve tests came back; if that number falls,
+    it should be because somebody decided so."""
+    thin = []
+    for rel, cls, expected in RESTORED:
+        names = _methods(rel, cls) or []
+        if len(names) < expected:
+            thin.append(f'{rel}::{cls} has {len(names)}, had {expected}')
+    assert not thin, (
+        'restored classes have lost tests:\n  ' + '\n  '.join(thin)
+        + '\n\nIf that was deliberate, lower the count in this file in the '
+          'same commit, so the loss is written down rather than absorbed.')
+
+
+def test_they_are_not_skipped_by_decorator_instead():
+    """The other way to make a test quiet.
+
+    Removing a --deselect and adding @pytest.mark.skip has the same effect
+    on coverage and a much smaller diff. KNOWN_ISSUES.md is explicit that
+    this family should be deselected visibly rather than marked skip, "so
+    the cost stays countable" -- and that reasoning survives the fix.
+    """
+    marked = []
+    for rel, cls, _ in RESTORED:
+        text = (ROOT / rel).read_text(encoding='utf-8')
+        tree = ast.parse(text)
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.ClassDef) and node.name == cls):
                 continue
-            for entry in caught:
-                if 'invalid escape sequence' in str(entry.message):
-                    found.append(
-                        f'{path.relative_to(ROOT).as_posix()}:{entry.lineno}  '
-                        f'{entry.message}')
-    return found
+            targets = [node] + [n for n in node.body
+                                if isinstance(n, ast.FunctionDef)]
+            for target in targets:
+                for dec in target.decorator_list:
+                    src = ast.get_source_segment(text, dec) or ''
+                    if 'skip' in src and 'skipif' not in src:
+                        marked.append(f'{rel}::{cls}::{getattr(target, "name", "?")}'
+                                      f'  @{src.strip()[:40]}')
+    assert not marked, (
+        'these are skipped by decorator, which hides them as effectively as '
+        'the deselect did:\n  ' + '\n  '.join(marked))
 
 
-def test_no_source_file_has_an_invalid_escape_sequence():
-    """The one that matters.
+def test_the_thread_ownership_fixture_is_what_they_depend_on():
+    """Name the coupling, so it cannot be removed by accident.
 
-    An invalid escape is a SyntaxError from Python 3.14. Until then it is a
-    warning that everyone scrolls past -- which is exactly how it survives
-    long enough to become a build failure.
-
-    The fix is almost always to make the string raw (r'...'), which is also
-    what you wanted if it contains a regex.
+    These classes are only safe to run because every thread they build is
+    adopted. If the fixture disappears, this round's premise disappears with
+    it, and the aborts come back at 58%.
     """
-    offenders = _offenders()
-    assert not offenders, (
-        'these contain escape sequences Python does not recognise:\n  '
-        + '\n  '.join(offenders)
-        + "\n\nPython 3.14 turns these into SyntaxError and the module stops "
-          "importing. Make the string raw -- r'...' -- or double the "
-          "backslash.")
-
-
-def test_this_guard_can_see_the_files_it_judges():
-    """A sweep that compiles nothing reports nothing and passes, which looks
-    exactly like a repository with no invalid escapes."""
-    files = list(_sources())
-    assert len(files) > 20, f'only {len(files)} python file(s) found under {ROOT}'
-
-
-def test_the_sweep_actually_detects_one():
-    """Guard the guard, in the direction that matters.
-
-    A warnings filter set elsewhere in the suite, or a Python that stops
-    reporting these, would make the sweep above silently blind. So an
-    offender is compiled on purpose and must be seen.
-    """
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always')
-        compile('x = "\\{"\n', '<probe>', 'exec')
-        seen = [w for w in caught if 'invalid escape sequence' in str(w.message)]
-    assert seen, (
-        'compiling a known-bad escape produced no warning, so the sweep in '
-        'this file cannot detect one either. Check whether a warnings filter '
-        'is being applied suite-wide.')
+    conftest = (ROOT / 'tests' / 'conftest.py').read_text(encoding='utf-8')
+    assert 'def adopt(' in conftest, (
+        'the adopt() fixture is gone from tests/conftest.py. The two '
+        'AsyncFileOps classes were restored to Linux CI on the strength of '
+        'it; without it they abort roughly three runs in five.')
+    for rel, cls, _ in RESTORED:
+        text = (ROOT / rel).read_text(encoding='utf-8')
+        assert 'adopt(' in text, (
+            f'{rel} no longer uses adopt(), so the threads it starts are '
+            f'abandoned again.')
 '''
 
-EDITS = [('tests/test_contrast_pairs.py', '    """Linear scan, not a regex.\n', '    r"""Linear scan, not a regex.\n', 1)]
+EDITS = [('.github/workflows/tests-linux.yml', '          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths --deselect tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths', '          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v', 1), ('.github/workflows/tests-linux.yml', '          # Skips:\n          #   - test_load_real_image_if_available (unittest):\n          #       Hangs on offscreen Qt when loading background image.\n          #   - TestAsyncFileOpsErrorPaths (pytest):\n          #       Qt threading + filesystem ops crash Python natively\n          #       (SIGABRT) on offscreen Linux.\n          #   - TestAsyncFileOpsFormatPaths (pytest):\n          #       The same family, in a different file. Aborted CI on\n          #       2026-08-31 at test_writer_binary_format_writes_bytes.\n          #       Reproduced on an UNTOUCHED checkout of the same commit:\n          #       one abort in three runs, at the identical test.\n          #       KNOWN_ISSUES.md said to deselect this family the way\n          #       TestAsyncFileOpsErrorPaths is deselected if it ever\n          #       became noisy. It has.\n', '          # Skips:\n          #   - test_load_real_image_if_available (unittest):\n          #       Hangs on offscreen Qt when loading background image.\n          #\n          # RESTORED 2026-09-08 — TestAsyncFileOpsErrorPaths and\n          # TestAsyncFileOpsFormatPaths are no longer deselected. They were\n          # skipped for a SIGABRT that KNOWN_ISSUES.md had diagnosed\n          # correctly on 22 Aug: qtbot.waitSignal returns the instant the\n          # custom `finished` signal fires, the thread local then goes out\n          # of scope, and Qt destroys a QThread that has not finished\n          # unwinding. Seventeen tests did that; all seventeen now hold\n          # their thread through the adopt() fixture in tests/conftest.py.\n          #\n          # Matched, interleaved trials on the tree before and after that\n          # fix, with these two classes included:\n          #       before   70 aborts / 120 runs   (58.3%)\n          #       after     0 aborts / 120 runs\n          # tests/test_thread_ownership.py keeps the seventeen honest.\n', 1), ('KNOWN_ISSUES.md', '**Update, 31 Aug 2026 — it became noisy, so it is deselected.**', '**Update, 31 Aug 2026 — it became noisy, so it was deselected.**\n\n**Resolved, 8 Sep 2026 — the cause was fixed and it is no longer\ndeselected.** The mechanism was the one this file described on 22 August:\n`qtbot.waitSignal` returns the instant the custom `finished` signal fires,\nthe `thread` local goes out of scope, and Qt destroys a `QThread` that has\nnot finished unwinding. What was not known then is how many places did it:\n**seventeen tests across four files**, of which the two deselected classes\nwere ten.\n\nAll seventeen now take their thread through the `adopt()` fixture in\n`tests/conftest.py`, which owns it and waits for it in teardown — a fixture\nrather than a trailing `wait()` because teardown still runs when an\nassertion fails. That is the refactor this entry prescribed, applied to the\ntests rather than to `utils/async_file_ops.py`; the application itself never\nhad the bug, because `ColorHistory` holds `_save_thread` on the object and\n`AsyncFileManager` keeps `_active_threads`, and both check `isRunning()`\nbefore letting go.\n\nMeasured before shipping, matched and interleaved, with these two classes\nincluded in both arms:\n\n| tree | aborts | runs | rate |\n|---|---:|---:|---:|\n| before the fix | 70 | 120 | 58.3% |\n| after the fix | 0 | 120 | 0% |\n\n`tests/test_thread_ownership.py` fails if any test starts a thread it does\nnot own, so the seventeen cannot quietly become eighteen.', 1), ('tests/test_ci_deselects.py', 'def test_the_documented_family_is_the_one_that_is_deselected():\n    """KNOWN_ISSUES.md prescribes deselecting the AsyncFileOps family on\n    Linux when it becomes noisy. This is the link between the prose and the\n    workflow, asserted in the one direction that can be."""\n    nodes = {node for _w, node in _deselects()}\n    linux = [n for n in nodes if \'AsyncFileOps\' in n]\n    assert len(linux) >= 2, (\n        f\'expected both AsyncFileOps classes to be deselected on Linux, \'\n        f\'found {sorted(linux)}\')\n    known = (ROOT / \'KNOWN_ISSUES.md\').read_text(encoding=\'utf-8\')\n    for node in linux:\n        cls = node.rsplit(\'::\', 1)[-1]\n        assert cls in known, (\n            f\'{cls} is deselected in CI but not described in \'\n            f\'KNOWN_ISSUES.md. A deselect with no written reason is an \'\n            f\'exemption nobody can review.\')\n', 'def test_the_family_is_no_longer_deselected():\n    """The inverse of the assertion this replaced, and deliberately so.\n\n    Until 8 Sep 2026 this file asserted that BOTH AsyncFileOps classes were\n    deselected on Linux, because KNOWN_ISSUES.md prescribed it while they\n    aborted the interpreter. The thread-ownership fix removed that abort --\n    measured on the tree before and after, with these classes included:\n    70 aborts in 120 runs before, 0 in 120 after -- so the premise reversed.\n\n    A guard whose premise has reversed is not one to delete. It is one to\n    point the other way: if somebody deselects this family again, they have\n    to write down why, and that is what this asks for.\n    """\n    nodes = {node for _w, node in _deselects()}\n    back = sorted(n for n in nodes if \'AsyncFileOps\' in n)\n    known = (ROOT / \'KNOWN_ISSUES.md\').read_text(encoding=\'utf-8\')\n    assert not back, (\n        \'these AsyncFileOps nodes are deselected again:\\n  \'\n        + \'\\n  \'.join(back)\n        + \'\\n\\nThey were restored on 2026-09-08 after the abort they were \'\n          \'skipped for was fixed and the fix was measured (0 aborts in 120 \'\n          \'runs, against 70 in 120 before). If it has come back, say so in \'\n          \'KNOWN_ISSUES.md with what you measured, and change this test \'\n          \'deliberately rather than around.\')\n    assert \'no longer\\ndeselected\' in known or \'no longer deselected\' in known, (\n        \'KNOWN_ISSUES.md no longer records why the AsyncFileOps family came \'\n        \'back into Linux CI. The workflow and the prose have to agree, and \'\n        \'prose is the half nothing else checks.\')\n\n\ndef test_the_restored_classes_still_collect():\n    """The other direction. Removing a deselect achieves nothing if the\n    tests it was hiding have since been renamed or deleted -- the run would\n    be just as quiet, and this file would still pass."""\n    restored = (\'tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths\',\n                \'tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths\')\n    result = subprocess.run(\n        [sys.executable, \'-m\', \'pytest\', *restored, \'--collect-only\', \'-q\',\n         \'-p\', \'no:cacheprovider\'],\n        cwd=ROOT, capture_output=True, text=True)\n    assert result.returncode == 0 and \'no tests ran\' not in result.stdout, (\n        \'the classes restored on 2026-09-08 no longer collect:\\n\'\n        + result.stdout[-800:])\n    # pytest\'s own count, not the shape of its output: `--collect-only -q`\n    # renders a <Function ...> tree on this version rather than node ids, so\n    # counting lines with \'::\' reports twelve healthy tests as none.\n    found = re.search(r\'(\\d+)\\s+tests?\\s+collected\', result.stdout)\n    collected = int(found.group(1)) if found else 0\n    assert collected >= 10, (\n        f\'only {collected} restored test(s) collect; there were 12 when the \'\n        f\'deselects were removed. If tests were legitimately retired, update \'\n        f\'this floor in the same commit.\\n\' + result.stdout[-400:])\n', 1)]
 
-#: Appended at the END of the file, so it must not say "above" -- the
-#: docstring it describes is in _rules(), a couple of hundred lines up.
-#: A comment that misdescribes its own subject is the cheapest kind of
-#: wrong prose, and nothing checks prose.
-NOTE = (
-    "\n"
-    "# ── Escape sequences (RNV-ESCAPE-SEQUENCES, 2026-09-08) ────────────\n"
-    "# The docstring of _rules() was made raw. It contains \\{ , which is\n"
-    "# not a recognised escape: a warning today, and a SyntaxError from\n"
-    "# Python 3.14 that would stop this module importing at all.\n"
-    "# tests/test_escape_sequences.py sweeps every file for the same\n"
-    "# thing, and found this was the only one in the fleet.\n")
+RESTORED = ("tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths",
+            "tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths")
 
 
 def edits(tree) -> None:
-    src = tree.read(SENTINEL_FILE)
-    if SENTINEL in src:
+    if SENTINEL in tree.read(SENTINEL_FILE):
         raise SystemExit("already applied")
     for rel, old, new, times in EDITS:
         tree.sub(rel, old, new, times)
-    tree.write(SENTINEL_FILE, tree.read(SENTINEL_FILE).rstrip("\n") + "\n" + NOTE)
-    for _, old, new, _ in EDITS:
-        print(f"  {old.strip()[:40]!r}  ->  {new.strip()[:40]!r}")
+    print("  removed 2 --deselect argument(s) from the Linux workflow")
+    print("  rewrote the comment that documented them")
+    print("  recorded the restoration in KNOWN_ISSUES.md")
+    print("  inverted tests/test_ci_deselects.py's family assertion")
 
 
 def checks(tree) -> None:
-    # 1. the docstring's TEXT is unchanged -- only the prefix moved
-    for rel, old, new, _ in EDITS:
-        if new.strip() != "r" + old.strip():
-            raise SystemExit(f"{rel}: the edit changed more than the prefix")
+    wf = tree.read(SENTINEL_FILE)
 
-    # 2. nothing in the tree still carries an invalid escape. Asked of the
-    #    compiler rather than a regex: it is the authority on what counts.
-    offenders = []
+    # 1. neither class is deselected anywhere, in any workflow
     root = Path.cwd()
-    for rel in sorted(tree.files):
-        if not rel.endswith(".py"):
-            continue
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            try:
-                compile(tree.files[rel], rel, "exec")
-            except SyntaxError as exc:
-                raise SystemExit(f"{rel} does not compile after the edit: {exc}")
-            for entry in caught:
-                if "invalid escape sequence" in str(entry.message):
-                    offenders.append(f"{rel}:{entry.lineno}")
-    if offenders:
-        raise SystemExit("invalid escapes survive: " + ", ".join(offenders))
+    still = []
+    for path in sorted((root / ".github/workflows").glob("*.yml")):
+        text = tree.files.get(path.relative_to(root).as_posix()) \
+            or path.read_text(encoding="utf-8")
+        for node in RESTORED:
+            cls = node.rsplit("::", 1)[-1]
+            if re.search(r"--deselect\s+\"?\S*" + re.escape(cls), text):
+                still.append(f"{path.name}: {cls}")
+    if still:
+        raise SystemExit("still deselected: " + ", ".join(still))
 
-    # 3. and the file on disk that was NOT edited is clean too, so the sweep
-    #    is not reporting success from an in-memory subset
-    for path in sorted(root.rglob("*.py")):
-        rel = path.relative_to(root).as_posix()
-        if rel in tree.files or rel.startswith((".venv/", "build/")):
-            continue
-        if path.parent == root and path.name.startswith("up"):
-            continue
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            try:
-                compile(path.read_text(encoding="utf-8-sig"), rel, "exec")
-            except (SyntaxError, OSError):
-                continue
-            for entry in caught:
-                if "invalid escape sequence" in str(entry.message):
-                    offenders.append(f"{rel}:{entry.lineno}")
-    if offenders:
-        raise SystemExit("invalid escapes on disk: " + ", ".join(offenders))
+    # 2. the unittest deselect SURVIVES. This round has no evidence about
+    #    the offscreen image hang, and removing it by accident would be a
+    #    silent scope creep into a different defect.
+    if "test_load_real_image_if_available" not in wf:
+        raise SystemExit("the unittest deselect was removed; it must stay")
 
-    if SENTINEL not in tree.read(SENTINEL_FILE):
-        raise SystemExit("the note did not land")
-    print("  guards: docstring text unchanged, 0 invalid escapes anywhere")
+    # 3. the prose no longer contradicts the workflow
+    if SENTINEL not in wf:
+        raise SystemExit("the workflow comment was not updated")
+    # Markdown wraps, so a phrase can arrive as "no longer\ndeselected".
+    # Collapse whitespace before looking: a check that reads prose has to
+    # read it the way prose is written, or it fails on the line break rather
+    # than on the meaning. This one did, on its first run.
+    known = " ".join(tree.read("KNOWN_ISSUES.md").split())
+    for phrase in ("no longer deselected", "8 Sep 2026"):
+        if phrase not in known:
+            raise SystemExit(f"KNOWN_ISSUES.md does not record {phrase!r}")
+
+    # 4. the inverted guard is present and the old assertion is gone
+    ci = tree.read("tests/test_ci_deselects.py")
+    if "test_the_documented_family_is_the_one_that_is_deselected" in ci:
+        raise SystemExit("the old family assertion survives; its premise is "
+                         "now false and it would fail")
+    if "test_the_family_is_no_longer_deselected" not in ci:
+        raise SystemExit("the replacement assertion did not land")
+
+    # 5. and the tests really do collect -- the whole point of the round.
+    #    Asked of pytest rather than assumed, because a class that cannot be
+    #    collected would make this round restore nothing at all.
+    out = subprocess.run(
+        [sys.executable, "-m", "pytest", *RESTORED, "--collect-only", "-q",
+         "-p", "no:cacheprovider"],
+        cwd=root, capture_output=True, text=True)
+    if out.returncode != 0 or "no tests ran" in out.stdout:
+        raise SystemExit("the restored classes do not collect:\n"
+                         + out.stdout[-600:])
+    # Read pytest's own count, not the shape of its output. `--collect-only
+    # -q` renders a <Function ...> tree here rather than node ids, so
+    # counting lines containing "::" returns 0 and reports twelve healthy
+    # tests as none. It did exactly that on the first run of this script.
+    found = re.search(r"(\d+)\s+tests?\s+collected", out.stdout)
+    n = int(found.group(1)) if found else 0
+    if n < 10:
+        raise SystemExit(f"only {n} restored test(s) collect; expected 12\n"
+                         + out.stdout[-400:])
+    print(f"  guards: 0 deselects for this family, the unittest one intact, "
+          f"{n} restored test(s) collect")
 
 
 # ------------------------------------------------------------------ plumbing
