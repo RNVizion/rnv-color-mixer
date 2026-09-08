@@ -81,19 +81,55 @@ def test_every_deselected_node_still_exists(workflow: str, node: str):
         f'exemption is not doing anything.\n\n{result.stdout[-800:]}')
 
 
-def test_the_documented_family_is_the_one_that_is_deselected():
-    """KNOWN_ISSUES.md prescribes deselecting the AsyncFileOps family on
-    Linux when it becomes noisy. This is the link between the prose and the
-    workflow, asserted in the one direction that can be."""
+def test_the_family_is_no_longer_deselected():
+    """The inverse of the assertion this replaced, and deliberately so.
+
+    Until 8 Sep 2026 this file asserted that BOTH AsyncFileOps classes were
+    deselected on Linux, because KNOWN_ISSUES.md prescribed it while they
+    aborted the interpreter. The thread-ownership fix removed that abort --
+    measured on the tree before and after, with these classes included:
+    70 aborts in 120 runs before, 0 in 120 after -- so the premise reversed.
+
+    A guard whose premise has reversed is not one to delete. It is one to
+    point the other way: if somebody deselects this family again, they have
+    to write down why, and that is what this asks for.
+    """
     nodes = {node for _w, node in _deselects()}
-    linux = [n for n in nodes if 'AsyncFileOps' in n]
-    assert len(linux) >= 2, (
-        f'expected both AsyncFileOps classes to be deselected on Linux, '
-        f'found {sorted(linux)}')
+    back = sorted(n for n in nodes if 'AsyncFileOps' in n)
     known = (ROOT / 'KNOWN_ISSUES.md').read_text(encoding='utf-8')
-    for node in linux:
-        cls = node.rsplit('::', 1)[-1]
-        assert cls in known, (
-            f'{cls} is deselected in CI but not described in '
-            f'KNOWN_ISSUES.md. A deselect with no written reason is an '
-            f'exemption nobody can review.')
+    assert not back, (
+        'these AsyncFileOps nodes are deselected again:\n  '
+        + '\n  '.join(back)
+        + '\n\nThey were restored on 2026-09-08 after the abort they were '
+          'skipped for was fixed and the fix was measured (0 aborts in 120 '
+          'runs, against 70 in 120 before). If it has come back, say so in '
+          'KNOWN_ISSUES.md with what you measured, and change this test '
+          'deliberately rather than around.')
+    assert 'no longer\ndeselected' in known or 'no longer deselected' in known, (
+        'KNOWN_ISSUES.md no longer records why the AsyncFileOps family came '
+        'back into Linux CI. The workflow and the prose have to agree, and '
+        'prose is the half nothing else checks.')
+
+
+def test_the_restored_classes_still_collect():
+    """The other direction. Removing a deselect achieves nothing if the
+    tests it was hiding have since been renamed or deleted -- the run would
+    be just as quiet, and this file would still pass."""
+    restored = ('tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths',
+                'tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths')
+    result = subprocess.run(
+        [sys.executable, '-m', 'pytest', *restored, '--collect-only', '-q',
+         '-p', 'no:cacheprovider'],
+        cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0 and 'no tests ran' not in result.stdout, (
+        'the classes restored on 2026-09-08 no longer collect:\n'
+        + result.stdout[-800:])
+    # pytest's own count, not the shape of its output: `--collect-only -q`
+    # renders a <Function ...> tree on this version rather than node ids, so
+    # counting lines with '::' reports twelve healthy tests as none.
+    found = re.search(r'(\d+)\s+tests?\s+collected', result.stdout)
+    collected = int(found.group(1)) if found else 0
+    assert collected >= 10, (
+        f'only {collected} restored test(s) collect; there were 12 when the '
+        f'deselects were removed. If tests were legitimately retired, update '
+        f'this floor in the same commit.\n' + result.stdout[-400:])

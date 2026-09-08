@@ -108,7 +108,35 @@ deselected rather than marking it skip, so the cost stays visible.
 **Planned fix:** the same refactor as above — hold the thread on the
 object, not on the stack.
 
-**Update, 31 Aug 2026 — it became noisy, so it is deselected.**
+**Update, 31 Aug 2026 — it became noisy, so it was deselected.**
+
+**Resolved, 8 Sep 2026 — the cause was fixed and it is no longer
+deselected.** The mechanism was the one this file described on 22 August:
+`qtbot.waitSignal` returns the instant the custom `finished` signal fires,
+the `thread` local goes out of scope, and Qt destroys a `QThread` that has
+not finished unwinding. What was not known then is how many places did it:
+**seventeen tests across four files**, of which the two deselected classes
+were ten.
+
+All seventeen now take their thread through the `adopt()` fixture in
+`tests/conftest.py`, which owns it and waits for it in teardown — a fixture
+rather than a trailing `wait()` because teardown still runs when an
+assertion fails. That is the refactor this entry prescribed, applied to the
+tests rather than to `utils/async_file_ops.py`; the application itself never
+had the bug, because `ColorHistory` holds `_save_thread` on the object and
+`AsyncFileManager` keeps `_active_threads`, and both check `isRunning()`
+before letting go.
+
+Measured before shipping, matched and interleaved, with these two classes
+included in both arms:
+
+| tree | aborts | runs | rate |
+|---|---:|---:|---:|
+| before the fix | 70 | 120 | 58.3% |
+| after the fix | 0 | 120 | 0% |
+
+`tests/test_thread_ownership.py` fails if any test starts a thread it does
+not own, so the seventeen cannot quietly become eighteen.
 `tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths` aborted
 Linux CI at `test_writer_binary_format_writes_bytes`, with Windows green on
 the same commit. Reproduced locally on an **untouched checkout of that same
