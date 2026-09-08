@@ -2,66 +2,43 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: stop the Linux CI abort at its cause.
+rnv-color-mixer: one character, before Python 3.14 makes it a SyntaxError.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-WHAT IS ACTUALLY WRONG. Linux CI has aborted three times -- SIGABRT, exit
-134, core dumped -- at three different tests:
+WHAT IS WRONG. tests/test_contrast_pairs.py:67 explains, inside a NON-raw
+docstring, that
 
-    2026-08-31  tests/test_lifecycle_handlers.py   TestAsyncFileOpsFormatPaths
-    (earlier)   tests/test_error_recovery_paths.py TestAsyncFileOpsErrorPaths
-    2026-09-07  tests/test_threading.py            TestColorHistoryThreading
+    A regex over `\{\{([^{}]*)\}\}` once found 23 of 173 rules ...
 
-Each looked like a new flake and two were handled by deselecting the class
-on Linux, recorded in KNOWN_ISSUES.md as "platform/environment workarounds,
-not code defects". They are one code defect with SEVENTEEN instances, and
-deselecting moved the next abort to the next member of the family.
+Backslash-brace is not a recognised escape sequence. Python keeps the
+backslash and warns, and that warning has been getting louder:
 
-THE MECHANISM, MEASURED. FileWriterThread and FileReaderThread each declare
+    3.6 - 3.11   DeprecationWarning   invisible unless you look
+    3.12         SyntaxWarning        printed on every run
+    3.14         SyntaxError          the module stops importing
 
-    finished = pyqtSignal(bool, str)
+A dated removal, the same shape as Pillow's -- and this one takes a whole
+test module with it rather than one call.
 
-which SHADOWS QThread.finished(). The custom signal is emitted from INSIDE
-run(). Asking the thread directly at the moment these tests return:
+HOW IT SURFACED. tests/test_thread_ownership.py, installed in the previous
+round, walks every test file with ast.parse. That re-triggers the warning on
+each pass, so one warning in the CI log became three. Fixing the string
+clears all three; silencing them in the walker would have hidden a deadline.
 
-    custom `finished` shadows QThread.finished : True
-    QThread still running after waitSignal      : True
+WHAT THIS DOES. Makes that one docstring raw -- adds a single `r`. **The
+text of the docstring does not change**, and neither does any behaviour: the
+string was never used as anything but documentation, which is precisely why
+nobody noticed the backslashes were being kept.
 
-So seventeen tests wait for the work, then return, leaving a RUNNING QThread
-with no Python reference. Nothing collects it immediately -- prompt
-collection is safe, and was tested. It is destroyed at whatever LATER
-allocation happens to trigger a collection, which is exactly why the abort
-lands inside a later test's call frame with no frame of its own:
+The whole fleet was swept before writing this: **exactly one instance across
+all five repositories**. The guard is armed anyway, because a guard proposed
+against a clean sweep only gets harder to justify later.
 
-    Current thread (most recent call first):
-      File ".../_pytest/python.py", line 167 in pytest_pyfunc_call
-
-Reproduced here on a two-core container under `coverage run`, the same shape
-as the runner: one abort in three full passes, at
-test_file_writer_thread_emits_failure_on_invalid_path -- a different member
-of the same seventeen, which is the point.
-
-THE APPLICATION DOES NOT HAVE THIS BUG. core/color_history.py holds
-self._save_thread and checks isRunning() before releasing it;
-AsyncFileManager keeps _active_threads and filters on isRunning(). Every
-release path in the application re-checks. Only the tests let go. **No
-application file is touched by this script.**
-
-WHAT THIS DOES. Adds an `adopt` fixture to tests/conftest.py that owns any
-thread a test starts and waits for it in teardown, and routes 17 test
-site(s) through it. A fixture rather than a wait() at the end of each test
-because TEARDOWN STILL RUNS WHEN AN ASSERTION FAILS -- otherwise a failing
-assertion would abandon the thread and the abort would bury the real
-failure.
-
-WHAT IT DOES NOT DO. It does not remove the two existing CI deselects.
-Those tests are in the seventeen and should come back, but restoring them
-is a separate decision with its own verification, and this round is the
-repair.
+NO APPLICATION FILE IS TOUCHED.
 """
 from __future__ import annotations
 
@@ -72,13 +49,14 @@ import re
 import subprocess
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "tests/conftest.py"
-SENTINEL = "RNV-THREAD-OWNERSHIP"
-GUARD = "tests/test_thread_ownership.py"
-DESCRIPTION = "stop the tests abandoning running QThreads"
+SENTINEL_FILE = "tests/test_contrast_pairs.py"
+SENTINEL = "RNV-ESCAPE-SEQUENCES"
+GUARD = "tests/test_escape_sequences.py"
+DESCRIPTION = "make one docstring raw before 3.14 makes it fatal"
 SUITES = [("\"pytest tests/\"",
            [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
           ("\"the LOCKED file, 355 tests\"",
@@ -88,215 +66,199 @@ SUITES = [("\"pytest tests/\"",
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-THREAD-OWNERSHIP-GUARD -- a test that starts a thread finishes it.
+GUARD_SOURCE = r'''r"""RNV-ESCAPE-SEQUENCES-GUARD -- every string literal here is still legal
+Python, and will still be legal in Python 3.14.
 
-Installed 2026-09-07, after Linux CI aborted for the third time.
+THIS DOCSTRING IS RAW ON PURPOSE, and the first draft was not. It quotes the
+offending text, so it reproduced the offence: the guard against invalid
+escape sequences contained an invalid escape sequence, and failed itself on
+the first run. Use versus mention -- the eleventh instance in this
+programme. A file that must SHOW a bad escape has to be raw, or say it in
+words.
 
-WHAT WAS ACTUALLY WRONG. Three aborts, at three different tests, over a
-week -- SIGABRT, exit 134, core dumped:
+Installed 2026-09-08. tests/test_contrast_pairs.py carried
 
-    tests/test_error_recovery_paths.py   TestAsyncFileOpsErrorPaths
-    tests/test_lifecycle_handlers.py     TestAsyncFileOpsFormatPaths
-    tests/test_threading.py              TestColorHistoryThreading
+    A regex over `\{\{([^{}]*)\}\}` once found 23 of 173 rules ...
 
-Each looked like a separate flake. Two were handled by deselecting the class
-on Linux and recording it in KNOWN_ISSUES.md as a "platform/environment
-workaround, not a code defect". They were one code defect with seventeen
-instances, and each deselect moved the next abort onto the next member of
-the family.
+inside a NON-RAW docstring. Backslash-brace is not a recognised escape, so
+Python kept the backslash and warned. That warning has been:
 
-THE MECHANISM. FileWriterThread and FileReaderThread each declare
+    3.6 - 3.11   DeprecationWarning  (invisible unless you look)
+    3.12         SyntaxWarning       (visible on every run)
+    3.14         SyntaxError         (the file stops importing)
 
-    finished = pyqtSignal(bool, str)
+A dated removal, like Pillow's, and this one takes the whole module with it.
 
-which SHADOWS QThread.finished(). The custom signal is emitted from INSIDE
-run(), so waiting on it says the WORK finished -- not that the THREAD
-stopped. Seventeen tests waited on it and returned, leaving a running
-QThread with no Python reference behind.
+WHY IT SURFACED NOW. tests/test_thread_ownership.py walks every test file
+with ast.parse, which re-triggers the warning on each pass -- one warning
+became three in the CI log. Fixing the string fixes all three; suppressing
+them in the walker would have hidden a real deadline.
 
-Prompt collection turns out to be harmless, and was tested. The damage comes
-from a DEFERRED collection: the object is destroyed at whatever later
-allocation happens to trigger one, which is why the abort appears inside a
-later test's call frame with no frame of its own.
-
-THE APPLICATION IS NOT AFFECTED, and this guard checks that too.
-core/color_history.py holds self._save_thread and checks isRunning() before
-releasing it; AsyncFileManager keeps _active_threads and filters on
-isRunning(). Every release path re-checks. That is the property worth
-keeping, so it is asserted rather than assumed.
+WHY A GUARD FOR A ONE-CHARACTER FIX. Because the fix is one character, the
+next one will be too, and nothing would have caught it. The whole fleet was
+swept when this was written: exactly one instance in five repositories. A
+guard armed against a clean sweep is the cheapest it will ever be.
 """
 from __future__ import annotations
 
-import ast
+import warnings
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: The two QThread subclasses whose `finished` shadows QThread's.
-THREADS = {'FileWriterThread', 'FileReaderThread'}
+SKIP_DIRS = {'.git', 'build', 'dist', '__pycache__', '.venv', '.pytest_cache',
+             'htmlcov', '.benchmarks', '.hypothesis'}
 
 
-def _functions(text, tree):
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            yield node, (ast.get_source_segment(text, node) or '')
+def _sources():
+    for path in sorted(ROOT.rglob('*.py')):
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        # a delivery script is a tool passing through, not application source
+        if path.parent == ROOT and path.name.startswith('up'):
+            continue
+        yield path
 
 
-def _test_files():
-    return sorted(p for p in (ROOT / 'tests').glob('*.py'))
+def _offenders():
+    found = []
+    for path in _sources():
+        try:
+            source = path.read_text(encoding='utf-8-sig')
+        except OSError:  # pragma: no cover
+            continue
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            try:
+                compile(source, str(path), 'exec')
+            except SyntaxError:  # a different problem, and a louder one
+                continue
+            for entry in caught:
+                if 'invalid escape sequence' in str(entry.message):
+                    found.append(
+                        f'{path.relative_to(ROOT).as_posix()}:{entry.lineno}  '
+                        f'{entry.message}')
+    return found
 
 
-def test_no_test_abandons_a_running_thread():
-    """The whole point.
+def test_no_source_file_has_an_invalid_escape_sequence():
+    """The one that matters.
 
-    A test may own its thread three ways: adopt() it, wait() for it, or poll
-    isRunning() until it stops. Anything else returns while the thread is
-    alive, and the interpreter dies later somewhere that looks unrelated.
+    An invalid escape is a SyntaxError from Python 3.14. Until then it is a
+    warning that everyone scrolls past -- which is exactly how it survives
+    long enough to become a build failure.
+
+    The fix is almost always to make the string raw (r'...'), which is also
+    what you wanted if it contains a regex.
     """
-    stranded = []
-    for path in _test_files():
-        text = path.read_text(encoding='utf-8')
-        tree = ast.parse(text)
-        for fn, fnsrc in _functions(text, tree):
-            for node in ast.walk(fn):
-                if not (isinstance(node, ast.Assign)
-                        and isinstance(node.value, ast.Call)):
-                    continue
-                if getattr(node.value.func, 'id', None) not in THREADS:
-                    continue
-                target = node.targets[0]
-                var = target.id if isinstance(target, ast.Name) else None
-                if var is None:
-                    continue
-                owned = (f'{var}.wait(' in fnsrc
-                         or f'not {var}.isRunning()' in fnsrc
-                         or f'{var} = adopt(' in fnsrc)
-                if not owned:
-                    stranded.append(
-                        f'{path.relative_to(ROOT).as_posix()}:{node.lineno} '
-                        f'{fn.name} (local `{var}`)')
-    assert not stranded, (
-        'these start a thread and return without stopping it:\n  '
-        + '\n  '.join(stranded)
-        + '\n\nThe `finished` signal on these classes is emitted from inside '
-          'run(), so waiting on it does NOT mean the thread has stopped. '
-          'Wrap the construction in the adopt() fixture:\n\n'
-          '    thread = adopt(FileWriterThread(path, data, "json"))')
-
-
-def test_the_signal_really_does_shadow_qthreads():
-    """The premise, asserted rather than remembered.
-
-    If someone renames the custom signal, waiting on `finished` would start
-    meaning what everyone assumed it meant -- and this guard, and the fixture
-    it defends, would be solving a problem that no longer exists. Better to
-    be told.
-    """
-    from PyQt6.QtCore import QThread
-
-    from utils.async_file_ops import FileReaderThread, FileWriterThread
-
-    for cls in (FileWriterThread, FileReaderThread):
-        assert cls.finished is not QThread.finished, (
-            f'{cls.__name__}.finished no longer shadows QThread.finished. '
-            f'That is an improvement -- but the adopt() fixture and this '
-            f'guard exist because it did, so re-read both before deciding '
-            f'they are still needed.')
-
-
-def test_the_application_still_checks_before_it_lets_a_thread_go():
-    """The other half, and the reason no application file was edited.
-
-    The tests were the only place that abandoned a thread. Every release
-    path in the application re-checks isRunning() first. That is a real
-    property of the source, so it is checked rather than trusted.
-    """
-    history = (ROOT / 'core' / 'color_history.py').read_text(encoding='utf-8')
-    assert 'isRunning()' in history, (
-        'core/color_history.py no longer checks isRunning() before releasing '
-        '_save_thread')
-    assert '_save_thread.wait(' in history, (
-        'core/color_history.py no longer waits for _save_thread in cleanup()')
-
-    ops = (ROOT / 'utils' / 'async_file_ops.py').read_text(encoding='utf-8')
-    assert 'isRunning()' in ops, (
-        'utils/async_file_ops.py no longer checks isRunning() before '
-        'dropping threads from _active_threads')
+    offenders = _offenders()
+    assert not offenders, (
+        'these contain escape sequences Python does not recognise:\n  '
+        + '\n  '.join(offenders)
+        + "\n\nPython 3.14 turns these into SyntaxError and the module stops "
+          "importing. Make the string raw -- r'...' -- or double the "
+          "backslash.")
 
 
 def test_this_guard_can_see_the_files_it_judges():
-    """A walk that finds no test files finds no stranded threads and passes,
-    which looks exactly like a repository in good order."""
-    files = _test_files()
-    assert len(files) > 10, f'only {len(files)} test file(s) found under {ROOT}'
-    built = 0
-    for path in files:
-        text = path.read_text(encoding='utf-8')
-        for node in ast.walk(ast.parse(text)):
-            if (isinstance(node, ast.Call)
-                    and getattr(node.func, 'id', None) in THREADS):
-                built += 1
-    assert built >= 10, (
-        f'only {built} thread construction(s) found across {len(files)} test '
-        f'files. There were seventeen when this guard was written, so this '
-        f'walk is not reading what it thinks it is.')
+    """A sweep that compiles nothing reports nothing and passes, which looks
+    exactly like a repository with no invalid escapes."""
+    files = list(_sources())
+    assert len(files) > 20, f'only {len(files)} python file(s) found under {ROOT}'
+
+
+def test_the_sweep_actually_detects_one():
+    """Guard the guard, in the direction that matters.
+
+    A warnings filter set elsewhere in the suite, or a Python that stops
+    reporting these, would make the sweep above silently blind. So an
+    offender is compiled on purpose and must be seen.
+    """
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        compile('x = "\\{"\n', '<probe>', 'exec')
+        seen = [w for w in caught if 'invalid escape sequence' in str(w.message)]
+    assert seen, (
+        'compiling a known-bad escape produced no warning, so the sweep in '
+        'this file cannot detect one either. Check whether a warnings filter '
+        'is being applied suite-wide.')
 '''
 
-EDITS = [('tests/test_error_recovery_paths.py', '    def test_writer_thread_with_invalid_format_raises_internally(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_thread_with_invalid_format_raises_internally(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileWriterThread(\n            str(target), {"data": "x"}, format="unknown_format_xyz"\n        )', 'adopt(FileWriterThread(\n            str(target), {"data": "x"}, format="unknown_format_xyz"\n        ))', 1), ('tests/test_error_recovery_paths.py', '    def test_writer_thread_with_unwritable_path_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_thread_with_unwritable_path_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileWriterThread(\n            str(bogus), {"data": "x"}, format="json"\n        )', 'adopt(FileWriterThread(\n            str(bogus), {"data": "x"}, format="json"\n        ))', 1), ('tests/test_error_recovery_paths.py', '    def test_reader_thread_with_missing_file_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_reader_thread_with_missing_file_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileReaderThread(bogus, format="json")', 'adopt(FileReaderThread(bogus, format="json"))', 1), ('tests/test_error_recovery_paths.py', '    def test_reader_thread_with_corrupted_json_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_reader_thread_with_corrupted_json_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileReaderThread(str(bad), format="json")', 'adopt(FileReaderThread(str(bad), format="json"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_writer_text_format_writes_string_data(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_text_format_writes_string_data(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileWriterThread(\n            str(target), "string content here", format="text"\n        )', 'adopt(FileWriterThread(\n            str(target), "string content here", format="text"\n        ))', 1), ('tests/test_lifecycle_handlers.py', '    def test_writer_binary_format_writes_bytes(self, tmp_path, qtbot):\n', '    def test_writer_binary_format_writes_bytes(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileWriterThread(str(target), data, format="binary")', 'adopt(FileWriterThread(str(target), data, format="binary"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_writer_unsupported_format_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_unsupported_format_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileWriterThread(\n            str(target), {"x": 1}, format="totally_made_up"\n        )', 'adopt(FileWriterThread(\n            str(target), {"x": 1}, format="totally_made_up"\n        ))', 1), ('tests/test_lifecycle_handlers.py', '    def test_reader_text_format_reads_string(self, tmp_path, qtbot):\n', '    def test_reader_text_format_reads_string(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileReaderThread(str(src), format="text")', 'adopt(FileReaderThread(str(src), format="text"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_reader_binary_format_reads_bytes(self, tmp_path, qtbot):\n', '    def test_reader_binary_format_reads_bytes(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileReaderThread(str(src), format="binary")', 'adopt(FileReaderThread(str(src), format="binary"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_reader_unsupported_format_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_reader_unsupported_format_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileReaderThread(str(src), format="weird_format_xyz")', 'adopt(FileReaderThread(str(src), format="weird_format_xyz"))', 1), ('tests/test_threading.py', '    def test_save_async_emits_finished_with_success_true(\n        self, real_color_history, tmp_path, qtbot\n    ):\n', '    def test_save_async_emits_finished_with_success_true(\n        self, real_color_history, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_threading.py', 'FileWriterThread(ch.history_file, data, "json")', 'adopt(FileWriterThread(ch.history_file, data, "json"))', 1), ('tests/test_threading.py', '    def test_file_writer_thread_emits_finished_with_success_true(\n        self, tmp_path, qtbot\n    ):\n', '    def test_file_writer_thread_emits_finished_with_success_true(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_threading.py', 'FileWriterThread(path, {"alpha": 1, "beta": [2, 3]}, "json")', 'adopt(FileWriterThread(path, {"alpha": 1, "beta": [2, 3]}, "json"))', 1), ('tests/test_threading.py', "    def test_file_writer_thread_emits_failure_on_invalid_path(\n        self, tmp_path, qtbot\n    ):\n        # A directory path that doesn't exist as a parent — write will fail\n", "    def test_file_writer_thread_emits_failure_on_invalid_path(\n        self, tmp_path, adopt, qtbot\n    ):\n        # A directory path that doesn't exist as a parent — write will fail\n", 1), ('tests/test_threading.py', 'FileWriterThread(bad_path, {"x": 1}, "json")', 'adopt(FileWriterThread(bad_path, {"x": 1}, "json"))', 1), ('tests/test_threading.py', '    def test_file_writer_thread_progress_signal_reaches_100(\n        self, tmp_path, qtbot\n    ):\n', '    def test_file_writer_thread_progress_signal_reaches_100(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_threading.py', 'FileWriterThread(path, {"k": "v"}, "json")', 'adopt(FileWriterThread(path, {"k": "v"}, "json"))', 1), ('tests/test_threading.py', '    def test_file_reader_thread_round_trip(self, tmp_path, qtbot):\n', '    def test_file_reader_thread_round_trip(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_threading.py', 'FileReaderThread(str(path), "json")', 'adopt(FileReaderThread(str(path), "json"))', 1), ('tests/test_utility_modules.py', '    def test_file_writer_thread_writes_text_data(self, tmp_path, qtbot):\n', '    def test_file_writer_thread_writes_text_data(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_utility_modules.py', 'FileWriterThread(str(target), "hello world", format="text")', 'adopt(FileWriterThread(str(target), "hello world", format="text"))', 1), ('tests/test_utility_modules.py', '    def test_file_reader_thread_reads_known_json_file(self, tmp_path, qtbot):\n', '    def test_file_reader_thread_reads_known_json_file(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_utility_modules.py', 'FileReaderThread(str(src), format="json")', 'adopt(FileReaderThread(str(src), format="json"))', 1)]
+EDITS = [('tests/test_contrast_pairs.py', '    """Linear scan, not a regex.\n', '    r"""Linear scan, not a regex.\n', 1)]
 
-FIXTURE = '\n# ── Thread ownership (RNV-THREAD-OWNERSHIP, 2026-09-07) ───────────────────\n# See tests/test_thread_ownership.py for the whole story. In short:\n# FileWriterThread.finished and FileReaderThread.finished SHADOW\n# QThread.finished() and are emitted from INSIDE run(), so waiting on one\n# means the work is done -- not that the thread has stopped.\n\n\n@pytest.fixture\ndef adopt(qtbot):\n    """Own any QThread this test starts, and stop it before the test ends.\n\n    WHY THIS EXISTS. Seventeen tests built a FileWriterThread or a\n    FileReaderThread, waited on its custom `finished` signal, and returned.\n    That signal is emitted from inside run(), so the QThread was still\n    RUNNING -- and the local name was the only reference to it. Nothing\n    collected it straight away; it was destroyed at whatever later\n    allocation happened to trigger a collection, which is why Linux CI\n    aborted (SIGABRT, exit 134) inside a LATER test\'s frame, three times,\n    at three different tests, each of which looked like a separate flake.\n\n    WHY A FIXTURE AND NOT A wait() AT THE END OF EACH TEST. Teardown runs\n    even when an assertion fails. A trailing wait() does not -- so a failing\n    assertion would abandon the thread and the abort would bury the real\n    failure underneath it.\n\n    Usage:\n\n        thread = adopt(FileWriterThread(path, data, "json"))\n    """\n    owned = []\n\n    def _adopt(thread):\n        owned.append(thread)\n        return thread\n\n    yield _adopt\n\n    for thread in owned:\n        if thread.isRunning():\n            thread.quit()\n            assert thread.wait(5000), (\n                "a thread this test started was still running at teardown "\n                "and did not stop within 5s. Leaving it running is what "\n                "aborts the interpreter later.")\n'
+#: Appended at the END of the file, so it must not say "above" -- the
+#: docstring it describes is in _rules(), a couple of hundred lines up.
+#: A comment that misdescribes its own subject is the cheapest kind of
+#: wrong prose, and nothing checks prose.
+NOTE = (
+    "\n"
+    "# ── Escape sequences (RNV-ESCAPE-SEQUENCES, 2026-09-08) ────────────\n"
+    "# The docstring of _rules() was made raw. It contains \\{ , which is\n"
+    "# not a recognised escape: a warning today, and a SyntaxError from\n"
+    "# Python 3.14 that would stop this module importing at all.\n"
+    "# tests/test_escape_sequences.py sweeps every file for the same\n"
+    "# thing, and found this was the only one in the fleet.\n")
 
 
 def edits(tree) -> None:
-    conftest = tree.read(SENTINEL_FILE)
-    if SENTINEL in conftest:
+    src = tree.read(SENTINEL_FILE)
+    if SENTINEL in src:
         raise SystemExit("already applied")
     for rel, old, new, times in EDITS:
         tree.sub(rel, old, new, times)
-    tree.write(SENTINEL_FILE, conftest.rstrip("\n") + "\n" + FIXTURE)
-    files = sorted({e[0] for e in EDITS})
-    print(f"  installed the `adopt` fixture in {SENTINEL_FILE}")
-    print(f"  {len(EDITS) // 2} test site(s) adopted across {len(files)} file(s)")
-    for rel in files:
-        print(f"    {rel}  ({len([e for e in EDITS if e[0] == rel]) // 2})")
+    tree.write(SENTINEL_FILE, tree.read(SENTINEL_FILE).rstrip("\n") + "\n" + NOTE)
+    for _, old, new, _ in EDITS:
+        print(f"  {old.strip()[:40]!r}  ->  {new.strip()[:40]!r}")
 
 
 def checks(tree) -> None:
-    if SENTINEL not in tree.read(SENTINEL_FILE):
-        raise SystemExit("the fixture did not land")
+    # 1. the docstring's TEXT is unchanged -- only the prefix moved
+    for rel, old, new, _ in EDITS:
+        if new.strip() != "r" + old.strip():
+            raise SystemExit(f"{rel}: the edit changed more than the prefix")
 
-    # Not one test still builds a thread it does not own. This is the same
-    # walk the guard does, run against the in-memory tree before anything
-    # reaches disk.
-    THREADS = {"FileWriterThread", "FileReaderThread"}
-    stranded = []
+    # 2. nothing in the tree still carries an invalid escape. Asked of the
+    #    compiler rather than a regex: it is the authority on what counts.
+    offenders = []
+    root = Path.cwd()
     for rel in sorted(tree.files):
-        if not rel.startswith("tests/") or not rel.endswith(".py"):
+        if not rel.endswith(".py"):
             continue
-        text = tree.files[rel]
-        try:
-            parsed = ast.parse(text)
-        except SyntaxError as exc:
-            raise SystemExit(f"{rel} does not parse after the edit: {exc}")
-        for fn in [n for n in ast.walk(parsed) if isinstance(n, ast.FunctionDef)]:
-            fnsrc = ast.get_source_segment(text, fn) or ""
-            for node in ast.walk(fn):
-                if not (isinstance(node, ast.Assign)
-                        and isinstance(node.value, ast.Call)):
-                    continue
-                called = getattr(node.value.func, "id", None)
-                if called not in THREADS:
-                    continue
-                var = (node.targets[0].id
-                       if isinstance(node.targets[0], ast.Name) else "?")
-                if f"{var}.wait(" in fnsrc or f"not {var}.isRunning()" in fnsrc:
-                    continue
-                stranded.append(f"{rel}:{node.lineno} {fn.name}")
-    if stranded:
-        raise SystemExit("threads are still abandoned: " + ", ".join(stranded))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
+                compile(tree.files[rel], rel, "exec")
+            except SyntaxError as exc:
+                raise SystemExit(f"{rel} does not compile after the edit: {exc}")
+            for entry in caught:
+                if "invalid escape sequence" in str(entry.message):
+                    offenders.append(f"{rel}:{entry.lineno}")
+    if offenders:
+        raise SystemExit("invalid escapes survive: " + ", ".join(offenders))
 
-    n = len([e for e in EDITS if e[1].lstrip().startswith(("thread", "t "))])
-    print(f"  guards: 0 abandoned threads across every test file")
+    # 3. and the file on disk that was NOT edited is clean too, so the sweep
+    #    is not reporting success from an in-memory subset
+    for path in sorted(root.rglob("*.py")):
+        rel = path.relative_to(root).as_posix()
+        if rel in tree.files or rel.startswith((".venv/", "build/")):
+            continue
+        if path.parent == root and path.name.startswith("up"):
+            continue
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
+                compile(path.read_text(encoding="utf-8-sig"), rel, "exec")
+            except (SyntaxError, OSError):
+                continue
+            for entry in caught:
+                if "invalid escape sequence" in str(entry.message):
+                    offenders.append(f"{rel}:{entry.lineno}")
+    if offenders:
+        raise SystemExit("invalid escapes on disk: " + ", ".join(offenders))
+
+    if SENTINEL not in tree.read(SENTINEL_FILE):
+        raise SystemExit("the note did not land")
+    print("  guards: docstring text unchanged, 0 invalid escapes anywhere")
 
 
 # ------------------------------------------------------------------ plumbing
