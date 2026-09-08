@@ -2,64 +2,66 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: make the dependency declarations coherent.
+rnv-color-mixer: stop the Linux CI abort at its cause.
 
     python up.py             # apply, then verify
     python up.py --check     # rehearse, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-THIS IS THE SECOND HALF OF THE PYTEST ROUND. That round fixed the one
-conflict that was actively breaking: pytest==9.0.2 against pytest<9.0.0, no
-version satisfying both, site-packages rewritten on every switch between two
-repositories. This one fixes the same CLASS of defect everywhere else it
-appears, before any of it costs anybody a morning.
+WHAT IS ACTUALLY WRONG. Linux CI has aborted three times -- SIGABRT, exit
+134, core dumped -- at three different tests:
 
-Three findings, all measured across the five rather than assumed.
+    2026-08-31  tests/test_lifecycle_handlers.py   TestAsyncFileOpsFormatPaths
+    (earlier)   tests/test_error_recovery_paths.py TestAsyncFileOpsErrorPaths
+    2026-09-07  tests/test_threading.py            TestColorHistoryThreading
 
-1. SIX PLACES WHERE ONE REPOSITORY DISAGREES WITH ITSELF.
+Each looked like a new flake and two were handled by deselecting the class
+on Linux, recorded in KNOWN_ISSUES.md as "platform/environment workarounds,
+not code defects". They are one code defect with SEVENTEEN instances, and
+deselecting moved the next abort to the next member of the family.
 
-       transformer  chardet    pyproject >=5.0.0        requirements >=5.2.0
-       transformer  watchdog   pyproject >=3.0.0        requirements >=4.0.0
-       mixer        Pillow     pyproject >=9.0.0,<12.0  requirements >=10.0
-       mixer        PyQt6      pyproject >=6.5.0,<7.0.0 requirements >=6.5
-       palette mgr  Pillow     pyproject >=10.0.0,<12.0 requirements >=10.0.0
-       palette mgr  PyQt6      pyproject >=6.5.0,<7.0   requirements >=6.5.0
+THE MECHANISM, MEASURED. FileWriterThread and FileReaderThread each declare
 
-   Whichever file you install from wins, and which one that is depends on
-   the command somebody typed. Both pyproject files in the fleet carry a
-   comment SAYING they mirror the requirements. Nothing checked it.
+    finished = pyqtSignal(bool, str)
 
-2. TWO EXACT PINS LEFT, both in rnv-color-picker: PyQt6==6.10.2 and
-   hypothesis==6.152.4. Currently satisfiable, so nothing is breaking today
-   -- but it is the identical mechanism to pytest==9.0.2, one release away
-   from doing the identical thing on a much heavier package. Each becomes a
-   range whose FLOOR is the version it was pinned to, because that is the
-   version this application is known to work on and a lower floor would be
-   a claim nothing has tested.
+which SHADOWS QThread.finished(). The custom signal is emitted from INSIDE
+run(). Asking the thread directly at the moment these tests return:
 
-3. PILLOW'S `<12.0` CAP EXCLUDED THE API THE FLEET JUST ADOPTED.
-   `get_flattened_data` arrived in Pillow 12.1. utils/pil_compat.py was
-   installed to prefer it. The cap meant the pyproject install path could
-   never reach it -- and the cap has to move before 2027-10-15 regardless,
-   because that is the day Pillow 14 removes `getdata()`.
+    custom `finished` shadows QThread.finished : True
+    QThread still running after waitSignal      : True
 
-   All five suites were run on Pillow 12.2.0 before this change. Lifted to
-   `<13.0`, fleet-wide and identical in all five: past the version that
-   matters, still short of a major boundary nobody has tested.
+So seventeen tests wait for the work, then return, leaving a RUNNING QThread
+with no Python reference. Nothing collects it immediately -- prompt
+collection is safe, and was tested. It is destroyed at whatever LATER
+allocation happens to trigger a collection, which is exactly why the abort
+lands inside a later test's call frame with no frame of its own:
 
-WHAT THIS DOES HERE. Rewrites 4 specifier(s) in 2 file(s).
+    Current thread (most recent call first):
+      File ".../_pytest/python.py", line 167 in pytest_pyfunc_call
 
-WHAT IT DOES NOT DO. No package is added or removed. No floor is lowered.
-No source file is touched. The test-tooling ranges are governed separately
-by tests/test_test_tooling_pins.py and are not in scope here.
+Reproduced here on a two-core container under `coverage run`, the same shape
+as the runner: one abort in three full passes, at
+test_file_writer_thread_emits_failure_on_invalid_path -- a different member
+of the same seventeen, which is the point.
 
-STILL OPEN, AND NOT DECIDED BY THIS SCRIPT: rnv-text-transformer and
-rnv-icon-builder declare PyQt6 with no upper bound at all, while the mixer
-and the palette manager cap it below 7.0. That asymmetry is reported rather
-than fixed -- adding a ceiling to a runtime dependency is a decision about
-what an application claims to support, and it is not a delivery script's to
-make.
+THE APPLICATION DOES NOT HAVE THIS BUG. core/color_history.py holds
+self._save_thread and checks isRunning() before releasing it;
+AsyncFileManager keeps _active_threads and filters on isRunning(). Every
+release path in the application re-checks. Only the tests let go. **No
+application file is touched by this script.**
+
+WHAT THIS DOES. Adds an `adopt` fixture to tests/conftest.py that owns any
+thread a test starts and waits for it in teardown, and routes 17 test
+site(s) through it. A fixture rather than a wait() at the end of each test
+because TEARDOWN STILL RUNS WHEN AN ASSERTION FAILS -- otherwise a failing
+assertion would abandon the thread and the abort would bury the real
+failure.
+
+WHAT IT DOES NOT DO. It does not remove the two existing CI deselects.
+Those tests are in the seventeen and should come back, but restoring them
+is a separate decision with its own verification, and this round is the
+repair.
 """
 from __future__ import annotations
 
@@ -73,368 +75,228 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "pyproject.toml"
-SENTINEL = "RNV-DEPENDENCY-COHERENCE"
-GUARD = "tests/test_dependency_coherence.py"
-DESCRIPTION = "make the dependency declarations agree with each other"
-SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-          ("the LOCKED file, 355 tests", [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
+SENTINEL_FILE = "tests/conftest.py"
+SENTINEL = "RNV-THREAD-OWNERSHIP"
+GUARD = "tests/test_thread_ownership.py"
+DESCRIPTION = "stop the tests abandoning running QThreads"
+SUITES = [("\"pytest tests/\"",
+           [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
+          ("\"the LOCKED file, 355 tests\"",
+           [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
             "-p", "no:cacheprovider", "--timeout=120", "--deselect",
             "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"])]
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-DEPENDENCY-COHERENCE-GUARD -- one repository, one answer per package.
+GUARD_SOURCE = r'''"""RNV-THREAD-OWNERSHIP-GUARD -- a test that starts a thread finishes it.
 
-Installed 2026-09-07, as the second half of the pytest round. That round
-fixed the conflict that was actively breaking:
+Installed 2026-09-07, after Linux CI aborted for the third time.
 
-    pytest       picker  ==9.0.2      icon builder  >=8.0.0,<9.0.0
+WHAT WAS ACTUALLY WRONG. Three aborts, at three different tests, over a
+week -- SIGABRT, exit 134, core dumped:
 
-No version is both. On one interpreter, pip rewrote site-packages on every
-switch between those two repositories, and a half-rewritten _pytest package
-is where `ModuleNotFoundError: No module named '_pytest.compat'` came from.
+    tests/test_error_recovery_paths.py   TestAsyncFileOpsErrorPaths
+    tests/test_lifecycle_handlers.py     TestAsyncFileOpsFormatPaths
+    tests/test_threading.py              TestColorHistoryThreading
 
-This file guards the same CLASS of defect in the packages that had not yet
-bitten -- and one of them is PyQt6, where it would have cost a great deal
-more than a morning.
+Each looked like a separate flake. Two were handled by deselecting the class
+on Linux and recording it in KNOWN_ISSUES.md as a "platform/environment
+workaround, not a code defect". They were one code defect with seventeen
+instances, and each deselect moved the next abort onto the next member of
+the family.
 
-WHAT THIS FILE GUARDS.
+THE MECHANISM. FileWriterThread and FileReaderThread each declare
 
-  1. Two files in this repository do not declare different ranges for the
-     same package. Six such disagreements existed across the fleet. Both
-     pyproject.toml files in it carry a comment SAYING they mirror the
-     requirements; a comment is a promise, and this is the part that keeps
-     it. Whichever file you install from wins, and which one that is
-     depends on the command somebody happened to type.
-  2. No exact `==` pin. Two were left -- PyQt6==6.10.2 and
-     hypothesis==6.152.4, both in rnv-color-picker. Neither was breaking
-     anything, which is the point: neither was pytest==9.0.2 either, until
-     the day another repository disagreed with it.
-  3. Pillow matches the range all five share. It is the one package with a
-     DATED deadline behind it: the old pixel-access method is removed in
-     Pillow 14 on 2027-10-15, and `get_flattened_data` -- the replacement
-     that utils/pil_compat.py prefers -- arrived in Pillow 12.1. The old
-     `<12.0` cap excluded it.
+    finished = pyqtSignal(bool, str)
 
-     (Named indirectly on purpose. tests/test_pil_compat.py sweeps every
-     file for the retired call and this one is not exempt from that sweep,
-     so writing the call form here -- even in prose -- fails it. Use versus
-     mention, and this file was the tenth instance in this programme.)
-  4. What is installed satisfies what is declared. Everything above reads
-     text; this one looks at the machine, and it is the shape of check that
-     would have caught the failure that started all this.
+which SHADOWS QThread.finished(). The custom signal is emitted from INSIDE
+run(), so waiting on it says the WORK finished -- not that the THREAD
+stopped. Seventeen tests waited on it and returned, leaving a running
+QThread with no Python reference behind.
 
-WHAT IT DELIBERATELY DOES NOT DO.
+Prompt collection turns out to be harmless, and was tested. The damage comes
+from a DEFERRED collection: the object is destroyed at whatever later
+allocation happens to trigger one, which is why the abort appears inside a
+later test's call frame with no frame of its own.
 
-  It does not require every range to have a ceiling, and it does not require
-  the five to agree on floors other than Pillow's. Applications legitimately
-  support different minimum versions of the same library. What they may not
-  do is contradict themselves, pin exactly, or make a version no combination
-  can satisfy.
-
-  The test-tooling packages are excluded here. They have a fleet standard of
-  their own and their own guard, tests/test_test_tooling_pins.py, because a
-  tool five repositories run on one interpreter is a different question from
-  a library one application imports.
+THE APPLICATION IS NOT AFFECTED, and this guard checks that too.
+core/color_history.py holds self._save_thread and checks isRunning() before
+releasing it; AsyncFileManager keeps _active_threads and filters on
+isRunning(). Every release path re-checks. That is the property worth
+keeping, so it is asserted rather than assumed.
 """
 from __future__ import annotations
 
-import re
+import ast
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: The one package with a fleet-wide range this round. See the docstring for
-#: why it is the one: a dated removal, and an API the fleet has already
-#: adopted that the old cap excluded.
-FLEET = {'pillow': '>=10.0.0,<13.0'}
-
-#: Governed by tests/test_test_tooling_pins.py instead. Checking them here
-#: as well would mean two files disagreeing about the same thing, which is
-#: the exact failure this one exists to prevent.
-TEST_TOOLING = {'pytest', 'pytest-qt', 'pytest-cov', 'pytest-timeout',
-                'pytest-benchmark'}
-
-#: Lines that look like a requirement and are not. `line-length = 100` in
-#: ruff's config and `precision = 0` in coverage's both parse as a name
-#: followed by a number, and a sweep that rewrote them would break the tool
-#: rather than the pin.
-NOT_REQUIREMENTS = {'line-length', 'precision', 'python', 'name', 'version',
-                    'requires-python', 'description', 'target-version'}
-
-CANDIDATES = ('pyproject.toml', 'requirements.txt',
-              'tests/requirements-dev.txt')
-
-_LINE = re.compile(
-    r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
-    r'(\s*(?:[<>=!~]=?\s*[0-9][^,"#\n]*)(?:\s*,\s*[<>=!~]=?\s*[0-9][^,"#\n]*)*)')
+#: The two QThread subclasses whose `finished` shadows QThread's.
+THREADS = {'FileWriterThread', 'FileReaderThread'}
 
 
-def _declared(path: Path) -> dict:
-    """The dependencies one file declares, as {name: specifier}."""
-    found = {}
-    for line in path.read_text(encoding='utf-8', errors='replace').splitlines():
-        if line.lstrip().startswith('#'):
-            continue
-        match = _LINE.match(line)
-        if not match:
-            continue
-        name = match.group(1).lower()
-        if name in NOT_REQUIREMENTS or name in TEST_TOOLING:
-            continue
-        found[name] = match.group(2).strip().replace(' ', '').rstrip('",')
-    return found
+def _functions(text, tree):
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            yield node, (ast.get_source_segment(text, node) or '')
 
 
-def _files():
-    return [ROOT / rel for rel in CANDIDATES if (ROOT / rel).exists()]
+def _test_files():
+    return sorted(p for p in (ROOT / 'tests').glob('*.py'))
 
 
-def _per_file():
-    return {p.relative_to(ROOT).as_posix(): _declared(p) for p in _files()}
+def test_no_test_abandons_a_running_thread():
+    """The whole point.
 
-
-def test_this_repository_does_not_contradict_itself():
-    """One package, one answer.
-
-    Six of these existed across the five applications. None of them broke
-    anything on its own -- they decide which range applies based on which
-    file somebody installed from, which is a coin flip dressed as a
-    declaration.
+    A test may own its thread three ways: adopt() it, wait() for it, or poll
+    isRunning() until it stops. Anything else returns while the thread is
+    alive, and the interpreter dies later somewhere that looks unrelated.
     """
-    per_file = _per_file()
-    disagreements = []
-    for name in sorted({n for d in per_file.values() for n in d}):
-        specs = {rel: d[name] for rel, d in per_file.items() if name in d}
-        if len(set(specs.values())) > 1:
-            disagreements.append(
-                f'{name}: ' + ', '.join(f'{r} says {s}' for r, s in specs.items()))
-    assert not disagreements, (
-        'two files in this repository declare different ranges for the same '
-        'package:\n  ' + '\n  '.join(disagreements)
-        + '\n\nWhichever one you install from wins, and which one that is '
-          'depends on the command someone happened to type.')
+    stranded = []
+    for path in _test_files():
+        text = path.read_text(encoding='utf-8')
+        tree = ast.parse(text)
+        for fn, fnsrc in _functions(text, tree):
+            for node in ast.walk(fn):
+                if not (isinstance(node, ast.Assign)
+                        and isinstance(node.value, ast.Call)):
+                    continue
+                if getattr(node.value.func, 'id', None) not in THREADS:
+                    continue
+                target = node.targets[0]
+                var = target.id if isinstance(target, ast.Name) else None
+                if var is None:
+                    continue
+                owned = (f'{var}.wait(' in fnsrc
+                         or f'not {var}.isRunning()' in fnsrc
+                         or f'{var} = adopt(' in fnsrc)
+                if not owned:
+                    stranded.append(
+                        f'{path.relative_to(ROOT).as_posix()}:{node.lineno} '
+                        f'{fn.name} (local `{var}`)')
+    assert not stranded, (
+        'these start a thread and return without stopping it:\n  '
+        + '\n  '.join(stranded)
+        + '\n\nThe `finished` signal on these classes is emitted from inside '
+          'run(), so waiting on it does NOT mean the thread has stopped. '
+          'Wrap the construction in the adopt() fixture:\n\n'
+          '    thread = adopt(FileWriterThread(path, data, "json"))')
 
 
-def test_no_dependency_is_pinned_exactly():
-    """`==` is the mechanism behind the pytest failure, not the symptom.
+def test_the_signal_really_does_shadow_qthreads():
+    """The premise, asserted rather than remembered.
 
-    An exact pin means this repository demands a version the others merely
-    tolerate. Installing it downgrades or upgrades the package for every
-    checkout sharing that interpreter, and the window while pip is mid-swap
-    is a partially-populated package on disk.
-
-    It is right in a lock file, which is regenerated. It is wrong in a
-    declaration that is read by hand.
+    If someone renames the custom signal, waiting on `finished` would start
+    meaning what everyone assumed it meant -- and this guard, and the fixture
+    it defends, would be solving a problem that no longer exists. Better to
+    be told.
     """
-    exact = []
-    for rel, declared in _per_file().items():
-        for name, spec in declared.items():
-            if spec.startswith('=='):
-                exact.append(f'{rel}: {name}{spec}')
-    assert not exact, (
-        'exact pins:\n  ' + '\n  '.join(exact)
-        + '\n\nUse a range whose floor is the version you know works.')
+    from PyQt6.QtCore import QThread
+
+    from utils.async_file_ops import FileReaderThread, FileWriterThread
+
+    for cls in (FileWriterThread, FileReaderThread):
+        assert cls.finished is not QThread.finished, (
+            f'{cls.__name__}.finished no longer shadows QThread.finished. '
+            f'That is an improvement -- but the adopt() fixture and this '
+            f'guard exist because it did, so re-read both before deciding '
+            f'they are still needed.')
 
 
-def test_pillow_matches_the_range_all_five_share():
-    """The one package with a dated deadline behind it.
+def test_the_application_still_checks_before_it_lets_a_thread_go():
+    """The other half, and the reason no application file was edited.
 
-    Pillow 14 removes the old pixel-access method on 2027-10-15.
-    `get_flattened_data`, which utils/pil_compat.py prefers, arrived in
-    Pillow 12.1 -- so the old `<12.0` cap excluded the API the fleet had
-    just adopted. The ceiling is what makes somebody look before 14 lands.
+    The tests were the only place that abandoned a thread. Every release
+    path in the application re-checks isRunning() first. That is a real
+    property of the source, so it is checked rather than trusted.
     """
-    wrong = []
-    for rel, declared in _per_file().items():
-        for name, want in FLEET.items():
-            if name in declared and declared[name] != want:
-                wrong.append(f'{rel}: {name}{declared[name]} (fleet: {name}{want})')
-    assert not wrong, (
-        'these have drifted from the range all five applications share:\n  '
-        + '\n  '.join(wrong))
+    history = (ROOT / 'core' / 'color_history.py').read_text(encoding='utf-8')
+    assert 'isRunning()' in history, (
+        'core/color_history.py no longer checks isRunning() before releasing '
+        '_save_thread')
+    assert '_save_thread.wait(' in history, (
+        'core/color_history.py no longer waits for _save_thread in cleanup()')
 
-
-def test_what_is_installed_satisfies_what_is_declared():
-    """The one that looks at the machine rather than the files.
-
-    A package that is not installed is skipped -- plenty of these are
-    optional development tools. A package installed at a version this
-    repository forbids is a real disagreement between the declaration and
-    the environment, and one of the two is wrong.
-    """
-    try:
-        from packaging.specifiers import SpecifierSet
-        from packaging.version import Version
-    except ImportError:  # pragma: no cover -- packaging ships with pytest
-        pytest.skip('packaging is not importable')
-    from importlib.metadata import PackageNotFoundError, version as installed_version
-
-    # Every declaring file separately. Merging them into one mapping lets
-    # whichever file sorts last silently overwrite the others, and then the
-    # check reports green against a range it never tested.
-    outside = []
-    for rel, declared in _per_file().items():
-        for name, spec in sorted(declared.items()):
-            try:
-                have = Version(installed_version(name))
-            except PackageNotFoundError:
-                continue
-            except Exception:               # pragma: no cover
-                continue
-            if have not in SpecifierSet(spec):
-                outside.append(f'{rel} declares {name}{spec}, but {have} is installed')
-    assert not outside, (
-        'the environment does not match the declarations:\n  '
-        + '\n  '.join(outside)
-        + '\n\nEither the declaration is wrong or the install is stale:\n\n'
-          '    python -m pip install -r requirements.txt')
+    ops = (ROOT / 'utils' / 'async_file_ops.py').read_text(encoding='utf-8')
+    assert 'isRunning()' in ops, (
+        'utils/async_file_ops.py no longer checks isRunning() before '
+        'dropping threads from _active_threads')
 
 
 def test_this_guard_can_see_the_files_it_judges():
-    """Guard the guard. A parser that matches nothing finds no disagreement
-    and passes, which looks exactly like a repository in perfect order."""
-    files = _files()
-    assert files, f'no dependency files found under {ROOT}'
-    total = sum(len(_declared(p)) for p in files)
-    assert total >= 3, (
-        f'only {total} dependency declaration(s) parsed out of '
-        f'{[p.name for p in files]}. Every one of the five declares at least '
-        f'PyQt6 and Pillow, so this parser is not reading what it thinks.')
-
-
-def test_a_tool_setting_is_not_read_as_a_dependency():
-    """The exclusion list, tested by behaviour rather than by census.
-
-    `line-length = 100` in ruff's config and `precision = 0` in coverage's
-    both parse as a name followed by a comparison and a number -- the regex
-    cannot tell them from `chardet >= 5.2.0`, because structurally they are
-    the same. A sweep without the exclusion would report ruff's config as a
-    dependency disagreement, and a REWRITE without it would set
-    `line-length` to a version range.
-
-    Driven with a stand-in file rather than asserted against this
-    repository's, so it holds whether or not this particular repository
-    happens to configure those tools today.
-    """
-    import tempfile
-    sample = ('[tool.ruff]\n'
-              'line-length = 100\n'
-              'target-version = "py311"\n'
-              '\n'
-              '[tool.coverage.report]\n'
-              'precision = 0\n'
-              '\n'
-              'dependencies = [\n'
-              '    "Pillow>=10.0.0,<13.0",\n'
-              ']\n')
-    with tempfile.NamedTemporaryFile('w', suffix='.toml', delete=False,
-                                     encoding='utf-8') as handle:
-        handle.write(sample)
-        path = Path(handle.name)
-    try:
-        found = _declared(path)
-    finally:
-        path.unlink()
-    assert 'line-length' not in found, 'ruff config read as a dependency'
-    assert 'precision' not in found, 'coverage config read as a dependency'
-    assert found.get('pillow') == '>=10.0.0,<13.0', (
-        f'the parser missed the real requirement in the same file: {found}')
+    """A walk that finds no test files finds no stranded threads and passes,
+    which looks exactly like a repository in good order."""
+    files = _test_files()
+    assert len(files) > 10, f'only {len(files)} test file(s) found under {ROOT}'
+    built = 0
+    for path in files:
+        text = path.read_text(encoding='utf-8')
+        for node in ast.walk(ast.parse(text)):
+            if (isinstance(node, ast.Call)
+                    and getattr(node.func, 'id', None) in THREADS):
+                built += 1
+    assert built >= 10, (
+        f'only {built} thread construction(s) found across {len(files)} test '
+        f'files. There were seventeen when this guard was written, so this '
+        f'walk is not reading what it thinks it is.')
 '''
 
-EDITS = [('pyproject.toml', '    "PyQt6>=6.5.0,<7.0.0",\n', '    "PyQt6>=6.5.0,<7.0",\n', 1), ('pyproject.toml', '    "Pillow>=9.0.0,<12.0.0",\n', '    "Pillow>=10.0.0,<13.0",\n', 1), ('requirements.txt', 'PyQt6>=6.5\n', 'PyQt6>=6.5.0,<7.0\n', 1), ('requirements.txt', 'Pillow>=10.0\n', 'Pillow>=10.0.0,<13.0\n', 1)]
-DECLARING_FILES = ['pyproject.toml', 'requirements.txt', 'tests/requirements-dev.txt']
-FLEET = {'pillow': '>=10.0.0,<13.0'}
+EDITS = [('tests/test_error_recovery_paths.py', '    def test_writer_thread_with_invalid_format_raises_internally(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_thread_with_invalid_format_raises_internally(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileWriterThread(\n            str(target), {"data": "x"}, format="unknown_format_xyz"\n        )', 'adopt(FileWriterThread(\n            str(target), {"data": "x"}, format="unknown_format_xyz"\n        ))', 1), ('tests/test_error_recovery_paths.py', '    def test_writer_thread_with_unwritable_path_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_thread_with_unwritable_path_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileWriterThread(\n            str(bogus), {"data": "x"}, format="json"\n        )', 'adopt(FileWriterThread(\n            str(bogus), {"data": "x"}, format="json"\n        ))', 1), ('tests/test_error_recovery_paths.py', '    def test_reader_thread_with_missing_file_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_reader_thread_with_missing_file_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileReaderThread(bogus, format="json")', 'adopt(FileReaderThread(bogus, format="json"))', 1), ('tests/test_error_recovery_paths.py', '    def test_reader_thread_with_corrupted_json_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_reader_thread_with_corrupted_json_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_error_recovery_paths.py', 'FileReaderThread(str(bad), format="json")', 'adopt(FileReaderThread(str(bad), format="json"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_writer_text_format_writes_string_data(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_text_format_writes_string_data(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileWriterThread(\n            str(target), "string content here", format="text"\n        )', 'adopt(FileWriterThread(\n            str(target), "string content here", format="text"\n        ))', 1), ('tests/test_lifecycle_handlers.py', '    def test_writer_binary_format_writes_bytes(self, tmp_path, qtbot):\n', '    def test_writer_binary_format_writes_bytes(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileWriterThread(str(target), data, format="binary")', 'adopt(FileWriterThread(str(target), data, format="binary"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_writer_unsupported_format_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_writer_unsupported_format_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileWriterThread(\n            str(target), {"x": 1}, format="totally_made_up"\n        )', 'adopt(FileWriterThread(\n            str(target), {"x": 1}, format="totally_made_up"\n        ))', 1), ('tests/test_lifecycle_handlers.py', '    def test_reader_text_format_reads_string(self, tmp_path, qtbot):\n', '    def test_reader_text_format_reads_string(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileReaderThread(str(src), format="text")', 'adopt(FileReaderThread(str(src), format="text"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_reader_binary_format_reads_bytes(self, tmp_path, qtbot):\n', '    def test_reader_binary_format_reads_bytes(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileReaderThread(str(src), format="binary")', 'adopt(FileReaderThread(str(src), format="binary"))', 1), ('tests/test_lifecycle_handlers.py', '    def test_reader_unsupported_format_emits_failure(\n        self, tmp_path, qtbot\n    ):\n', '    def test_reader_unsupported_format_emits_failure(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_lifecycle_handlers.py', 'FileReaderThread(str(src), format="weird_format_xyz")', 'adopt(FileReaderThread(str(src), format="weird_format_xyz"))', 1), ('tests/test_threading.py', '    def test_save_async_emits_finished_with_success_true(\n        self, real_color_history, tmp_path, qtbot\n    ):\n', '    def test_save_async_emits_finished_with_success_true(\n        self, real_color_history, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_threading.py', 'FileWriterThread(ch.history_file, data, "json")', 'adopt(FileWriterThread(ch.history_file, data, "json"))', 1), ('tests/test_threading.py', '    def test_file_writer_thread_emits_finished_with_success_true(\n        self, tmp_path, qtbot\n    ):\n', '    def test_file_writer_thread_emits_finished_with_success_true(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_threading.py', 'FileWriterThread(path, {"alpha": 1, "beta": [2, 3]}, "json")', 'adopt(FileWriterThread(path, {"alpha": 1, "beta": [2, 3]}, "json"))', 1), ('tests/test_threading.py', "    def test_file_writer_thread_emits_failure_on_invalid_path(\n        self, tmp_path, qtbot\n    ):\n        # A directory path that doesn't exist as a parent — write will fail\n", "    def test_file_writer_thread_emits_failure_on_invalid_path(\n        self, tmp_path, adopt, qtbot\n    ):\n        # A directory path that doesn't exist as a parent — write will fail\n", 1), ('tests/test_threading.py', 'FileWriterThread(bad_path, {"x": 1}, "json")', 'adopt(FileWriterThread(bad_path, {"x": 1}, "json"))', 1), ('tests/test_threading.py', '    def test_file_writer_thread_progress_signal_reaches_100(\n        self, tmp_path, qtbot\n    ):\n', '    def test_file_writer_thread_progress_signal_reaches_100(\n        self, tmp_path, adopt, qtbot\n    ):\n', 1), ('tests/test_threading.py', 'FileWriterThread(path, {"k": "v"}, "json")', 'adopt(FileWriterThread(path, {"k": "v"}, "json"))', 1), ('tests/test_threading.py', '    def test_file_reader_thread_round_trip(self, tmp_path, qtbot):\n', '    def test_file_reader_thread_round_trip(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_threading.py', 'FileReaderThread(str(path), "json")', 'adopt(FileReaderThread(str(path), "json"))', 1), ('tests/test_utility_modules.py', '    def test_file_writer_thread_writes_text_data(self, tmp_path, qtbot):\n', '    def test_file_writer_thread_writes_text_data(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_utility_modules.py', 'FileWriterThread(str(target), "hello world", format="text")', 'adopt(FileWriterThread(str(target), "hello world", format="text"))', 1), ('tests/test_utility_modules.py', '    def test_file_reader_thread_reads_known_json_file(self, tmp_path, qtbot):\n', '    def test_file_reader_thread_reads_known_json_file(self, tmp_path, adopt, qtbot):\n', 1), ('tests/test_utility_modules.py', 'FileReaderThread(str(src), format="json")', 'adopt(FileReaderThread(str(src), format="json"))', 1)]
 
-NOTE = (
-    "\n"
-    "# ── Dependency coherence (RNV-DEPENDENCY-COHERENCE, 2026-09-07) ────\n"
-    "# The declarations in this file and in requirements.txt had drifted\n"
-    "# apart, so which range applied depended on which file you installed\n"
-    "# from. tests/test_dependency_coherence.py fails if they disagree\n"
-    "# again, if an exact `==` pin comes back, or if Pillow stops matching\n"
-    "# the range all five applications share.\n")
+FIXTURE = '\n# ── Thread ownership (RNV-THREAD-OWNERSHIP, 2026-09-07) ───────────────────\n# See tests/test_thread_ownership.py for the whole story. In short:\n# FileWriterThread.finished and FileReaderThread.finished SHADOW\n# QThread.finished() and are emitted from INSIDE run(), so waiting on one\n# means the work is done -- not that the thread has stopped.\n\n\n@pytest.fixture\ndef adopt(qtbot):\n    """Own any QThread this test starts, and stop it before the test ends.\n\n    WHY THIS EXISTS. Seventeen tests built a FileWriterThread or a\n    FileReaderThread, waited on its custom `finished` signal, and returned.\n    That signal is emitted from inside run(), so the QThread was still\n    RUNNING -- and the local name was the only reference to it. Nothing\n    collected it straight away; it was destroyed at whatever later\n    allocation happened to trigger a collection, which is why Linux CI\n    aborted (SIGABRT, exit 134) inside a LATER test\'s frame, three times,\n    at three different tests, each of which looked like a separate flake.\n\n    WHY A FIXTURE AND NOT A wait() AT THE END OF EACH TEST. Teardown runs\n    even when an assertion fails. A trailing wait() does not -- so a failing\n    assertion would abandon the thread and the abort would bury the real\n    failure underneath it.\n\n    Usage:\n\n        thread = adopt(FileWriterThread(path, data, "json"))\n    """\n    owned = []\n\n    def _adopt(thread):\n        owned.append(thread)\n        return thread\n\n    yield _adopt\n\n    for thread in owned:\n        if thread.isRunning():\n            thread.quit()\n            assert thread.wait(5000), (\n                "a thread this test started was still running at teardown "\n                "and did not stop within 5s. Leaving it running is what "\n                "aborts the interpreter later.")\n'
 
 
 def edits(tree) -> None:
-    src = tree.read(SENTINEL_FILE)
-    if SENTINEL in src:
+    conftest = tree.read(SENTINEL_FILE)
+    if SENTINEL in conftest:
         raise SystemExit("already applied")
     for rel, old, new, times in EDITS:
         tree.sub(rel, old, new, times)
-    tree.write(SENTINEL_FILE, tree.read(SENTINEL_FILE).rstrip("\n") + "\n" + NOTE)
-    touched = sorted({e[0] for e in EDITS})
-    print(f"  {len(EDITS)} specifier(s) rewritten across {len(touched)} file(s)")
-    for rel in touched:
-        for _, old, new, _ in [e for e in EDITS if e[0] == rel]:
-            print(f"    {rel}:  {old.strip()}  ->  {new.strip()}")
-
-
-NOT_REQUIREMENTS = {"line-length", "precision", "python", "name", "version",
-                    "requires-python", "description", "target-version"}
-TEST_TOOLING = {"pytest", "pytest-qt", "pytest-cov", "pytest-timeout",
-                "pytest-benchmark"}
-
-_LINE = re.compile(
-    r'^(?:\s*"?)([A-Za-z0-9_.-]+)'
-    r'(\s*(?:[<>=!~]=?\s*[0-9][^,"#\n]*)(?:\s*,\s*[<>=!~]=?\s*[0-9][^,"#\n]*)*)')
-
-
-def _declared(text: str) -> dict:
-    found = {}
-    for line in text.splitlines():
-        if line.lstrip().startswith("#"):
-            continue
-        m = _LINE.match(line)
-        if not m:
-            continue
-        name = m.group(1).lower()
-        if name in NOT_REQUIREMENTS or name in TEST_TOOLING:
-            continue
-        found[name] = m.group(2).strip().replace(" ", "").rstrip('",')
-    return found
+    tree.write(SENTINEL_FILE, conftest.rstrip("\n") + "\n" + FIXTURE)
+    files = sorted({e[0] for e in EDITS})
+    print(f"  installed the `adopt` fixture in {SENTINEL_FILE}")
+    print(f"  {len(EDITS) // 2} test site(s) adopted across {len(files)} file(s)")
+    for rel in files:
+        print(f"    {rel}  ({len([e for e in EDITS if e[0] == rel]) // 2})")
 
 
 def checks(tree) -> None:
-    per_file = {}
-    for rel in DECLARING_FILES:
-        try:
-            per_file[rel] = _declared(tree.read(rel))
-        except SystemExit:
-            continue                       # the repo does not have that file
-
-    # 1. no two files in this repository disagree
-    disagreements = []
-    for name in sorted({n for d in per_file.values() for n in d}):
-        specs = {rel: d[name] for rel, d in per_file.items() if name in d}
-        if len(set(specs.values())) > 1:
-            disagreements.append(f"{name}: " + ", ".join(
-                f"{r} says {s}" for r, s in specs.items()))
-    if disagreements:
-        raise SystemExit("files still disagree: " + "; ".join(disagreements))
-
-    # 2. no exact pin survives
-    exact = [f"{rel}: {n}{s}" for rel, d in per_file.items()
-             for n, s in d.items() if s.startswith("==")]
-    if exact:
-        raise SystemExit("exact pins survive: " + ", ".join(exact))
-
-    # 3. the fleet-wide ranges are what they should be
-    for rel, d in per_file.items():
-        for name, want in FLEET.items():
-            if name in d and d[name] != want:
-                raise SystemExit(f"{rel}: {name}{d[name]} is not the fleet's "
-                                 f"{name}{want}")
-
     if SENTINEL not in tree.read(SENTINEL_FILE):
-        raise SystemExit("the explanatory note did not land")
+        raise SystemExit("the fixture did not land")
 
-    n = len({n for d in per_file.values() for n in d})
-    print(f"  guards: {len(per_file)} file(s) agree on {n} package(s), "
-          f"no exact pins, Pillow at the fleet range")
+    # Not one test still builds a thread it does not own. This is the same
+    # walk the guard does, run against the in-memory tree before anything
+    # reaches disk.
+    THREADS = {"FileWriterThread", "FileReaderThread"}
+    stranded = []
+    for rel in sorted(tree.files):
+        if not rel.startswith("tests/") or not rel.endswith(".py"):
+            continue
+        text = tree.files[rel]
+        try:
+            parsed = ast.parse(text)
+        except SyntaxError as exc:
+            raise SystemExit(f"{rel} does not parse after the edit: {exc}")
+        for fn in [n for n in ast.walk(parsed) if isinstance(n, ast.FunctionDef)]:
+            fnsrc = ast.get_source_segment(text, fn) or ""
+            for node in ast.walk(fn):
+                if not (isinstance(node, ast.Assign)
+                        and isinstance(node.value, ast.Call)):
+                    continue
+                called = getattr(node.value.func, "id", None)
+                if called not in THREADS:
+                    continue
+                var = (node.targets[0].id
+                       if isinstance(node.targets[0], ast.Name) else "?")
+                if f"{var}.wait(" in fnsrc or f"not {var}.isRunning()" in fnsrc:
+                    continue
+                stranded.append(f"{rel}:{node.lineno} {fn.name}")
+    if stranded:
+        raise SystemExit("threads are still abandoned: " + ", ".join(stranded))
+
+    n = len([e for e in EDITS if e[1].lstrip().startswith(("thread", "t "))])
+    print(f"  guards: 0 abandoned threads across every test file")
 
 
 # ------------------------------------------------------------------ plumbing
