@@ -133,7 +133,7 @@ class TestColorHistoryThreading:
         assert data["entries"][0]["color"] == [255, 0, 0]
 
     def test_save_async_emits_finished_with_success_true(
-        self, real_color_history, tmp_path, qtbot
+        self, real_color_history, tmp_path, adopt, qtbot
     ):
         ch = _fresh_history(real_color_history, tmp_path)
         ch.entries = [ColorHistoryEntry((10, 20, 30))]
@@ -145,7 +145,7 @@ class TestColorHistoryThreading:
             "max_entries": ch.max_entries,
             "entries": [e.to_dict() for e in ch.entries],
         }
-        thread = FileWriterThread(ch.history_file, data, "json")
+        thread = adopt(FileWriterThread(ch.history_file, data, "json"))
 
         with qtbot.waitSignal(thread.finished, timeout=2000) as blocker:
             thread.start()
@@ -274,10 +274,10 @@ class TestAsyncFileOpsThreading:
     """Real-thread tests for the async_file_ops module using qtbot."""
 
     def test_file_writer_thread_emits_finished_with_success_true(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         path = str(tmp_path / "out.json")
-        thread = FileWriterThread(path, {"alpha": 1, "beta": [2, 3]}, "json")
+        thread = adopt(FileWriterThread(path, {"alpha": 1, "beta": [2, 3]}, "json"))
 
         with qtbot.waitSignal(thread.finished, timeout=2000) as blocker:
             thread.start()
@@ -289,11 +289,11 @@ class TestAsyncFileOpsThreading:
             assert json.load(f) == {"alpha": 1, "beta": [2, 3]}
 
     def test_file_writer_thread_emits_failure_on_invalid_path(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         # A directory path that doesn't exist as a parent — write will fail
         bad_path = str(tmp_path / "no" / "such" / "dir" / "out.json")
-        thread = FileWriterThread(bad_path, {"x": 1}, "json")
+        thread = adopt(FileWriterThread(bad_path, {"x": 1}, "json"))
 
         with qtbot.waitSignal(thread.finished, timeout=2000) as blocker:
             thread.start()
@@ -303,10 +303,10 @@ class TestAsyncFileOpsThreading:
         assert "fail" in message.lower() or "error" in message.lower()
 
     def test_file_writer_thread_progress_signal_reaches_100(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         path = str(tmp_path / "progress.json")
-        thread = FileWriterThread(path, {"k": "v"}, "json")
+        thread = adopt(FileWriterThread(path, {"k": "v"}, "json"))
         seen: list[int] = []
         thread.progress.connect(seen.append)
 
@@ -317,11 +317,11 @@ class TestAsyncFileOpsThreading:
         assert 100 in seen, f"progress should reach 100; saw {seen}"
         assert seen == sorted(seen), f"progress should be monotonic; saw {seen}"
 
-    def test_file_reader_thread_round_trip(self, tmp_path, qtbot):
+    def test_file_reader_thread_round_trip(self, tmp_path, adopt, qtbot):
         path = tmp_path / "rt.json"
         path.write_text(json.dumps({"hello": "world", "nums": [4, 5, 6]}))
 
-        thread = FileReaderThread(str(path), "json")
+        thread = adopt(FileReaderThread(str(path), "json"))
         with qtbot.waitSignal(thread.finished, timeout=2000) as blocker:
             thread.start()
 

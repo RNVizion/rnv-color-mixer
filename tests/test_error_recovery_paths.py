@@ -309,16 +309,16 @@ class TestAsyncFileOpsErrorPaths:
     and the manager's _on_write_complete + cleanup logic."""
 
     def test_writer_thread_with_invalid_format_raises_internally(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         """`format='unknown_format'` should be handled in run() — emits
         finished(False, ...)."""
         from async_file_ops import FileWriterThread
 
         target = tmp_path / "writer_fail.dat"
-        thread = FileWriterThread(
+        thread = adopt(FileWriterThread(
             str(target), {"data": "x"}, format="unknown_format_xyz"
-        )
+        ))
 
         with qtbot.waitSignal(thread.finished, timeout=3000) as blocker:
             thread.start()
@@ -327,7 +327,7 @@ class TestAsyncFileOpsErrorPaths:
         assert isinstance(success, bool)
 
     def test_writer_thread_with_unwritable_path_emits_failure(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         """Path to a directory that can't be created (e.g. a file
         masquerading as a parent dir) should emit failure."""
@@ -338,9 +338,9 @@ class TestAsyncFileOpsErrorPaths:
         blocker_file.write_text("hi")
         bogus = blocker_file / "sub" / "out.json"
 
-        thread = FileWriterThread(
+        thread = adopt(FileWriterThread(
             str(bogus), {"data": "x"}, format="json"
-        )
+        ))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, _ = bl.args
@@ -348,25 +348,25 @@ class TestAsyncFileOpsErrorPaths:
         assert success is False
 
     def test_reader_thread_with_missing_file_emits_failure(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         from async_file_ops import FileReaderThread
 
         bogus = str(tmp_path / "missing.json")
-        thread = FileReaderThread(bogus, format="json")
+        thread = adopt(FileReaderThread(bogus, format="json"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, data, msg = bl.args
         assert success is False
 
     def test_reader_thread_with_corrupted_json_emits_failure(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         from async_file_ops import FileReaderThread
         bad = tmp_path / "corrupt.json"
         bad.write_text("{ not valid json at all")
 
-        thread = FileReaderThread(str(bad), format="json")
+        thread = adopt(FileReaderThread(str(bad), format="json"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, _, _ = bl.args

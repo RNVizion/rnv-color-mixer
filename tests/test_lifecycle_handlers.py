@@ -406,25 +406,25 @@ class TestAsyncFileOpsFormatPaths:
     this fills in binary + edge cases."""
 
     def test_writer_text_format_writes_string_data(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         from async_file_ops import FileWriterThread
         target = tmp_path / "writer.txt"
-        thread = FileWriterThread(
+        thread = adopt(FileWriterThread(
             str(target), "string content here", format="text"
-        )
+        ))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, _ = bl.args
         assert success is True
         assert target.read_text() == "string content here"
 
-    def test_writer_binary_format_writes_bytes(self, tmp_path, qtbot):
+    def test_writer_binary_format_writes_bytes(self, tmp_path, adopt, qtbot):
         """Binary format path — writes raw bytes."""
         from async_file_ops import FileWriterThread
         target = tmp_path / "writer.bin"
         data = b"\x00\x01\x02\xff\xfe"
-        thread = FileWriterThread(str(target), data, format="binary")
+        thread = adopt(FileWriterThread(str(target), data, format="binary"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, _ = bl.args
@@ -433,38 +433,38 @@ class TestAsyncFileOpsFormatPaths:
             assert target.read_bytes() == data
 
     def test_writer_unsupported_format_emits_failure(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         """An explicit unknown format should result in finished(False, ...)."""
         from async_file_ops import FileWriterThread
         target = tmp_path / "writer.dat"
-        thread = FileWriterThread(
+        thread = adopt(FileWriterThread(
             str(target), {"x": 1}, format="totally_made_up"
-        )
+        ))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, _ = bl.args
         assert success is False
 
-    def test_reader_text_format_reads_string(self, tmp_path, qtbot):
+    def test_reader_text_format_reads_string(self, tmp_path, adopt, qtbot):
         """Text format read path."""
         from async_file_ops import FileReaderThread
         src = tmp_path / "reader.txt"
         src.write_text("just plain text")
 
-        thread = FileReaderThread(str(src), format="text")
+        thread = adopt(FileReaderThread(str(src), format="text"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, data, _ = bl.args
         assert success is True
         assert data == "just plain text"
 
-    def test_reader_binary_format_reads_bytes(self, tmp_path, qtbot):
+    def test_reader_binary_format_reads_bytes(self, tmp_path, adopt, qtbot):
         from async_file_ops import FileReaderThread
         src = tmp_path / "reader.bin"
         src.write_bytes(b"\xab\xcd\xef")
 
-        thread = FileReaderThread(str(src), format="binary")
+        thread = adopt(FileReaderThread(str(src), format="binary"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, data, _ = bl.args
@@ -473,12 +473,12 @@ class TestAsyncFileOpsFormatPaths:
             assert data == b"\xab\xcd\xef"
 
     def test_reader_unsupported_format_emits_failure(
-        self, tmp_path, qtbot
+        self, tmp_path, adopt, qtbot
     ):
         from async_file_ops import FileReaderThread
         src = tmp_path / "reader.dat"
         src.write_text("some content")
-        thread = FileReaderThread(str(src), format="weird_format_xyz")
+        thread = adopt(FileReaderThread(str(src), format="weird_format_xyz"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as bl:
             thread.start()
         success, _, _ = bl.args

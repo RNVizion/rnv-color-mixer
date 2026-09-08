@@ -192,9 +192,9 @@ class TestAsyncFileOpsLowLevel:
     format='json')`, `FileReaderThread(filepath, format='json')`. The thread
     classes only support 'json', 'text', and 'binary' format strings."""
 
-    def test_file_writer_thread_writes_text_data(self, tmp_path, qtbot):
+    def test_file_writer_thread_writes_text_data(self, tmp_path, adopt, qtbot):
         target = tmp_path / "writer_out.txt"
-        thread = FileWriterThread(str(target), "hello world", format="text")
+        thread = adopt(FileWriterThread(str(target), "hello world", format="text"))
 
         with qtbot.waitSignal(thread.finished, timeout=3000) as blocker:
             thread.start()
@@ -202,11 +202,11 @@ class TestAsyncFileOpsLowLevel:
         assert success is True
         assert target.read_text() == "hello world"
 
-    def test_file_reader_thread_reads_known_json_file(self, tmp_path, qtbot):
+    def test_file_reader_thread_reads_known_json_file(self, tmp_path, adopt, qtbot):
         src = tmp_path / "reader_in.json"
         src.write_text(json.dumps({"key": "value", "n": 42}))
 
-        thread = FileReaderThread(str(src), format="json")
+        thread = adopt(FileReaderThread(str(src), format="json"))
         with qtbot.waitSignal(thread.finished, timeout=3000) as blocker:
             thread.start()
         success, data, _ = blocker.args

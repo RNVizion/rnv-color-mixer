@@ -355,3 +355,48 @@ def pytest_addoption(parser):
             "RNV_UPDATE_SNAPSHOTS=1"
         ),
     )
+
+# ── Thread ownership (RNV-THREAD-OWNERSHIP, 2026-09-07) ───────────────────
+# See tests/test_thread_ownership.py for the whole story. In short:
+# FileWriterThread.finished and FileReaderThread.finished SHADOW
+# QThread.finished() and are emitted from INSIDE run(), so waiting on one
+# means the work is done -- not that the thread has stopped.
+
+
+@pytest.fixture
+def adopt(qtbot):
+    """Own any QThread this test starts, and stop it before the test ends.
+
+    WHY THIS EXISTS. Seventeen tests built a FileWriterThread or a
+    FileReaderThread, waited on its custom `finished` signal, and returned.
+    That signal is emitted from inside run(), so the QThread was still
+    RUNNING -- and the local name was the only reference to it. Nothing
+    collected it straight away; it was destroyed at whatever later
+    allocation happened to trigger a collection, which is why Linux CI
+    aborted (SIGABRT, exit 134) inside a LATER test's frame, three times,
+    at three different tests, each of which looked like a separate flake.
+
+    WHY A FIXTURE AND NOT A wait() AT THE END OF EACH TEST. Teardown runs
+    even when an assertion fails. A trailing wait() does not -- so a failing
+    assertion would abandon the thread and the abort would bury the real
+    failure underneath it.
+
+    Usage:
+
+        thread = adopt(FileWriterThread(path, data, "json"))
+    """
+    owned = []
+
+    def _adopt(thread):
+        owned.append(thread)
+        return thread
+
+    yield _adopt
+
+    for thread in owned:
+        if thread.isRunning():
+            thread.quit()
+            assert thread.wait(5000), (
+                "a thread this test started was still running at teardown "
+                "and did not stop within 5s. Leaving it running is what "
+                "aborts the interpreter later.")
