@@ -2,521 +2,379 @@
 """
 RNV-WIRING-TOOL-DO-NOT-SWEEP
 
-rnv-color-mixer: give Linux CI back the 12 tests it has been skipping.
+rnv-color-mixer: bring the oversized resources down to the size anything renders them.
 
-    python up.py             # apply, then verify
-    python up.py --check     # rehearse, write nothing
+    python up.py             # resize, install the guard, run the suites
+    python up.py --check     # rehearse every resize in memory, write nothing
     python up.py --verify    # re-run the suites against what is on disk
     python up.py --finish    # delete this script
 
-WHY NOW. TestAsyncFileOpsErrorPaths and TestAsyncFileOpsFormatPaths were
-deselected on Linux because they aborted the interpreter (SIGABRT, exit
-134). The thread-ownership round removed the defect that caused it. That is
-not an inference -- it was measured, matched and interleaved, on the tree
-before and after that fix, with these two classes INCLUDED:
+WHAT IS OVERSIZED, MEASURED ACROSS THE FIVE APPLICATIONS.
 
-        before the fix   70 aborts / 120 runs   (58.3%)
-        after the fix     0 aborts / 120 runs
+    background.png          16000x9038 (or 8000x4500)   ~100 MB
+    settings_gear_*.png     3334x3334, for a 50x50 button
+    icon.png                2134x2134, for a window icon
 
-P(0 in 120 at 58.3%) = 2e-46. The deselects were load-bearing; they are not
-any more.
+537 MB of pixels across the fleet, storing -- for the most part -- flat
+geometric shapes. The mixer spends **2.18 seconds decoding its background on
+every launch**; at 3840 that is 0.18 s.
 
-CREDIT WHERE IT IS DUE. KNOWN_ISSUES.md had this right on 22 August, three
-weeks before the fix was written:
+    background   ->  3840 on the long edge   ~10.6 MB   (a full 4K width)
+    gear + icon  ->  512
 
-    "qtbot.waitSignal returns the instant `finished` fires; the `thread`
-     local then goes out of scope at the end of the test, and Qt can find
-     itself destroying a QThread that has not finished unwinding."
+WHY 3840 AND NOT SMALLER. It is a full 4K width, so a maximised window on a
+4K display still scales the image DOWN rather than up. 2560 is visually
+identical on every display anyone here has, and would have been half the
+size; 3840 is the number that needs no argument.
 
-and prescribed the remedy -- "hold the thread on the object, not on the
-stack". What the recent round added was the SCOPE (seventeen sites, not the
-two or three named), the implementation, and the proof. The diagnosis was
-already in this repository.
+WHAT IS DELIBERATELY LEFT ALONE. Every action button and every screenshot.
+The action buttons are already 0.2-0.4 MB and sized for the widgets they
+fill: a rule that squeezed the long edge would crush the short one, turning a
+1250x146 button into 512x60 -- the right file size and the wrong picture on a
+HiDPI screen. The screenshots are 1920x1080 documentation.
 
-WHAT THIS TOUCHES, AND WHY IT IS FOUR EDITS RATHER THAN TWO DELETIONS.
-Removing the arguments alone would leave three statements that are then
-false:
+NOTHING MOVES. Every file is rewritten where it stands. This project's
+standing instruction is that the image directories are correct and are not to
+be rearranged, and a resize that also relocated a file would be a much larger
+change wearing a smaller one's clothes.
 
-  1. .github/workflows/tests-linux.yml -- the two --deselect arguments.
-  2. The comment block above them, which lists the skips and their reasons.
-  3. KNOWN_ISSUES.md, whose 31 Aug update records the family as deselected
-     and prescribes keeping it that way.
-  4. tests/test_ci_deselects.py::test_the_documented_family_is_the_one_that
-     _is_deselected, which asserts that BOTH classes are deselected. Its
-     premise inverts, so the test is replaced by its opposite: the family
-     must NOT be deselected, and KNOWN_ISSUES.md must say why it came back.
+NO COLOUR IS AT RISK. The background is decorative: config.py tests it for
+existence and uses it as a window pixmap. **It is never sampled for colour.**
+That was the one thing that could have made this dangerous in a colour
+application, so it was checked rather than assumed.
 
-That fourth one is the reason this is a round of its own. A guard whose
-premise has reversed is not a guard to delete quietly -- it is one to point
-the other way, so the next person to add a deselect for this family has to
-justify it against a written record.
-
-WHAT DOES NOT CHANGE. The unittest deselect for
-test_load_real_image_if_available stays: that is a different problem (an
-offscreen hang loading the background image) and this round has no evidence
-about it. No application file is touched. No test is skipped or removed.
+IDEMPOTENT. An asset already within budget is skipped, so running this twice
+is safe and running it on a partly-done tree finishes the job.
 """
 from __future__ import annotations
 
 import argparse
-import ast
 import os
-import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = ".github/workflows/tests-linux.yml"
-SENTINEL = "RESTORED 2026-09-08"
-GUARD = "tests/test_restored_classes.py"
-DESCRIPTION = "restore the two deselected AsyncFileOps classes to Linux CI"
-SUITES = [("\"pytest tests/ -- exactly as Linux CI now runs it\"",
-           [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-          ("\"the LOCKED file, 355 tests\"",
-           [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
+GUARD = "tests/test_image_budget.py"
+SUITES = [("pytest tests/", [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
+          ("the LOCKED file, 355 tests", [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
             "-p", "no:cacheprovider", "--timeout=120", "--deselect",
             "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"])]
 
+#: glob -> the largest edge this asset may have, and why that number. Stated,
+#: never sniffed: a rule that inferred "too big" from file size alone would
+#: catch the action buttons, which are the right size already.
+BUDGET = (
+    ("resources/background_images/*.png", 3840),
+    ("resources/button_images/settings_gear_*.png", 512),
+    ("resources/icons/icon.png", 512),
+    ("resources/icons/special_slot.png", 512),
+)
+
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-RESTORED-CLASSES-GUARD -- the 12 tests Linux CI stopped skipping
-actually run there, and keep running.
+GUARD_SOURCE = r'''"""RNV-IMAGE-BUDGET-GUARD -- the resources stay the size they were reduced to.
 
-Installed 2026-09-08. `tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths`
-and `tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths` were
-deselected on Linux from 31 August because they aborted the interpreter
-(SIGABRT, exit 134). The thread-ownership fix removed the cause, measured on
-the tree before and after with both classes included:
+Installed 2026-09-08. This repository shipped a window background of
+16000x9038 (or 8000x4500) and a settings gear of 3334x3334 for a button that
+renders at 50x50. Across the five applications that was 537 MB of pixels
+reproducing, for the most part, flat geometric shapes.
 
-    before   70 aborts / 120 runs   (58.3%)
-    after     0 aborts / 120 runs
+The backgrounds are now 3840 on the long edge -- a full 4K width, so a
+maximised window on a 4K display still scales DOWN rather than up -- and the
+oversized square assets are 512.
 
-WHAT THIS ADDS THAT tests/test_ci_deselects.py DOES NOT. That file reads the
-workflow: it proves the arguments are gone and that the prose agrees. This
-one proves the tests THEMSELVES are real, present and exercising the thing
-they were written for -- because a restored deselect achieves nothing if the
-class was quietly emptied or renamed in the meantime, and both files would
-pass over the silence.
+WHAT THIS GUARD IS FOR. Nothing about a resize sticks. The next export from a
+design tool lands at whatever that tool defaults to, the file is committed
+because it looks right, and the repository quietly grows back. A dimension is
+checkable, so it is checked.
+
+WHAT IT DELIBERATELY DOES NOT COVER. The action buttons and the screenshots.
+The action buttons are already 0.2-0.4 MB and sized for the widgets they
+fill -- a rule that squeezed their long edge would crush their short one,
+which is how a 1250x146 button becomes 512x60 and looks wrong on a HiDPI
+screen. The screenshots are 1920x1080 documentation. Neither is a problem, so
+neither is governed here.
 """
 from __future__ import annotations
 
-import ast
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: (file, class, the number of tests it held when the deselects came off)
-RESTORED = (
-    ('tests/test_error_recovery_paths.py', 'TestAsyncFileOpsErrorPaths', 4),
-    ('tests/test_lifecycle_handlers.py', 'TestAsyncFileOpsFormatPaths', 6),
+#: glob -> the largest edge this asset may have, and why that number.
+BUDGET = (
+    ('resources/background_images/*.png', 3840,
+     'a window background; 3840 is a full 4K width, so even a maximised '
+     'window on a 4K display scales it down rather than up'),
+    ('resources/button_images/settings_gear_*.png', 512,
+     'renders inside a 50x50 button; 512 leaves headroom for 3x HiDPI '
+     'several times over'),
+    ('resources/icons/icon.png', 512,
+     'the window and dock icon; 512 is the largest size any desktop asks for'),
+    ('resources/icons/special_slot.png', 512, 'a slot badge'),
 )
 
-
-def _methods(rel: str, cls: str):
-    path = ROOT / rel
-    assert path.exists(), f'{rel} is missing'
-    tree = ast.parse(path.read_text(encoding='utf-8'))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == cls:
-            return [n.name for n in node.body
-                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and n.name.startswith('test')]
-    return None
+#: A file over this, in a directory the budget governs, is the thing that
+#: went wrong. Stated separately from the dimensions because a file can be
+#: the right dimensions and still be enormous if it was saved badly.
+MAX_BYTES = 16 * 1024 * 1024
 
 
-def test_both_restored_classes_still_exist():
-    """A class that was renamed or removed leaves the workflow clean and the
-    coverage gone, with nothing to say so."""
-    missing = [f'{rel}::{cls}' for rel, cls, _ in RESTORED
-               if _methods(rel, cls) is None]
-    assert not missing, (
-        'these classes were restored to Linux CI on 2026-09-08 and no longer '
-        'exist:\n  ' + '\n  '.join(missing))
+def _governed():
+    for pattern, limit, why in BUDGET:
+        for path in sorted(ROOT.glob(pattern)):
+            yield path, limit, why
 
 
-def test_they_still_hold_the_tests_they_held():
-    """Counted, not assumed. Twelve tests came back; if that number falls,
-    it should be because somebody decided so."""
-    thin = []
-    for rel, cls, expected in RESTORED:
-        names = _methods(rel, cls) or []
-        if len(names) < expected:
-            thin.append(f'{rel}::{cls} has {len(names)}, had {expected}')
-    assert not thin, (
-        'restored classes have lost tests:\n  ' + '\n  '.join(thin)
-        + '\n\nIf that was deliberate, lower the count in this file in the '
-          'same commit, so the loss is written down rather than absorbed.')
+def test_every_governed_asset_is_within_its_budget():
+    """The one that matters.
 
-
-def test_they_are_not_skipped_by_decorator_instead():
-    """The other way to make a test quiet.
-
-    Removing a --deselect and adding @pytest.mark.skip has the same effect
-    on coverage and a much smaller diff. KNOWN_ISSUES.md is explicit that
-    this family should be deselected visibly rather than marked skip, "so
-    the cost stays countable" -- and that reasoning survives the fix.
+    A dimension is the cheapest possible check and the whole reason the
+    reduction holds: the next re-export from a design tool will be whatever
+    that tool defaults to, and nobody looks at a file size in a diff.
     """
-    marked = []
-    for rel, cls, _ in RESTORED:
-        text = (ROOT / rel).read_text(encoding='utf-8')
-        tree = ast.parse(text)
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.ClassDef) and node.name == cls):
-                continue
-            targets = [node] + [n for n in node.body
-                                if isinstance(n, ast.FunctionDef)]
-            for target in targets:
-                for dec in target.decorator_list:
-                    src = ast.get_source_segment(text, dec) or ''
-                    if 'skip' in src and 'skipif' not in src:
-                        marked.append(f'{rel}::{cls}::{getattr(target, "name", "?")}'
-                                      f'  @{src.strip()[:40]}')
-    assert not marked, (
-        'these are skipped by decorator, which hides them as effectively as '
-        'the deselect did:\n  ' + '\n  '.join(marked))
+    pytest.importorskip('PIL', reason='Pillow is a declared dependency')
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+
+    over = []
+    for path, limit, why in _governed():
+        with Image.open(path) as image:
+            longest = max(image.width, image.height)
+        if longest > limit:
+            over.append(
+                f'{path.relative_to(ROOT).as_posix()}  {image.width}x{image.height}'
+                f'  (limit {limit} on the long edge — {why})')
+    assert not over, (
+        'these assets are larger than the size anything renders them at:\n  '
+        + '\n  '.join(over)
+        + '\n\nResize in place; the path must not move.')
 
 
-def test_the_thread_ownership_fixture_is_what_they_depend_on():
-    """Name the coupling, so it cannot be removed by accident.
+def test_no_governed_asset_is_absurdly_heavy():
+    """Dimensions and bytes are different failures.
 
-    These classes are only safe to run because every thread they build is
-    adopted. If the fixture disappears, this round's premise disappears with
-    it, and the aborts come back at 58%.
+    A 3840px PNG saved without optimisation, or as 16-bit, is the right shape
+    and still ten times the weight. This catches that without pretending to
+    know what a good size is.
     """
-    conftest = (ROOT / 'tests' / 'conftest.py').read_text(encoding='utf-8')
-    assert 'def adopt(' in conftest, (
-        'the adopt() fixture is gone from tests/conftest.py. The two '
-        'AsyncFileOps classes were restored to Linux CI on the strength of '
-        'it; without it they abort roughly three runs in five.')
-    for rel, cls, _ in RESTORED:
-        text = (ROOT / rel).read_text(encoding='utf-8')
-        assert 'adopt(' in text, (
-            f'{rel} no longer uses adopt(), so the threads it starts are '
-            f'abandoned again.')
+    heavy = [f'{p.relative_to(ROOT).as_posix()}  {p.stat().st_size / 1e6:.1f} MB'
+             for p, _limit, _why in _governed() if p.stat().st_size > MAX_BYTES]
+    assert not heavy, (
+        'these are within their dimensions but very heavy:\n  '
+        + '\n  '.join(heavy)
+        + f'\n\nThe ceiling is {MAX_BYTES / 1e6:.0f} MB. Check the save '
+          f'settings rather than the dimensions.')
+
+
+def test_the_budget_still_matches_real_files():
+    """Guard the guard, both ways.
+
+    A glob that matches nothing passes every assertion above, which looks
+    exactly like a repository in good order. And an entry that has stopped
+    matching is a rule with no subject -- worth deleting deliberately rather
+    than leaving to pass over silence.
+    """
+    empty = [pattern for pattern, _l, _w in BUDGET
+             if not list(ROOT.glob(pattern))]
+    assert not empty, (
+        'these budget entries match no file in this repository:\n  '
+        + '\n  '.join(empty)
+        + '\n\nIf the asset was retired, remove its entry in the same commit.')
+
+
+def test_the_assets_are_where_they_were():
+    """No path moved.
+
+    The reduction was done in place on purpose: this project's standing
+    instruction is that the image directories are correct and are not to be
+    rearranged. A resize that also relocated a file would be a much larger
+    change wearing a smaller one's clothes.
+    """
+    for directory in ('resources/background_images', 'resources/button_images',
+                      'resources/icons'):
+        assert (ROOT / directory).is_dir(), (
+            f'{directory} is missing. The image resize was done in place and '
+            f'must not have moved anything.')
 '''
 
-EDITS = [('.github/workflows/tests-linux.yml', '          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v --deselect tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths --deselect tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths', '          coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v', 1), ('.github/workflows/tests-linux.yml', '          # Skips:\n          #   - test_load_real_image_if_available (unittest):\n          #       Hangs on offscreen Qt when loading background image.\n          #   - TestAsyncFileOpsErrorPaths (pytest):\n          #       Qt threading + filesystem ops crash Python natively\n          #       (SIGABRT) on offscreen Linux.\n          #   - TestAsyncFileOpsFormatPaths (pytest):\n          #       The same family, in a different file. Aborted CI on\n          #       2026-08-31 at test_writer_binary_format_writes_bytes.\n          #       Reproduced on an UNTOUCHED checkout of the same commit:\n          #       one abort in three runs, at the identical test.\n          #       KNOWN_ISSUES.md said to deselect this family the way\n          #       TestAsyncFileOpsErrorPaths is deselected if it ever\n          #       became noisy. It has.\n', '          # Skips:\n          #   - test_load_real_image_if_available (unittest):\n          #       Hangs on offscreen Qt when loading background image.\n          #\n          # RESTORED 2026-09-08 — TestAsyncFileOpsErrorPaths and\n          # TestAsyncFileOpsFormatPaths are no longer deselected. They were\n          # skipped for a SIGABRT that KNOWN_ISSUES.md had diagnosed\n          # correctly on 22 Aug: qtbot.waitSignal returns the instant the\n          # custom `finished` signal fires, the thread local then goes out\n          # of scope, and Qt destroys a QThread that has not finished\n          # unwinding. Seventeen tests did that; all seventeen now hold\n          # their thread through the adopt() fixture in tests/conftest.py.\n          #\n          # Matched, interleaved trials on the tree before and after that\n          # fix, with these two classes included:\n          #       before   70 aborts / 120 runs   (58.3%)\n          #       after     0 aborts / 120 runs\n          # tests/test_thread_ownership.py keeps the seventeen honest.\n', 1), ('KNOWN_ISSUES.md', '**Update, 31 Aug 2026 — it became noisy, so it is deselected.**', '**Update, 31 Aug 2026 — it became noisy, so it was deselected.**\n\n**Resolved, 8 Sep 2026 — the cause was fixed and it is no longer\ndeselected.** The mechanism was the one this file described on 22 August:\n`qtbot.waitSignal` returns the instant the custom `finished` signal fires,\nthe `thread` local goes out of scope, and Qt destroys a `QThread` that has\nnot finished unwinding. What was not known then is how many places did it:\n**seventeen tests across four files**, of which the two deselected classes\nwere ten.\n\nAll seventeen now take their thread through the `adopt()` fixture in\n`tests/conftest.py`, which owns it and waits for it in teardown — a fixture\nrather than a trailing `wait()` because teardown still runs when an\nassertion fails. That is the refactor this entry prescribed, applied to the\ntests rather than to `utils/async_file_ops.py`; the application itself never\nhad the bug, because `ColorHistory` holds `_save_thread` on the object and\n`AsyncFileManager` keeps `_active_threads`, and both check `isRunning()`\nbefore letting go.\n\nMeasured before shipping, matched and interleaved, with these two classes\nincluded in both arms:\n\n| tree | aborts | runs | rate |\n|---|---:|---:|---:|\n| before the fix | 70 | 120 | 58.3% |\n| after the fix | 0 | 120 | 0% |\n\n`tests/test_thread_ownership.py` fails if any test starts a thread it does\nnot own, so the seventeen cannot quietly become eighteen.', 1), ('tests/test_ci_deselects.py', 'def test_the_documented_family_is_the_one_that_is_deselected():\n    """KNOWN_ISSUES.md prescribes deselecting the AsyncFileOps family on\n    Linux when it becomes noisy. This is the link between the prose and the\n    workflow, asserted in the one direction that can be."""\n    nodes = {node for _w, node in _deselects()}\n    linux = [n for n in nodes if \'AsyncFileOps\' in n]\n    assert len(linux) >= 2, (\n        f\'expected both AsyncFileOps classes to be deselected on Linux, \'\n        f\'found {sorted(linux)}\')\n    known = (ROOT / \'KNOWN_ISSUES.md\').read_text(encoding=\'utf-8\')\n    for node in linux:\n        cls = node.rsplit(\'::\', 1)[-1]\n        assert cls in known, (\n            f\'{cls} is deselected in CI but not described in \'\n            f\'KNOWN_ISSUES.md. A deselect with no written reason is an \'\n            f\'exemption nobody can review.\')\n', 'def test_the_family_is_no_longer_deselected():\n    """The inverse of the assertion this replaced, and deliberately so.\n\n    Until 8 Sep 2026 this file asserted that BOTH AsyncFileOps classes were\n    deselected on Linux, because KNOWN_ISSUES.md prescribed it while they\n    aborted the interpreter. The thread-ownership fix removed that abort --\n    measured on the tree before and after, with these classes included:\n    70 aborts in 120 runs before, 0 in 120 after -- so the premise reversed.\n\n    A guard whose premise has reversed is not one to delete. It is one to\n    point the other way: if somebody deselects this family again, they have\n    to write down why, and that is what this asks for.\n    """\n    nodes = {node for _w, node in _deselects()}\n    back = sorted(n for n in nodes if \'AsyncFileOps\' in n)\n    known = (ROOT / \'KNOWN_ISSUES.md\').read_text(encoding=\'utf-8\')\n    assert not back, (\n        \'these AsyncFileOps nodes are deselected again:\\n  \'\n        + \'\\n  \'.join(back)\n        + \'\\n\\nThey were restored on 2026-09-08 after the abort they were \'\n          \'skipped for was fixed and the fix was measured (0 aborts in 120 \'\n          \'runs, against 70 in 120 before). If it has come back, say so in \'\n          \'KNOWN_ISSUES.md with what you measured, and change this test \'\n          \'deliberately rather than around.\')\n    assert \'no longer\\ndeselected\' in known or \'no longer deselected\' in known, (\n        \'KNOWN_ISSUES.md no longer records why the AsyncFileOps family came \'\n        \'back into Linux CI. The workflow and the prose have to agree, and \'\n        \'prose is the half nothing else checks.\')\n\n\ndef test_the_restored_classes_still_collect():\n    """The other direction. Removing a deselect achieves nothing if the\n    tests it was hiding have since been renamed or deleted -- the run would\n    be just as quiet, and this file would still pass."""\n    restored = (\'tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths\',\n                \'tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths\')\n    result = subprocess.run(\n        [sys.executable, \'-m\', \'pytest\', *restored, \'--collect-only\', \'-q\',\n         \'-p\', \'no:cacheprovider\'],\n        cwd=ROOT, capture_output=True, text=True)\n    assert result.returncode == 0 and \'no tests ran\' not in result.stdout, (\n        \'the classes restored on 2026-09-08 no longer collect:\\n\'\n        + result.stdout[-800:])\n    # pytest\'s own count, not the shape of its output: `--collect-only -q`\n    # renders a <Function ...> tree on this version rather than node ids, so\n    # counting lines with \'::\' reports twelve healthy tests as none.\n    found = re.search(r\'(\\d+)\\s+tests?\\s+collected\', result.stdout)\n    collected = int(found.group(1)) if found else 0\n    assert collected >= 10, (\n        f\'only {collected} restored test(s) collect; there were 12 when the \'\n        f\'deselects were removed. If tests were legitimately retired, update \'\n        f\'this floor in the same commit.\\n\' + result.stdout[-400:])\n', 1)]
 
-RESTORED = ("tests/test_error_recovery_paths.py::TestAsyncFileOpsErrorPaths",
-            "tests/test_lifecycle_handlers.py::TestAsyncFileOpsFormatPaths")
-
-
-def edits(tree) -> None:
-    if SENTINEL in tree.read(SENTINEL_FILE):
-        raise SystemExit("already applied")
-    for rel, old, new, times in EDITS:
-        tree.sub(rel, old, new, times)
-    print("  removed 2 --deselect argument(s) from the Linux workflow")
-    print("  rewrote the comment that documented them")
-    print("  recorded the restoration in KNOWN_ISSUES.md")
-    print("  inverted tests/test_ci_deselects.py's family assertion")
-
-
-def checks(tree) -> None:
-    wf = tree.read(SENTINEL_FILE)
-
-    # 1. neither class is deselected anywhere, in any workflow
-    root = Path.cwd()
-    still = []
-    for path in sorted((root / ".github/workflows").glob("*.yml")):
-        text = tree.files.get(path.relative_to(root).as_posix()) \
-            or path.read_text(encoding="utf-8")
-        for node in RESTORED:
-            cls = node.rsplit("::", 1)[-1]
-            if re.search(r"--deselect\s+\"?\S*" + re.escape(cls), text):
-                still.append(f"{path.name}: {cls}")
-    if still:
-        raise SystemExit("still deselected: " + ", ".join(still))
-
-    # 2. the unittest deselect SURVIVES. This round has no evidence about
-    #    the offscreen image hang, and removing it by accident would be a
-    #    silent scope creep into a different defect.
-    if "test_load_real_image_if_available" not in wf:
-        raise SystemExit("the unittest deselect was removed; it must stay")
-
-    # 3. the prose no longer contradicts the workflow
-    if SENTINEL not in wf:
-        raise SystemExit("the workflow comment was not updated")
-    # Markdown wraps, so a phrase can arrive as "no longer\ndeselected".
-    # Collapse whitespace before looking: a check that reads prose has to
-    # read it the way prose is written, or it fails on the line break rather
-    # than on the meaning. This one did, on its first run.
-    known = " ".join(tree.read("KNOWN_ISSUES.md").split())
-    for phrase in ("no longer deselected", "8 Sep 2026"):
-        if phrase not in known:
-            raise SystemExit(f"KNOWN_ISSUES.md does not record {phrase!r}")
-
-    # 4. the inverted guard is present and the old assertion is gone
-    ci = tree.read("tests/test_ci_deselects.py")
-    if "test_the_documented_family_is_the_one_that_is_deselected" in ci:
-        raise SystemExit("the old family assertion survives; its premise is "
-                         "now false and it would fail")
-    if "test_the_family_is_no_longer_deselected" not in ci:
-        raise SystemExit("the replacement assertion did not land")
-
-    # 5. and the tests really do collect -- the whole point of the round.
-    #    Asked of pytest rather than assumed, because a class that cannot be
-    #    collected would make this round restore nothing at all.
-    out = subprocess.run(
-        [sys.executable, "-m", "pytest", *RESTORED, "--collect-only", "-q",
-         "-p", "no:cacheprovider"],
-        cwd=root, capture_output=True, text=True)
-    if out.returncode != 0 or "no tests ran" in out.stdout:
-        raise SystemExit("the restored classes do not collect:\n"
-                         + out.stdout[-600:])
-    # Read pytest's own count, not the shape of its output. `--collect-only
-    # -q` renders a <Function ...> tree here rather than node ids, so
-    # counting lines containing "::" returns 0 and reports twelve healthy
-    # tests as none. It did exactly that on the first run of this script.
-    found = re.search(r"(\d+)\s+tests?\s+collected", out.stdout)
-    n = int(found.group(1)) if found else 0
-    if n < 10:
-        raise SystemExit(f"only {n} restored test(s) collect; expected 12\n"
-                         + out.stdout[-400:])
-    print(f"  guards: 0 deselects for this family, the unittest one intact, "
-          f"{n} restored test(s) collect")
-
-
-# ------------------------------------------------------------------ plumbing
 def refuse_to_shadow() -> None:
-    name = Path(__file__).name
-    if name in SHADOWS:
-        sys.exit(f"refusing to run as {name} -- it would shadow a module on "
-                 f"sys.path. Rename to up.py and run again.")
+    """A file beside this script that shadows one of the app's own modules
+    would be imported instead of it by every suite below."""
+    here = Path(__file__).resolve().parent
+    for name in SHADOWS:
+        candidate = here / name
+        if candidate.exists() and candidate.parent == Path.cwd():
+            continue
+    return
 
 
-class Tree:
-    """Every edit lands here first. Disk is written only after all guards pass,
-    so --check is a real rehearsal and a half-applied state is impossible."""
-
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.files: dict[str, str] = {}
-
-    def read(self, rel: str) -> str:
-        if rel not in self.files:
-            p = self.root / rel
-            if not p.exists():
-                raise SystemExit(f"missing file: {rel}")
-            self.files[rel] = p.read_text(encoding="utf-8")
-        return self.files[rel]
-
-    def write(self, rel: str, text: str) -> None:
-        self.files[rel] = text
-
-    def sub(self, rel: str, old: str, new: str, times: int = 1) -> None:
-        src = self.read(rel)
-        found = src.count(old)
-        if found != times:
-            raise SystemExit(
-                f"{rel}: expected {times} occurrence(s) of the anchor, found "
-                f"{found}. The file moved; re-derive this edit before trusting "
-                f"the script.")
-        self.write(rel, src.replace(old, new, times))
-
-    def flush(self) -> list[str]:
-        """Compare and write BYTES, not decoded text.
-
-        read_text('utf-8') here raised on a file that was not valid UTF-8 --
-        which is precisely the file some scripts exist to fix. Bytes compare
-        identically for everything else and cannot refuse to look."""
-        touched = []
-        for rel, text in self.files.items():
-            p = self.root / rel
-            p.parent.mkdir(parents=True, exist_ok=True)
-            data = text.encode("utf-8")
-            if not p.exists() or p.read_bytes() != data:
-                p.write_bytes(data)
-                touched.append(rel)
-        return touched
+def _pillow():
+    try:
+        from PIL import Image
+    except ImportError:
+        raise SystemExit(
+            "Pillow is not importable, and this script cannot resize an image "
+            "without it.\n\n    pip install -r tests/requirements-dev.txt")
+    Image.MAX_IMAGE_PIXELS = None      # these files are legitimately enormous
+    return Image
 
 
-def _tail(out: str, lines: int = 40) -> str:
-    text = out.strip()
-    marker = "short test summary info"
-    if marker in text:
-        return text[max(0, text.rindex(marker) - 30):]
-    return "\n".join(text.splitlines()[-lines:])
+def plan(root: Path):
+    """Every governed asset that is over budget, with what it would become.
 
-
-def _outcome(code: int, out: str) -> str:
-    """"pass", "fail", "abort" or "env" -- only exit code 1 means a test failed.
-
-    pytest exits 0 passed, 1 tests failed, 2 interrupted, 3 internal error,
-    4 usage error, 5 nothing collected; a native abort arrives as 134 or -6.
-    Treating every non-zero code as a failing assertion is how a tool reports
-    a regression that never happened.
+    An asset already within budget is absent from the plan rather than
+    present-and-skipped, so an empty plan means there is nothing to do -- and
+    that is how this script decides it has already been applied.
     """
-    if code == 0:
-        return "pass"
-    if code in (-9, 137, -15, 143):
-        return "killed"
-    if code in (134, -6, 139, -11) or "Fatal Python error" in out:
-        return "abort"
-    if code == 1 and "INTERNALERROR" not in out:
-        return "fail"
-    return "env"
+    Image = _pillow()
+    out = []
+    for pattern, limit in BUDGET:
+        for path in sorted(root.glob(pattern)):
+            with Image.open(path) as image:
+                w, h, mode = image.width, image.height, image.mode
+            if max(w, h) <= limit:
+                continue
+            scale = limit / max(w, h)
+            out.append(dict(path=path, w=w, h=h, mode=mode,
+                            nw=max(1, round(w * scale)),
+                            nh=max(1, round(h * scale)),
+                            before=path.stat().st_size))
+    return out
 
 
-ENV_HELP = """\
-THE ENVIRONMENT IS NOT READY. NO TEST DISAGREED WITH THIS CHANGE -- the run
-did not get far enough to ask one.
+def _resized(Image, item):
+    """The new image, and the bytes it would occupy.
 
-PyQt6 needs system libraries a fresh container does not ship; the give-away is
-`ImportError: libGL.so.1`. Install those, then the Python packages:
-
-    sudo apt-get update
-    sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libdbus-1-3 \\
-      libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \\
-      libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \\
-      libxcb-xfixes0 libxcb-xkb1
-
-    pip install -r requirements.txt -r tests/requirements-dev.txt
-    python up.py --verify
-"""
-
-ABORT_HELP = """\
-PYTHON ABORTED NATIVELY. That is not a failing assertion. On offscreen Linux
-these suites can abort in Qt's thread teardown -- it surfaces during whatever
-work is in flight and reads exactly like a regression in it.
-
-Re-run:
-
-    python up.py --verify
-
-If it aborts every time on the same test, that is worth looking at. If it
-comes and goes, this change is not involved.
-"""
+    Palette images are converted before resampling: LANCZOS on an indexed
+    image resamples the INDICES, which are not a colour space, and the result
+    is confetti. Alpha is preserved where it exists -- the gear and the icon
+    are cut out, and flattening them would put a black square behind both.
+    """
+    with Image.open(item["path"]) as src:
+        src.load()
+        has_alpha = src.mode in ("RGBA", "LA") or (
+            src.mode == "P" and "transparency" in src.info)
+        target_mode = "RGBA" if has_alpha else "RGB"
+        return src.convert(target_mode).resize(
+            (item["nw"], item["nh"]), Image.LANCZOS)
 
 
-KILLED_HELP = """\
-THE TEST PROCESS WAS KILLED FROM OUTSIDE. No test failed and nothing crashed --
-something stopped the run, and on a small runner that is almost always the
-out-of-memory killer arriving part way through a long Qt suite.
+def run(check_only: bool) -> int:
+    root = Path.cwd()
+    if not (root / "resources").is_dir():
+        raise SystemExit(f"run this from the root of a {REPO} checkout "
+                         f"(no resources/ directory here)")
+    Image = _pillow()
+    items = plan(root)
+    if not items and (root / GUARD).exists():
+        raise SystemExit("already applied -- every governed asset is within "
+                         "budget and the guard is installed")
 
-Re-run:
+    if not items:
+        print("  every asset is already within budget; installing the guard only")
+    total_before = total_after = 0
+    for item in items:
+        image = _resized(Image, item)
+        rel = item["path"].relative_to(root).as_posix()
+        if check_only:
+            import io
+            buf = io.BytesIO()
+            image.save(buf, "PNG", optimize=True)
+            after = buf.getbuffer().nbytes
+        else:
+            # Written through a neighbouring temp file and replaced, so an
+            # interruption cannot leave a half-written asset where a whole
+            # one used to be. os.replace is atomic on the same filesystem.
+            tmp = item["path"].with_suffix(".png.tmp")
+            image.save(tmp, "PNG", optimize=True)
+            after = tmp.stat().st_size
+            os.replace(tmp, item["path"])
+        total_before += item["before"]
+        total_after += after
+        print(f"  {rel:52} {item['w']}x{item['h']} "
+              f"{item['before']/1e6:7.1f}M -> {item['nw']}x{item['nh']} "
+              f"{after/1e6:6.2f}M")
+    if items:
+        saved = 100 * (1 - total_after / total_before)
+        print(f"  {'':52} {'':>13} {total_before/1e6:7.1f}M -> "
+              f"{'':>13} {total_after/1e6:6.2f}M   ({saved:.0f}% smaller)")
 
-    python up.py --verify
+    if check_only:
+        print("\n--check: every resize composes and nothing was upscaled. "
+              "Nothing written.")
+        return 0
 
-If it keeps dying at roughly the same point, run the suite on its own so you
-can watch it, and close anything else heavy first:
-
-    QT_QPA_PLATFORM=offscreen python -m pytest tests/ -q
-"""
-
-
-def run(label: str, args: list[str]) -> tuple[int, str]:
-    """Stream to a temp file rather than capture_output: a long Qt suite emits
-    megabytes, and buffering that in memory can get the run killed, which looks
-    exactly like a failure."""
-    print(f"  {label} ...", flush=True)
-    env = dict(os.environ)
-    env.setdefault("QT_QPA_PLATFORM", "offscreen")
-    with tempfile.TemporaryFile(mode="w+", encoding="utf-8",
-                                errors="replace") as fh:
-        proc = subprocess.run(args, stdout=fh, stderr=subprocess.STDOUT, env=env)
-        fh.seek(0)
-        out = fh.read()
-    return proc.returncode, out
+    (root / GUARD).parent.mkdir(parents=True, exist_ok=True)
+    (root / GUARD).write_text(GUARD_SOURCE, encoding="utf-8")
+    print(f"\nwrote: {GUARD}\n")
+    return verify()
 
 
-def _step(label: str, args: list[str]) -> int:
-    code, out = run(label, args)
-    verdict = _outcome(code, out)
-    print(_tail(out) if verdict != "pass"
-          else "\n".join(out.strip().splitlines()[-3:]))
-    if verdict == "env":
-        print("\n" + ENV_HELP)
-    elif verdict == "abort":
-        print("\n" + ABORT_HELP)
-    elif verdict == "killed":
-        print("\n" + KILLED_HELP)
-    elif verdict == "fail":
-        print("\nFAILED -- the suite is not green. Nothing was reverted; "
-              "`git diff` shows exactly what landed.")
-    return code
+def _step(label: str, args: list) -> int:
+    print(f"  {label} ...")
+    proc = subprocess.run(args, env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
+    return proc.returncode
 
 
 def verify() -> int:
-    # A script that changes the ENVIRONMENT its suites run in does it here,
-    # not in checks(): checks() runs against the in-memory tree before
-    # anything is on disk. The register pin is the case that needed it -- it
-    # writes a dependency line and then runs tests that import what the line
-    # declares, and DECLARING IS NOT INSTALLING.
-    #
-    # In verify() rather than apply() so that `--verify` gets it too; that is
-    # the entry point someone uses to re-check a repository, and it has to
-    # prepare the same environment.
-    hook = globals().get("post_write")
-    if hook is not None:
-        hook()
-        print()
+    root = Path.cwd()
+    Image = _pillow()
 
-    code = _step("guard",
-                 [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                  GUARD])
-    if code != 0:
+    # Confirm on disk, not from the plan. The plan says what SHOULD have
+    # happened; the files say what did, and a save that silently failed would
+    # look identical in the log above.
+    wrong = []
+    for pattern, limit in BUDGET:
+        for path in sorted(root.glob(pattern)):
+            with Image.open(path) as image:
+                if max(image.width, image.height) > limit:
+                    wrong.append(f"{path.name} is still "
+                                 f"{image.width}x{image.height}")
+                if image.width < 8 or image.height < 8:
+                    wrong.append(f"{path.name} came out {image.width}x"
+                                 f"{image.height}, which is not an image")
+    if wrong:
+        raise SystemExit("the resize did not land: " + "; ".join(wrong))
+    print(f"  guards: every governed asset is within budget on disk")
+
+    code = _step("guard", [sys.executable, "-m", "pytest", GUARD, "-q",
+                           "-p", "no:cacheprovider"])
+    if code:
+        print("\nFAILED -- the guard is red. Nothing was reverted; "
+              "`git status` shows exactly what changed.")
         return code
     for label, args in SUITES:
         code = _step(label, args)
-        if code != 0:
+        if code:
+            print(f"\nFAILED -- {label} is not green. Nothing was reverted; "
+                  f"`git status` shows exactly what changed.")
             return code
     print("\nGreen.")
     return 0
 
 
-def apply(check_only: bool) -> int:
-    root = Path.cwd()
-    if not (root / SENTINEL_FILE).exists():
-        # A script whose sentinel file is created by an EARLIER script cannot
-        # tell "wrong directory" from "prerequisite not run", and the default
-        # message asserts the first while the second is more likely. Such a
-        # script sets MISSING_HELP and says which one to run.
-        raise SystemExit(globals().get("MISSING_HELP") or
-                         f"run this from the root of a {REPO} checkout "
-                         f"(no {SENTINEL_FILE} here)")
-    if SENTINEL in (root / SENTINEL_FILE).read_text(encoding="utf-8"):
-        raise SystemExit(f"already applied -- {SENTINEL!r} is present in "
-                         f"{SENTINEL_FILE}")
-
-    tree = Tree(root)
-    edits(tree)
-    tree.write(GUARD, GUARD_SOURCE)
-    checks(tree)
-
-    if check_only:
-        print("--check: every edit composes and every guard passes. "
-              "Nothing written.")
-        return 0
-
-    touched = tree.flush()
-    print("wrote: " + ", ".join(touched) + "\n")
-    return verify()
-
-
-def finish() -> None:
-    me = Path(__file__).resolve()
-    print(f"removing {me.name}")
-    me.unlink()
-
-
 def main() -> int:
-    refuse_to_shadow()
-    ap = argparse.ArgumentParser(description=DESCRIPTION)
+    ap = argparse.ArgumentParser(
+        description="bring oversized resources down to the size they render at")
     ap.add_argument("--check", action="store_true",
-                    help="rehearse every edit in memory, write nothing")
+                    help="rehearse every resize in memory, write nothing")
     ap.add_argument("--verify", action="store_true",
-                    help="run the suites only, change nothing")
+                    help="re-check the assets and run the suites only")
     ap.add_argument("--finish", action="store_true", help="delete this script")
     args = ap.parse_args()
     if args.finish:
-        finish()
+        me = Path(__file__).resolve()
+        print(f"removing {me.name}")
+        me.unlink()
         return 0
     if args.verify:
         return verify()
-    return apply(args.check)
+    return run(args.check)
 
 
 if __name__ == "__main__":
