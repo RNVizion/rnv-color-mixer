@@ -404,7 +404,7 @@ class TestImageUploadDeep:
         """Upload with a real PNG → image_handler should report loaded.
 
         Note: `upload_image` defers the actual load via
-        `SafeQTimer.safe_single_shot(50, _do_image_load, path)` so we
+        `SafeQTimer.safe_single_shot(self, 50, _do_image_load, path)` so we
         must `qtbot.waitUntil` for the timer to fire."""
         _suppress_modals(monkeypatch)
         png = _make_test_png(tmp_path / "upload.png")

@@ -143,13 +143,21 @@ the same commit. Reproduced locally on an **untouched checkout of that same
 commit**: one abort in three runs, at the identical test, twenty tests in.
 The abort is preceded by a swallowed
 `RuntimeError: wrapped C/C++ object of type QLabel has been deleted` from
-`RNV_Color_Mixer.py:2365` — a preview callback firing after its label is
-gone — which is the same lifecycle smell described above and is worth its
-own look.
+`RNV_Color_Mixer.py` — a preview callback firing after its label is
+gone. **Fixed 2026-09-09.** `SafeQTimer` wrapped every callable in a
+try/except closure; a closure is a plain function, so `singleShot` had no
+receiver QObject to cancel against and the callback ran `msec` later
+whatever had happened to the window in between. Each deferred call now
+names the object it acts on and returns quietly when that object's C++
+side is gone. A window destroyed straight after construction produced
+four such swallowed RuntimeErrors before the change and none after.
+Guarded by `tests/test_timer_ownership.py`.
 
-Deselected on Linux only, in the manner this entry already prescribed:
-visible in the workflow, not marked skip, so the cost stays countable. The
-planned fix is unchanged and is still the right one.
+**No longer deselected.** Both classes were restored to Linux CI on
+2026-09-08, once the thread-ownership fix landed, and the workflow records
+the restoration in place. This paragraph went on describing the deselect
+as current after it had been removed, which is the ordinary fate of prose
+that nothing checks.
 
 ---
 

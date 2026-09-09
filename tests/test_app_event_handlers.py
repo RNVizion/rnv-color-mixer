@@ -176,7 +176,8 @@ class TestMainAppEventHandlers:
         self, app_window, qtbot, tmp_path, monkeypatch
     ):
         """dropEvent reads the URL, calls `event.acceptProposedAction()`,
-        and queues `_do_image_load` via `SafeQTimer.safe_single_shot(10, ...)`.
+        and queues `_do_image_load` via
+        `SafeQTimer.safe_single_shot(self, 10, ...)`.
 
         UPGRADE: assert image_handler reports loaded after the deferred
         timer fires (waitUntil up to 2s)."""

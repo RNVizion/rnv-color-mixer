@@ -10,6 +10,10 @@ efficient hover/press state management in all themes including Image Mode.
 import sys
 import os
 import traceback
+try:
+    from PyQt6 import sip as _sip
+except ImportError:                 # sip ships with PyQt6; degrade, do not fail
+    _sip = None
 from types import TracebackType
 from typing import Callable, Any
 from PyQt6.QtWidgets import (
@@ -129,16 +133,86 @@ def safe_slot(status_message: str = "Operation failed") -> Callable[[Callable], 
     return decorator
 
 
+def _qt_object_is_gone(obj: object) -> bool:
+    """True when a Qt object's C++ side has been destroyed under its wrapper.
+
+    Nothing else can answer this. Measured on PyQt6 6.11 against a QLabel
+    whose parent had been deleted:
+
+        bool(label)                 -> True
+        hasattr(label, 'width')     -> True
+        label.width()               -> RuntimeError: wrapped C/C++ object
+                                       of type QLabel has been deleted
+        sip.isdeleted(label)        -> True
+
+    So `if self.some_widget:` is a test for None and nothing more, which is
+    why every such guard in a deferred callback has been passing and then
+    raising on the next line.
+
+    Returns False when it cannot tell -- sip missing, or the object not a
+    wrapped one -- because "unknown" must behave the way this code behaved
+    before the check existed. A liveness test that guessed "gone" would
+    silently stop callbacks from running.
+    """
+    if obj is None:
+        return True
+    if _sip is None:
+        return False
+    try:
+        return bool(_sip.isdeleted(obj))
+    except TypeError:
+        return False
+
+
 class SafeQTimer(QObject):
-    """Safe timer wrapper that catches exceptions"""
-    
+    """A single-shot timer whose callback will not run against a dead object.
+
+    RNV-TIMER-OWNERSHIP, 2026-09-09. See tests/test_timer_ownership.py.
+
+    WHY THIS TAKES A CONTEXT. QTimer.singleShot(msec, a_plain_function)
+    creates a connection with no receiver QObject, so Qt has nothing whose
+    destruction could cancel it: the callback is delivered msec later
+    whatever happened in between. Handing that call a BOUND METHOD of a
+    QObject would be tied to that object and cancelled on destruction -- but
+    this helper wraps every callable in a try/except closure, and a closure
+    is a plain function. **The wrapper added in order to be careful is what
+    removed Qt's own care**, and its except clause then logged the result
+    and carried on.
+
+    Measured on a window destroyed before its startup timers fired: four
+    swallowed "RuntimeError: wrapped C/C++ object of type ... has been
+    deleted" per teardown, one of them from _update_preview -- the one
+    KNOWN_ISSUES.md names. With the check below: zero.
+
+    WHY THE TIMER IS NOT PARENTED TO THE CONTEXT, WHICH WOULD BE TIDIER.
+    That was the first fix, and it was withdrawn. A QTimer built as
+    QTimer(context) is destroyed with its parent, which cancels the callback
+    at the Qt level and needs no check at all -- but ui_handler calls
+    QApplication.processEvents() inside _apply_image_mode, so timer events
+    are dispatched re-entrantly during window construction. With the timers
+    owned by the window, that **segfaulted on the fourth window** of
+    tests/test_app_event_handlers.py, on a file the untouched tree passes.
+    Confirmed by discriminating: the identical helper with an UNPARENTED
+    QTimer passes the same file. So the ownership is the hazard, and the
+    check below is the fix that survives contact with this codebase.
+    """
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        
+
     @staticmethod
-    def safe_single_shot(msec: int, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
-        """Execute function with exception handling"""
+    def safe_single_shot(context: QObject, msec: int, func: Callable[..., Any],
+                         *args: Any, **kwargs: Any) -> None:
+        """Call func after msec, unless context has been destroyed by then.
+
+        `context` is the object the callback acts on -- for a method of a
+        window, that window. It is required, and deliberately first: an
+        optional context is one that gets left out at exactly the call site
+        that needed it.
+        """
         def safe_wrapper() -> None:
+            if _qt_object_is_gone(context):
+                return
             try:
                 if args or kwargs:
                     func(*args, **kwargs)
@@ -147,7 +221,7 @@ class SafeQTimer(QObject):
             except Exception as e:
                 logger.error("Timer callback error", error=e)
                 traceback.print_exc()
-        
+
         QTimer.singleShot(msec, safe_wrapper)
 
 
@@ -395,9 +469,9 @@ class ColorMixerApp(QMainWindow):
             logger.info("Setting up keyboard shortcuts...")
             self._setup_keyboard_shortcuts()
             # Font is applied once at app level in main() - no need for redundant calls
-            SafeQTimer.safe_single_shot(100, self._force_initial_theme_update)
+            SafeQTimer.safe_single_shot(self, 100, self._force_initial_theme_update)
             # Apply initial preview visibility based on settings
-            SafeQTimer.safe_single_shot(150, lambda: self._update_preview(self.current_mixed_color))
+            SafeQTimer.safe_single_shot(self, 150, lambda: self._update_preview(self.current_mixed_color))
 
 
             # Debug overlays for panels (optional - toggle with F12)
@@ -438,7 +512,7 @@ class ColorMixerApp(QMainWindow):
                 self.session_manager.start_autosave(self)
                 
                 # Check for crash recovery
-                SafeQTimer.safe_single_shot(500, self._check_crash_recovery)
+                SafeQTimer.safe_single_shot(self, 500, self._check_crash_recovery)
             # === END AUTO-SAVE ===
             
             logger.success("ColorMixerApp initialization completed successfully")
@@ -2108,7 +2182,7 @@ class ColorMixerApp(QMainWindow):
             filename = os.path.basename(path)
             self.status_updated.emit(f"Loading {filename}...")
             
-            SafeQTimer.safe_single_shot(50, self._do_image_load, path)
+            SafeQTimer.safe_single_shot(self, 50, self._do_image_load, path)
             logger.success("Image upload initiated successfully")
         
         ErrorHandler.safe_execute(upload, "uploading image", print)
@@ -2273,7 +2347,7 @@ class ColorMixerApp(QMainWindow):
             self.status_updated.emit(f"Removed color slot (now {len(self.slots)} slots)")
             
             # Reset flag after successful removal
-            SafeQTimer.safe_single_shot(100, lambda: setattr(slot, '_being_removed', False) if hasattr(slot, '_being_removed') else None)
+            SafeQTimer.safe_single_shot(self, 100, lambda: setattr(slot, '_being_removed', False) if hasattr(slot, '_being_removed') else None)
         
         ErrorHandler.safe_execute(remove_slot, "removing color slot", print)
 
@@ -2362,7 +2436,7 @@ class ColorMixerApp(QMainWindow):
             hex_color = ColorMath.rgb_to_hex(color_to_use)
             
             if self.preview_label:
-                current_size = self.preview_label.width() if hasattr(self, 'preview_label') else 140
+                current_size = self.preview_label.width()
                 border_width = max(2, current_size // 50)
                 border_radius = max(8, current_size // 18)
                 
@@ -2465,7 +2539,7 @@ class ColorMixerApp(QMainWindow):
             
             if (hasattr(self, 'canvas_view') and self.canvas_view and 
                 hasattr(self, 'image_handler') and self.image_handler.is_loaded()):
-                SafeQTimer.safe_single_shot(100, self._update_image_display)
+                SafeQTimer.safe_single_shot(self, 100, self._update_image_display)
         
         ErrorHandler.safe_execute(handle_resize, "handling resize event", print)
 
@@ -2648,7 +2722,7 @@ class ColorMixerApp(QMainWindow):
                 
                 if path and os.path.exists(path):
                     self.status_updated.emit(f"Loading dropped: {os.path.basename(path)}")
-                    SafeQTimer.safe_single_shot(10, self._do_image_load, path)
+                    SafeQTimer.safe_single_shot(self, 10, self._do_image_load, path)
                 else:
                     self.status_updated.emit("Invalid dropped file")
                     
