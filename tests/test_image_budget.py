@@ -1,9 +1,10 @@
 """RNV-IMAGE-BUDGET-GUARD -- the resources stay the size they were reduced to.
 
-Installed 2026-09-08. This repository shipped a window background of
-16000x9038 (or 8000x4500) and a settings gear of 3334x3334 for a button that
-renders at 50x50. Across the five applications that was 537 MB of pixels
-reproducing, for the most part, flat geometric shapes.
+Installed 2026-09-08, scope corrected 2026-09-09. This repository shipped a
+window background of 16000x9038 (or 8000x4500) and a settings gear of
+3334x3334 for a button that renders at 50x50. Across the five applications
+that was 537 MB of pixels reproducing, for the most part, flat geometric
+shapes.
 
 The backgrounds are now 3840 on the long edge -- a full 4K width, so a
 maximised window on a 4K display still scales DOWN rather than up -- and the
@@ -29,6 +30,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
+#: RNV-IMAGE-BUDGET-SCOPE, 2026-09-09. The first version of this file
+#: was written once and installed in all five applications, and it
+#: carried an entry for resources/icons/special_slot.png. Only two
+#: applications have that file, and this is one of them, so the entry
+#: stays here. In the other three it was a rule with no subject and was
+#: removed. A budget belongs to the repository it governs.
+#:
 #: glob -> the largest edge this asset may have, and why that number.
 BUDGET = (
     ('resources/background_images/*.png', 3840,
@@ -39,7 +47,10 @@ BUDGET = (
      'several times over'),
     ('resources/icons/icon.png', 512,
      'the window and dock icon; 512 is the largest size any desktop asks for'),
-    ('resources/icons/special_slot.png', 512, 'a slot badge'),
+    ('resources/icons/special_slot.png', 512,
+     'the 99-or-more overflow tile drawn by PreviewGrid in the palette '
+     'manager, and an unused duplicate of the app icon in the mixer; '
+     '512 either way'),
 )
 
 #: A file over this, in a directory the budget governs, is the thing that
@@ -102,6 +113,10 @@ def test_the_budget_still_matches_real_files():
     exactly like a repository in good order. And an entry that has stopped
     matching is a rule with no subject -- worth deleting deliberately rather
     than leaving to pass over silence.
+
+    This is the test that caught the scope error described at BUDGET. It was
+    written on the argument that a budget can go stale silently; the first
+    thing it found was a budget that had never been true here at all.
     """
     empty = [pattern for pattern, _l, _w in BUDGET
              if not list(ROOT.glob(pattern))]
@@ -109,6 +124,24 @@ def test_the_budget_still_matches_real_files():
         'these budget entries match no file in this repository:\n  '
         + '\n  '.join(empty)
         + '\n\nIf the asset was retired, remove its entry in the same commit.')
+
+
+def test_the_budget_does_not_govern_a_file_this_repository_lacks():
+    """The same failure stated from the other side, and pinned to a name.
+
+    The scope error was one glob that named a file only two of the five
+    applications ship. A pattern with no wildcard is a claim that a specific
+    path exists, so it is worth checking as one -- an assertion that reads
+    the filename is easier to act on than one that reads a glob.
+    """
+    missing = [pattern for pattern, _l, _w in BUDGET
+               if '*' not in pattern and not (ROOT / pattern).exists()]
+    assert not missing, (
+        'the budget names files that are not in this repository:\n  '
+        + '\n  '.join(missing)
+        + '\n\nA budget belongs to the repository it governs. If an asset '
+          'exists in a sibling application but not this one, it does not '
+          'belong in this file.')
 
 
 def test_the_assets_are_where_they_were():
