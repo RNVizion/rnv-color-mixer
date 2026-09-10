@@ -77,11 +77,13 @@ from __future__ import annotations
 
 import argparse
 import ast
-import re
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
+REPO = "rnv-color-mixer"
 SENTINEL_FILE = "core/color_history.py"
 SENTINEL = "RNV-HISTORY-WRITER"
 GUARD = "tests/test_history_writer_ownership.py"
