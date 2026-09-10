@@ -32,12 +32,33 @@ resources/background_images/background.png file via
 `ImageHandler.load_image()`. On CI runners (no display server), the load
 operation never completes.
 
-**User impact:** None. Production users always run with a real display
-server, where the load completes instantly. The test passes in the local
-development environment for the same reason.
+**User impact:** None *on a desktop*. The dialog below is shown and the
+user clicks through it.
 
-**Planned fix:** None required. This is a test-environment artifact, not
-a code defect.
+**This is a code defect, not a test-environment artifact.** Corrected
+2026-09-10; the previous wording said "Planned fix: None required. This is
+a test-environment artifact, not a code defect", and that is wrong.
+`ImageHandler.load_image` calls
+
+```python
+if file_size_mb > 10:
+    reply = QMessageBox.question(None, "Large Image File", ...)
+```
+
+`resources/background_images/background.png` is 10.1 MB, so the threshold
+trips and a **modal question dialog** opens inside a data-loading function.
+A modal dialog never returns without a user, so the load never completes
+anywhere there is nobody to click it. Reproduced directly: the call blocks
+until killed, printing `This plugin does not support propagateSizeHints()`
+on the way in. Nothing about the CI runner is at fault; the same call blocks
+in any headless context.
+
+**Planned fix:** the same split applied to the palette importer on
+2026-09-10 — the function that reads the file returns a result, and the
+caller decides whether to ask the user. `tests/test_palette_import.py`
+states the rule and names this as the outstanding violation.
+**Not fixed yet:** `load_image` is a hundred lines on the main image path
+and deserves its own round.
 
 ### `TestAsyncFileOpsErrorPaths` class (pytest)
 

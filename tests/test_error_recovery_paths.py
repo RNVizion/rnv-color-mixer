@@ -134,16 +134,94 @@ class TestFileUtilsHelpers:
 
 @pytest.mark.integration
 class TestFileUtilsPaletteImport:
-    """`auto_detect_and_import_palette` invokes specific format
-    importers that crash hard on certain inputs in offscreen Qt
-    (likely because of QPixmap reading from binary palette formats).
-    Skipped — covered transitively by integration tests already."""
+    """Driving the palette import for real, which nothing did before.
 
-    @pytest.mark.skip(
-        reason="Native crash on offscreen Qt — see Phase 8.7 report"
-    )
-    def test_auto_detect_palette_skipped(self):
-        pass
+    RESTORED 2026-09-10 (RNV-PALETTE-IMPORT). What stood here was a single
+    method named `test_auto_detect_palette_skipped` whose body was `pass`,
+    carrying `@pytest.mark.skip(reason="Native crash on offscreen Qt")`.
+
+    Two things were wrong with that. It measured nothing — a skipped `pass`
+    reports as a skip and covers no line. And the reason was wrong: the
+    function does not crash, it **hangs**. Its failure path called
+    `show_warning_dialog` / `show_error_dialog`, and a modal dialog never
+    returns without a user. Valid input returned fine; missing, empty and
+    garbage input all blocked forever.
+
+    Nor was it the only test that looked like coverage here. The locked
+    `test_rnv_color_mixer.py` calls `FileUtils.auto_detect_and_import_palette`
+    twice — unbound, with one argument — so both raise
+    `TypeError: missing 1 required positional argument` and both swallow it
+    with `except Exception: pass`. Three tests named after this function, and
+    not one of them entered it.
+
+    `import_palette_data` is the same work with the dialogs lifted out. The
+    wrapper keeps its name, its return and its dialogs, so callers and the
+    locked file see no change at all.
+    """
+
+    @staticmethod
+    def _fu():
+        from utils.file_utils import FileUtils
+        return FileUtils()
+
+    @pytest.mark.timeout(60)
+    def test_a_valid_palette_imports(self, tmp_path):
+        out = tmp_path / "ok.gpl"
+        out.write_bytes(b"GIMP Palette\nName: t\n#\n255 0 0 Red\n")
+
+        colors, problem = self._fu().import_palette_data(str(out))
+
+        assert problem is None, f"a valid palette reported a problem: {problem}"
+        assert colors, "a valid palette imported no colors"
+
+    @pytest.mark.timeout(60)
+    @pytest.mark.parametrize("name,content", [
+        ("missing.gpl", None),
+        ("empty.gpl", b""),
+        ("garbage.pal", b"\xa4\x00\xff\xfe" * 64),
+        ("empty.json", b""),
+    ])
+    def test_bad_input_returns_a_problem_instead_of_blocking(
+        self, tmp_path, name, content
+    ):
+        """The whole point. Each of these used to block forever.
+
+        The timeout is the assertion that matters: a regression that puts a
+        dialog back on this path fails the test in a minute instead of
+        hanging CI until someone notices.
+
+        Sixty seconds, not five, on purpose. The bodies here run in under
+        five milliseconds; the number is not a performance budget, it is the
+        line between "slow" and "never". A tight bound would only buy the
+        chance of a false failure on a cold runner.
+        """
+        target = tmp_path / name
+        if content is not None:
+            target.write_bytes(content)
+
+        colors, problem = self._fu().import_palette_data(str(target))
+
+        assert colors is None, f"{name} produced colors: {colors!r}"
+        assert problem is not None, f"{name} reported no problem"
+        severity, title, message = problem
+        assert severity in ("warning", "error"), f"unknown severity {severity!r}"
+        assert title and message, f"{name} gave an empty {title!r}/{message!r}"
+
+    @pytest.mark.timeout(60)
+    def test_the_import_never_raises(self, tmp_path):
+        """It reports; it does not throw.
+
+        Callers treat a None return as "no palette". A function that raises
+        instead would take the caller down, and the original swallowed
+        everything precisely to avoid that.
+        """
+        target = tmp_path / "a-directory-not-a-file.gpl"
+        target.mkdir()
+
+        colors, problem = self._fu().import_palette_data(str(target))
+
+        assert colors is None
+        assert problem is not None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

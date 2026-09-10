@@ -431,15 +431,24 @@ class FileUtils:
         ext = os.path.splitext(filepath)[1].lower()
         return ext in FileUtils.get_supported_palette_extensions()
 
-    def auto_detect_and_import_palette(self, filepath: str) -> list[tuple[tuple[int, int, int], int]] | None:
-        """
-        Auto-detect palette format and import.
-        
-        Args:
-            filepath: Path to palette file
-            
+    def import_palette_data(self, filepath: str) -> tuple[list[tuple[tuple[int, int, int], int]] | None, tuple[str, str, str] | None]:
+        """Auto-detect palette format and import. Shows nothing, ever.
+
+        RNV-PALETTE-IMPORT, 2026-09-10. See tests/test_palette_import.py.
+
         Returns:
-            List of (color, weight) tuples or None if failed
+            (colors, problem). `colors` is a list of (color, weight) tuples,
+            or None. `problem` is None on success, otherwise
+            (severity, title, message) with severity 'warning' or 'error'.
+
+        The severity is returned explicitly rather than inferred from the
+        title: a title is display text and will be reworded one day, and a
+        caller that dispatched on it would then quietly show the wrong kind
+        of dialog.
+
+        This half exists so the import can be driven from a test, a script
+        or any headless context. `auto_detect_and_import_palette` below is
+        unchanged for callers and still shows the dialogs.
         """
         try:
             from core.palette_formats import PaletteFormats
@@ -455,17 +464,30 @@ class FileUtils:
             if colors:
                 # Validate colors
                 colors = PaletteFormats.validate_colors(colors)
-                return colors
-            else:
-                self.show_warning_dialog(
-                    "Import Warning",
-                    "No valid colors found in the file."
-                )
-                return None
+                return colors, None
+            
+            return None, ("warning", "Import Warning",
+                          "No valid colors found in the file.")
                 
         except Exception as e:
-            self.show_error_dialog(
-                "Import Error",
-                f"Failed to import palette:\n{str(e)}"
-            )
-            return None
+            return None, ("error", "Import Error",
+                          f"Failed to import palette:\n{str(e)}")
+
+    def auto_detect_and_import_palette(self, filepath: str) -> list[tuple[tuple[int, int, int], int]] | None:
+        """
+        Auto-detect palette format and import.
+        
+        Args:
+            filepath: Path to palette file
+            
+        Returns:
+            List of (color, weight) tuples or None if failed
+        """
+        colors, problem = self.import_palette_data(filepath)
+        if problem is not None:
+            severity, title, message = problem
+            if severity == "warning":
+                self.show_warning_dialog(title, message)
+            else:
+                self.show_error_dialog(title, message)
+        return colors
