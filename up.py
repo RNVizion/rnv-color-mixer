@@ -3,6 +3,10 @@
 
     python up.py             # apply, then run the guard and both suites
     python up.py --check     # rehearse every edit in memory, write nothing
+    
+git checkout -- core/color_history.py tests/test_error_recovery_paths.py KNOWN_ISSUES.md
+rm -f tests/test_history_writer_ownership.py
+
 
 Derived against a fresh clone of rnv-color-mixer at head 61ecf57.
 
