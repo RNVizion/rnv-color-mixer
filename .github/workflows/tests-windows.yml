@@ -47,12 +47,16 @@ jobs:
           python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='0827b02dbaa946087da83a27b391065aaa6114cfe43a78c958f6b0a502b0eddd'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
 
       - name: Run locked unittest suite
-        # Skip test_load_real_image_if_available — it hangs on offscreen
-        # Qt (works fine locally with a real display). See KNOWN_ISSUES.md.
+        # RESTORED 2026-09-10 — nothing is deselected here any more.
+        # test_load_real_image_if_available hung because
+        # ImageHandler.load_image raised a modal QMessageBox.question for
+        # files over 10MB and background.png is 10.1MB. The question moved
+        # to the caller; the data path is silent. See KNOWN_ISSUES.md and
+        # tests/test_image_confirm.py.
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest test_rnv_color_mixer.py -v --deselect "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"
+          python -m pytest test_rnv_color_mixer.py -v
 
       - name: Run pytest suite
         env:

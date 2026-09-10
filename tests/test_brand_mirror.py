@@ -189,6 +189,15 @@ def _tracked_sources():
         path = root / rel
         if path.suffix.lower() not in (".py", ".qss", ".css"):
             continue
+        # `git ls-files` reports the INDEX, so a file deleted from the
+        # working tree is still listed until the deletion is committed.
+        # That is an ordinary transient state -- any `rm` before `git rm`
+        # produces it -- and reading it raised FileNotFoundError, turning a
+        # normal edit into three red tests with no useful message.
+        # test_the_retired_scan_is_still_looking still catches the case
+        # that matters, a scan that has stopped finding anything.
+        if not path.exists():
+            continue
         raw = path.read_bytes()
         try:
             text = raw.decode("utf-8-sig" if raw.startswith(b"\xef\xbb\xbf")

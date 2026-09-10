@@ -43,7 +43,23 @@ class ImageHandler(QObject):
     # Safety limits to prevent crashes
     MAX_IMAGE_PIXELS = 100_000_000  # ~100 megapixels (10000x10000)
     MAX_FILE_SIZE_MB = 200  # Maximum file size in megabytes
+
+    #: Above this, loading is slow enough that the user is asked first.
+    #: RNV-IMAGE-CONFIRM, 2026-09-10 -- named rather than the bare 10 it was,
+    #: because the caller now applies the same threshold and two copies of a
+    #: magic number drift.
+    LARGE_IMAGE_WARNING_MB = 10
+
+    #: One definition, used by load_image and by the confirmation check, so
+    #: the two cannot disagree about what is loadable.
+    VALID_IMAGE_EXTENSIONS = frozenset({
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp'})
     # Signals
+    image_loaded = pyqtSignal(str)  # image path
+    image_cleared = pyqtSignal()
+    zoom_changed = pyqtSignal(float)  # zoom level
+    status_message = pyqtSignal(str)  # status message
+        # Signals
     image_loaded = pyqtSignal(str)  # image path
     image_cleared = pyqtSignal()
     zoom_changed = pyqtSignal(float)  # zoom level
@@ -66,6 +82,38 @@ class ImageHandler(QObject):
             self.pixmap_cache = ImagePixmapCache(max_size=15)
         else:
             self.pixmap_cache = None
+
+    def large_image_confirmation_size(self, path: str) -> float | None:
+        """The file's size in MB if the user should be asked before loading it.
+
+        RNV-IMAGE-CONFIRM, 2026-09-10. See tests/test_image_confirm.py.
+
+        Returns None when there is nothing to ask about: the file cannot be
+        stat-ed, is not an image this handler accepts, is small enough to
+        load without comment, or is over MAX_FILE_SIZE_MB and will be
+        refused anyway.
+
+        Stats the file. Never opens it, and never shows anything -- so it can
+        be called from a test, a script or CI. The conditions are exactly the
+        ones under which load_image used to raise its own dialog, which is
+        what keeps the user-visible behaviour identical.
+        """
+        try:
+            if not path or not isinstance(path, str) or len(path) > 255:
+                return None
+            if not os.path.exists(path) or not os.access(path, os.R_OK):
+                return None
+            if os.path.splitext(path)[1].lower() not in self.VALID_IMAGE_EXTENSIONS:
+                return None
+            size_mb = os.path.getsize(path) / (1024 * 1024)
+        except OSError:
+            return None
+
+        if size_mb <= self.LARGE_IMAGE_WARNING_MB:
+            return None
+        if size_mb > self.MAX_FILE_SIZE_MB:
+            return None
+        return size_mb
 
     def load_image(self, path: str) -> bool:
         """Load an image from file path with enhanced safety checks."""
@@ -94,7 +142,7 @@ class ImageHandler(QObject):
                 return False
             
             # Validate file extension
-            valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp'}
+            valid_extensions = self.VALID_IMAGE_EXTENSIONS
             file_ext = os.path.splitext(path)[1].lower()
             if file_ext not in valid_extensions:
                 self.status_message.emit(
@@ -112,27 +160,16 @@ class ImageHandler(QObject):
                 )
                 return False
             
-            # === LARGE IMAGE WARNING (>10MB) ===
-            from PyQt6.QtWidgets import QMessageBox, QProgressDialog, QApplication
+            # === LARGE IMAGE WARNING ===
+            # The confirmation used to be a QMessageBox.question right here.
+            # A modal question never returns without a user, so this
+            # function -- which reads a file -- could not be called headless
+            # at all: background.png is 10.1MB, the threshold tripped, and
+            # the load blocked forever. The question now belongs to the
+            # caller, which is the only place that knows whether there is
+            # anyone to answer it. See large_image_confirmation_size above.
+            from PyQt6.QtWidgets import QProgressDialog, QApplication
             from PyQt6.QtCore import Qt
-            
-            if file_size_mb > 10:
-                reply = QMessageBox.question(
-                    None,
-                    "Large Image File",
-                    f"This image is {file_size_mb:.1f}MB.\n\n"
-                    f"Large images may:\n"
-                    f"• Use significant memory\n"
-                    f"• Take longer to load and zoom\n"
-                    f"• Slow down color sampling\n\n"
-                    f"Continue loading?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.Yes
-                )
-                
-                if reply != QMessageBox.StandardButton.Yes:
-                    self.status_message.emit("Image loading cancelled by user")
-                    return False
             
             # === PROGRESS DIALOG FOR LARGE FILES (>5MB) ===
             progress = None

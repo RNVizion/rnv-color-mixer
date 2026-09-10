@@ -48,25 +48,24 @@ rule is about reading CONTENTS, and it was written by checking it against
 every dialog-showing function in the module rather than against the one that
 prompted it.
 
-THE SWEEP IS SCOPED TO utils/file_utils.py, AND THERE IS A KNOWN VIOLATION
-OUTSIDE IT. `ImageHandler.load_image` in core/image_handler.py has the same
-defect and is not fixed by this round:
+THE SWEEP NOW COVERS core/image_handler.py TOO, AND THE RULE IS WIDER.
+When this guard was installed it looked only for `show_*_dialog` helpers,
+and it was scoped to utils/file_utils.py with a note naming
+`ImageHandler.load_image` as a known violation left for its own round. That
+round landed on 2026-09-10.
 
-    if file_size_mb > 10:
-        reply = QMessageBox.question(None, "Large Image File", ...)
+Two things had to change, and the first is the more interesting. The
+original rule would **not** have caught load_image at all: its blocker was
 
-`resources/background_images/background.png` is 10.1 MB, so the threshold
-trips, the modal question blocks, and the load never returns. That is the
-whole of `test_load_real_image_if_available`, which KNOWN_ISSUES.md records
-as skipped on BOTH runners with "Planned fix: None required. This is a
-test-environment artifact, not a code defect." It is a code defect, of
-exactly the kind this rule names.
+    reply = QMessageBox.question(None, "Large Image File", ...)
 
-It is left out rather than quietly excluded: `load_image` is a hundred lines
-on the application's main image path, and prising the confirmation out of it
-is a bigger change than the one this round is carrying. FILES below is the
-list to extend when that lands. A guard that had simply pointed at the file
-it happened to pass on would have hidden this.
+which is not a `show_*_dialog` call. A rule that names one project-specific
+helper only ever catches code that uses that helper. It now recognises any
+blocking Qt call -- QMessageBox and friends, QInputDialog, and a bare
+`.exec()` -- and it is checked over both modules. Verified against the trees
+before each fix: the wider rule flags both original defects and neither
+fixed one.
+
 """
 from __future__ import annotations
 
@@ -78,11 +77,10 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 FILE_UTILS = ROOT / "utils" / "file_utils.py"
 
-#: The modules the rule is enforced over. core/image_handler.py belongs here
-#: and is not in it yet -- see the module docstring. Adding it before
-#: load_image is split would make this guard red on arrival, which is how a
-#: guard gets an exemption written into it and stops meaning anything.
-FILES = (FILE_UTILS,)
+#: The modules the rule is enforced over.
+IMAGE_HANDLER = ROOT / "core" / "image_handler.py"
+
+FILES = (FILE_UTILS, IMAGE_HANDLER)
 
 PURE = "import_palette_data"
 WRAPPER = "auto_detect_and_import_palette"
@@ -106,14 +104,44 @@ def _fn(name: str):
     return None
 
 
+#: Qt classes whose methods open a modal window and do not return until a
+#: person acts. QFileDialog is here for completeness even though its
+#: functions never read a file's contents, so the rule cannot fire on them.
+BLOCKING_CLASSES = ("QMessageBox.", "QInputDialog.", "QColorDialog.",
+                    "QFontDialog.", "QFileDialog.", "QProgressDialog.")
+
+
 def _shows_dialog(node) -> list[str]:
+    """Every call in `node` that waits for a person.
+
+    Wider than the project's own `show_*_dialog` helpers on purpose. The
+    version of this guard that looked only for those would have passed
+    `ImageHandler.load_image`, whose blocker was a plain
+    `QMessageBox.question` -- so the rule caught the defect it was written
+    from and would have missed its twin.
+    """
     out = []
     for n in ast.walk(node):
-        if isinstance(n, ast.Call):
-            attr = getattr(n.func, "attr", "")
-            if attr.startswith("show_") and "dialog" in attr:
-                out.append(attr)
+        if not isinstance(n, ast.Call):
+            continue
+        rendered = ast.unparse(n.func)
+        attr = getattr(n.func, "attr", "")
+        if attr.startswith("show_") and "dialog" in attr:
+            out.append(rendered)
+        elif rendered.startswith(BLOCKING_CLASSES):
+            out.append(rendered)
+        elif attr in ("exec", "exec_"):
+            out.append(rendered)
     return out
+
+
+def _all_functions():
+    """(path, FunctionDef) for every function in every governed module."""
+    for path in FILES:
+        tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                yield path, node
 
 
 def _reads_content(node) -> list[str]:
@@ -142,16 +170,13 @@ def test_no_function_both_reads_a_file_and_shows_a_dialog():
     dialog on its error path will not be this one, and a rule written about
     a single function is a rule that only ever catches that function.
     """
-    src, tree = _functions()
     bad = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef):
-            continue
+    for path, node in _all_functions():
         shows = _shows_dialog(node)
         reads = _reads_content(node)
         if shows and reads:
-            bad.append(f"{node.name} (line {node.lineno}): "
-                       f"shows {sorted(set(shows))}, reads {sorted(set(reads))}")
+            bad.append(f"{path.name}::{node.name} (line {node.lineno}): "
+                       f"waits on {sorted(set(shows))}, reads {sorted(set(reads))}")
 
     assert not bad, (
         "these functions read a file and show a dialog in the same body:\n  "
@@ -184,10 +209,13 @@ def test_the_wrapper_still_shows_both_dialogs():
     assert node is not None, f"{WRAPPER} is gone; callers depend on it"
 
     shows = set(_shows_dialog(node))
-    assert "show_warning_dialog" in shows, (
-        f"{WRAPPER} no longer warns on a file with no usable colours")
-    assert "show_error_dialog" in shows, (
-        f"{WRAPPER} no longer reports an import failure to the user")
+    # Matched by suffix: _shows_dialog reports the rendered call, so a
+    # helper reached through self comes back as "self.show_warning_dialog".
+    for needed in ("show_warning_dialog", "show_error_dialog"):
+        assert any(s.endswith(needed) for s in shows), (
+            f"{WRAPPER} no longer calls {needed}. That is a feature removed, "
+            f"not a refactor: the user stops being told why an import failed."
+            f" Calls found: {sorted(shows)}")
 
 
 def test_the_wrapper_delegates_rather_than_reimplementing():
@@ -278,7 +306,8 @@ def test_the_severity_is_returned_not_left_to_the_caller_to_guess(tmp_path):
 
 def test_this_guard_can_see_the_file_it_judges():
     """A sweep that finds nothing passes every assertion above."""
-    assert FILE_UTILS.exists(), f"{FILE_UTILS} is not where this guard looks"
+    for path in FILES:
+        assert path.exists(), f"{path} is not where this guard looks"
     src, tree = _functions()
     functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
     assert len(functions) >= 20, (

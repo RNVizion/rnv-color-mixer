@@ -18,14 +18,17 @@ surface only in specific test environments or specialized workflows.
 
 ## CI-skipped tests
 
-The following tests pass locally but are skipped on GitHub Actions CI
-runners due to environment-specific quirks (no display server, virtualized
-filesystems, etc.). Each skip is annotated in the workflow file with a
-comment explaining the cause.
+**There are no CI-skipped tests as of 2026-09-10.** Both runners run both
+suites complete. This section is kept as the record of what was skipped and
+why each one was retired — three of the four turned out to be code defects
+that the skip was hiding, not the environment quirks they were filed as.
 
-### `test_load_real_image_if_available` (locked unittest)
+### `test_load_real_image_if_available` (locked unittest) — RESTORED
 
-**Skipped on:** Linux CI, Windows CI
+**Skipped on:** nothing. Restored to both runners on 2026-09-10, and it was
+the last deselect in the repository: the locked suite now runs all 356 of
+its tests on Linux and on Windows.
+
 **Reason:** Hangs indefinitely when run under offscreen Qt
 (`QT_QPA_PLATFORM=offscreen`). The test loads the
 resources/background_images/background.png file via
@@ -53,12 +56,24 @@ until killed, printing `This plugin does not support propagateSizeHints()`
 on the way in. Nothing about the CI runner is at fault; the same call blocks
 in any headless context.
 
-**Planned fix:** the same split applied to the palette importer on
-2026-09-10 — the function that reads the file returns a result, and the
-caller decides whether to ask the user. `tests/test_palette_import.py`
-states the rule and names this as the outstanding violation.
-**Not fixed yet:** `load_image` is a hundred lines on the main image path
-and deserves its own round.
+**Fixed 2026-09-10.** `ImageHandler.large_image_confirmation_size` stats
+the file and returns the size in MB when the user should be asked, or None;
+it never opens the file and never shows anything. `load_image` no longer
+asks at all. The question moved to `RNV_Color_Mixer._do_image_load` — the
+one production path a person actually takes, and so the only place that
+knows there is someone to answer it — with the wording unchanged. The
+threshold is now `ImageHandler.LARGE_IMAGE_WARNING_MB` rather than a bare
+`10`, because the check and the caller both have to agree about it.
+
+Measured: the test hangs until killed on the tree before this change, and
+passes three times in three after. Guarded by
+`tests/test_image_confirm.py`, which also fails if the deselect is ever
+re-added to either workflow.
+
+`tests/test_ci_deselects.py` was deleted in the same change. It swept every
+`--deselect` in CI and asserted the node it named still existed; with none
+left it would have passed over nothing, and its own failure message said to
+delete it in the commit that removed the last one.
 
 ### `TestAsyncFileOpsErrorPaths` class (pytest)
 

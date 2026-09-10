@@ -2194,6 +2194,33 @@ class ColorMixerApp(QMainWindow):
         def load_image() -> None:
             logger.info(f"Loading image from: {path}")
             
+            # RNV-IMAGE-CONFIRM, 2026-09-10. This question used to live
+            # inside ImageHandler.load_image, where it made a file-reading
+            # function impossible to call without a user -- the load blocked
+            # forever on CI, which KNOWN_ISSUES.md recorded as a test
+            # environment quirk for months. It belongs here instead: this is
+            # the path a person actually took, so this is the place that
+            # knows there is someone to answer. The wording is unchanged.
+            file_size_mb = self.image_handler.large_image_confirmation_size(path)
+            if file_size_mb is not None:
+                from PyQt6.QtWidgets import QMessageBox
+                reply = QMessageBox.question(
+                    None,
+                    "Large Image File",
+                    f"This image is {file_size_mb:.1f}MB.\n\n"
+                    f"Large images may:\n"
+                    f"• Use significant memory\n"
+                    f"• Take longer to load and zoom\n"
+                    f"• Slow down color sampling\n\n"
+                    f"Continue loading?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    logger.info("Image loading cancelled by user")
+                    self.status_updated.emit("Image loading cancelled by user")
+                    return
+
             if not self.image_handler.load_image(path):
                 logger.error("Image handler failed to load image")
                 self.status_updated.emit("Failed to load image - unsupported format")

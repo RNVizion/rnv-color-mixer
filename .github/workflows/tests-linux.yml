@@ -88,9 +88,18 @@ jobs:
           # tests run fine locally — these are platform/environment
           # workarounds, not code defects. See KNOWN_ISSUES.md.
           #
-          # Skips:
-          #   - test_load_real_image_if_available (unittest):
-          #       Hangs on offscreen Qt when loading background image.
+          # Skips: none. The list below records what was restored and why.
+          #
+          # RESTORED 2026-09-10 — test_load_real_image_if_available is no
+          # longer deselected, on either runner. It was skipped for a hang
+          # that KNOWN_ISSUES.md called "a test-environment artifact, not a
+          # code defect". It was a code defect: ImageHandler.load_image
+          # raised a modal QMessageBox.question for files over 10MB, and
+          # background.png is 10.1MB, so a file-reading function waited for
+          # a click that no runner can give. The question now belongs to the
+          # caller. Measured: the test hangs on the tree before this change
+          # and passes three times in three after.
+          # tests/test_image_confirm.py keeps the data path silent.
           #
           # RESTORED 2026-09-08 — TestAsyncFileOpsErrorPaths and
           # TestAsyncFileOpsFormatPaths are no longer deselected. They were
@@ -106,7 +115,7 @@ jobs:
           #       before   70 aborts / 120 runs   (58.3%)
           #       after     0 aborts / 120 runs
           # tests/test_thread_ownership.py keeps the seventeen honest.
-          coverage run --data-file=.coverage.unittest --branch -m pytest test_rnv_color_mixer.py -v --deselect "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"
+          coverage run --data-file=.coverage.unittest --branch -m pytest test_rnv_color_mixer.py -v
           coverage run --data-file=.coverage.pytest --branch -m pytest tests/ -v
           coverage combine .coverage.unittest .coverage.pytest
           coverage report -m
