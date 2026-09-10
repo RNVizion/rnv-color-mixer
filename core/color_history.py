@@ -164,6 +164,23 @@ class ColorHistory:
             logger.error(f"Error saving color history: {e}")
             return False
     
+    def _release_finished_writers(self) -> None:
+        """Drop references to writers Qt has finished with.
+
+        RNV-HISTORY-WRITER, 2026-09-09. See
+        tests/test_history_writer_ownership.py.
+
+        isFinished() is asked rather than the `finished` signal, because this
+        thread class declares `finished = pyqtSignal(bool, str)`, which
+        SHADOWS QThread.finished() and is emitted from inside run() -- so it
+        fires while the QThread is still running. tests/test_threading.py
+        waits on the same state for the same reason.
+        """
+        pending = getattr(self, '_pending_writers', None)
+        if pending is None:
+            pending = self._pending_writers = []
+        self._pending_writers = [t for t in pending if not t.isFinished()]
+
     def save_async(self, on_complete: callable = None) -> None:
         """
         Save history to JSON file asynchronously (non-blocking).
@@ -182,6 +199,17 @@ class ColorHistory:
                 "entries": [entry.to_dict() for entry in self.entries]
             }
             
+            # Retire the previous writer rather than dropping it. Replacing
+            # self._save_thread while its QThread is still running destroys a
+            # running QThread, which aborts the process: reproduced 5 times in
+            # 5 with clear() followed by add_color(), on Linux and Windows
+            # alike. Finished writers are released on the next save and on
+            # cleanup(), so this list stays short.
+            self._release_finished_writers()
+            previous = getattr(self, '_save_thread', None)
+            if previous is not None and previous.isRunning():
+                self._pending_writers.append(previous)
+
             # Create and start writer thread
             self._save_thread = FileWriterThread(self.history_file, data, 'json')
             
@@ -359,7 +387,15 @@ class ColorHistory:
         Stops any running threads and clears entries.
         """
         try:
-            # Stop any running save thread
+            # Stop any running save thread, current and retired alike. A
+            # writer left behind by a rapid second save is just as fatal at
+            # interpreter shutdown as the current one.
+            for writer in list(getattr(self, '_pending_writers', [])):
+                if writer.isRunning():
+                    writer.quit()
+                    writer.wait(1000)
+            self._pending_writers = []
+
             if hasattr(self, '_save_thread') and self._save_thread:
                 if self._save_thread.isRunning():
                     self._save_thread.quit()

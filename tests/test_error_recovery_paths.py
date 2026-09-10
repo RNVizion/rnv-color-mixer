@@ -396,42 +396,102 @@ class TestAsyncFileOpsErrorPaths:
 # 4. color_history.py — load + export branches
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _settle(ch, qtbot, timeout: int = 3000) -> None:
+    """Wait until every background write this history started has finished.
+
+    `clear()` and `add_color()` each kick off a FileWriterThread against
+    `history_file`. Anything that then reads or rewrites that path is racing
+    them. Waiting on isRunning() rather than the `finished` signal is
+    deliberate and is the rule the thread-ownership round established: this
+    thread class declares `finished = pyqtSignal(bool, str)`, shadowing
+    QThread.finished(), and emits it from inside run() -- so it fires while
+    the QThread is still going. tests/test_threading.py waits the same way.
+    """
+    def quiet() -> bool:
+        current = getattr(ch, '_save_thread', None)
+        if current is not None and current.isRunning():
+            return False
+        return not any(
+            w.isRunning() for w in getattr(ch, '_pending_writers', []))
+
+    qtbot.waitUntil(quiet, timeout=timeout)
+
+
+@pytest.fixture
+def history_factory(real_color_history, tmp_path):
+    """Build real ColorHistory instances and guarantee they are cleaned up.
+
+    `real_color_history` (tests/conftest.py) restores the pristine
+    __init__/load/save_async that conftest and the locked file patch to
+    no-ops, so these tests drive the REAL FileWriterThread. That is the
+    point of them -- and it is also why they were skipped for a year: a
+    ColorHistory dropped with a write still in flight destroys a running
+    QThread, and Qt aborts the process. `cleanup()` is the codebase's own
+    answer to that, and this fixture applies it to every instance a test
+    makes, whatever the test asserts or how it fails.
+
+    Each instance gets its own file under tmp_path. The pristine __init__
+    calls load() against the real home directory, so entries are reset
+    immediately -- the same precaution _fresh_history takes in
+    tests/test_threading.py.
+    """
+    made = []
+
+    def make(**kwargs):
+        ch = real_color_history(**kwargs)
+        ch.history_file = str(tmp_path / f"history_{len(made)}.json")
+        ch.entries = []
+        ch._save_thread = None
+        made.append(ch)
+        return ch
+
+    yield make
+
+    for ch in made:
+        ch.cleanup()
+
+
 @pytest.mark.integration
-@pytest.mark.skip(
-    reason="ColorHistory's constructor + add_color() + save() chain "
-    "spawns a QThread for async filesystem writes that crashes Python "
-    "natively on Windows (no traceback, no exit code, just a dead "
-    "process). The locked test_rnv_color_mixer.py works around this by "
-    "module-level-mocking ColorHistory.__init__/load/save_async at "
-    "import time. These integration-style tests can't easily replicate "
-    "that pattern without mocking out the very methods they're trying "
-    "to verify. Phase 9.3 finding — kept for documentation; future "
-    "refactor could split the QThread machinery off from ColorHistory "
-    "construction so synchronous behavior is testable in isolation."
-)
 class TestColorHistoryLoadExport:
     """ColorHistory's load() and export_to_file() have format-specific
-    branches that need explicit drives."""
+    branches that need explicit drives.
+
+    UN-SKIPPED 2026-09-09 (RNV-HISTORY-WRITER). These six ran against the
+    real threading path and aborted the process, so the class carried a
+    class-level skip whose reason said the pattern could not be replicated
+    "without mocking out the very methods they're trying to verify". It can:
+    tests/test_threading.py has driven the same path through
+    `real_color_history` since Phase 3. Two things were actually needed --
+    a product fix so `save_async` stops destroying its own running writer,
+    and the fixture above so a dropped instance cannot take the process with
+    it.
+    """
 
     def test_load_with_no_existing_file_returns_false_or_true(
-        self, isolated_home
+        self, history_factory
     ):
         """No prior history file — load() is either a no-op-true or
         returns False, both fine."""
-        from color_history import ColorHistory
-        ch = ColorHistory()
-        # The constructor calls load() automatically
+        ch = history_factory()
         result = ch.load()
         assert isinstance(result, bool)
 
-    def test_save_writes_history_file(self, isolated_home, tmp_path):
-        """Verify `save()` (the sync version) writes to disk. The
-        round-trip via a new instance is timing-dependent because
-        `add_color` triggers `save_async`, so we test save() directly."""
-        from color_history import ColorHistory
-        ch = ColorHistory()
+    def test_save_writes_history_file(self, history_factory, qtbot):
+        """Verify `save()` (the sync version) writes to disk.
+
+        The original note here said the round-trip was timing-dependent
+        "because add_color triggers save_async, so we test save() directly".
+        Calling save() directly is not enough on its own: clear() and
+        add_color() have each already started a background write to this same
+        path, and they land *after* the synchronous one. Without the wait
+        below, json.load() read a half-written file 9 times in 20.
+        """
+        ch = history_factory()
         ch.clear()
         ch.add_color((100, 150, 200))
+
+        # Let the two background writes finish before writing synchronously.
+        _settle(ch, qtbot)
 
         # Save synchronously (not save_async)
         ok = ch.save()
@@ -445,9 +505,8 @@ class TestColorHistoryLoadExport:
             data = json.load(f)
         assert "entries" in data
 
-    def test_export_to_json_file(self, tmp_path, isolated_home):
-        from color_history import ColorHistory
-        ch = ColorHistory()
+    def test_export_to_json_file(self, history_factory, tmp_path):
+        ch = history_factory()
         ch.add_color((255, 0, 0))
         out = tmp_path / "hist.json"
         try:
@@ -460,12 +519,11 @@ class TestColorHistoryLoadExport:
             assert out.exists()
 
     def test_export_to_html_file_writes_html_with_color(
-        self, tmp_path, isolated_home
+        self, history_factory, tmp_path
     ):
         """`export_to_file('*.html')` writes HTML containing the colors.
         Verify file exists and contains the hex of the added color."""
-        from color_history import ColorHistory
-        ch = ColorHistory()
+        ch = history_factory()
         ch.add_color((0, 255, 0))
         out = tmp_path / "hist.html"
 
@@ -480,12 +538,11 @@ class TestColorHistoryLoadExport:
         )
 
     def test_export_to_txt_file_writes_text_with_color(
-        self, tmp_path, isolated_home
+        self, history_factory, tmp_path
     ):
         """`export_to_file('*.txt')` writes plain text. Verify file
         exists and contains a representation of the added color."""
-        from color_history import ColorHistory
-        ch = ColorHistory()
+        ch = history_factory()
         ch.add_color((0, 0, 255))
         out = tmp_path / "hist.txt"
 
@@ -502,13 +559,10 @@ class TestColorHistoryLoadExport:
             f"first 200 chars: {text[:200]!r}"
         )
 
-    def test_add_color_with_max_entries_evicts_oldest(
-        self, isolated_home
-    ):
+    def test_add_color_with_max_entries_evicts_oldest(self, history_factory):
         """ColorHistory caps at max_entries (default 20). Adding more
         than that should evict the oldest."""
-        from color_history import ColorHistory
-        ch = ColorHistory(max_entries=5)
+        ch = history_factory(max_entries=5)
         for i in range(10):
             ch.add_color((i * 25, i * 25, i * 25))
         entries = ch.get_entries()
@@ -516,7 +570,6 @@ class TestColorHistoryLoadExport:
         assert len(entries) <= 5
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 # 5. session_manager — load_autosave path
 # ═══════════════════════════════════════════════════════════════════════════
 

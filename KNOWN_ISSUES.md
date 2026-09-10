@@ -62,18 +62,37 @@ behavior without spawning real threads.
 **Skipped on:** Both CI runners (annotated inline via
 `@pytest.mark.skip` decorators).
 
-Six tests in `tests/test_error_recovery_paths.py` exercise the
-`ColorHistory` constructor + `add_color()` + `save()` chain. The save
-path spawns a QThread for async filesystem writes, and the test harness's
-interaction with that thread crashes Python natively on Windows.
+**Fixed 2026-09-09.** All six run on both runners.
 
-**User impact:** None. These tests were attempts to extend coverage on
-existing code paths; the code itself works correctly at runtime.
+The skip reason blamed "the test harness's interaction with that thread"
+and recorded **User impact: None**. Both were wrong. `save_async()`
+assigned the new `FileWriterThread` straight over `self._save_thread`,
+which is the only Python reference to the previous writer — so a second
+save while the first was still writing destroyed a **running QThread** and
+Qt aborted the process.
 
-**Planned fix:** Split QThread machinery off from `ColorHistory`
-construction. Same architectural pattern as the `AsyncFileOps` refactor
-listed above — both classes mix lifecycle management of background
-threads into operations that conceptually shouldn't require them.
+Reproduced through the product API alone, no pytest and no fixtures, five
+times in five, and on Linux as well as Windows:
+
+```python
+ch = ColorHistory(); ch.clear(); ch.add_color((100, 150, 200))
+```
+
+`clear()` and `add_color()` each call `save_async()`. Both are ordinary
+application paths — the mixer adds a colour on every mix, and
+`core/package_d_panel.py` clears the history from the panel. Sixty rapid
+saves now survive with no `cleanup()` at all; before, three in three
+aborted.
+
+A writer is now retained until Qt reports it finished, and released on the
+next save and in `cleanup()`. The six tests build their histories through
+a `history_factory` fixture that calls `cleanup()` on every instance, and
+one of them waits for the background writes to settle before reading the
+file — without that wait it read a half-written file 9 times in 20.
+
+Guarded by `tests/test_history_writer_ownership.py`. The planned
+architectural split is no longer required for these tests to run, though
+it remains a reasonable thing to want.
 
 ### `FileWriterThread` signal tests — intermittent SIGABRT, deliberately not skipped
 
@@ -122,10 +141,16 @@ All seventeen now take their thread through the `adopt()` fixture in
 `tests/conftest.py`, which owns it and waits for it in teardown — a fixture
 rather than a trailing `wait()` because teardown still runs when an
 assertion fails. That is the refactor this entry prescribed, applied to the
-tests rather than to `utils/async_file_ops.py`; the application itself never
-had the bug, because `ColorHistory` holds `_save_thread` on the object and
+tests rather than to `utils/async_file_ops.py`.
+
+**That round also claimed the application itself never had the bug, on the
+grounds that `ColorHistory` holds `_save_thread` on the object and
 `AsyncFileManager` keeps `_active_threads`, and both check `isRunning()`
-before letting go.
+before letting go. The claim was wrong and is corrected here.**
+`ColorHistory` did hold the thread on the object — and `save_async()`
+overwrote that attribute on the next save without checking anything, which
+is the same defect one level up. Fixed 2026-09-09; see the entry above.
+`AsyncFileManager` was checked again and is fine.
 
 Measured before shipping, matched and interleaved, with these two classes
 included in both arms:
