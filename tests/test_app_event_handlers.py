@@ -457,33 +457,64 @@ class TestFileUtilsPaletteFormatDetection:
     """`detect_palette_format` and the importer dispatch logic — ~40
     stmts of branch coverage we missed."""
 
-    def test_detect_palette_format_for_known_extensions(self):
-        from file_utils import FileUtils
-        for ext, expected in [
-            ("test.gpl", "gpl"),
-            ("test.aco", "aco"),
-            ("test.ase", "ase"),
-            ("test.json", "json"),
-        ]:
-            try:
-                result = FileUtils.detect_palette_format(ext)
-                # Result should be the format name or similar
-                assert result is not None or True  # Some impls return None
-            except AttributeError:
-                # Method doesn't exist — skip
-                pytest.skip("detect_palette_format not in this version")
-                return
+    def test_detect_format_returns_the_extension_for_known_types(self):
+        """RNV-NO-VACUOUS-TESTS, 2026-09-10.
 
-    def test_get_palette_format_filter_returns_string(self):
-        """`get_palette_format_filter()` builds the QFileDialog filter
-        string for palette imports."""
-        from file_utils import FileUtils
-        try:
-            result = FileUtils.get_palette_format_filter()
-            assert isinstance(result, str)
-            assert len(result) > 0
-        except AttributeError:
-            pytest.skip("get_palette_format_filter not in this version")
+        This was `test_detect_palette_format_for_known_extensions`, and it
+        had never run. It called `FileUtils.detect_palette_format`, which
+        does not exist and never has; the AttributeError was caught and
+        turned into `pytest.skip("not in this version")`, so the skip was
+        permanent and the reason was wrong. Its one assertion was
+
+            assert result is not None or True
+
+        which is true whatever `result` is, so even had it run it would have
+        checked nothing. Its `expected` column was never compared against
+        anything either.
+
+        The real function is `PaletteFormats.detect_format`, and it returns
+        the lowercased extension INCLUDING the leading dot.
+        """
+        from core.palette_formats import PaletteFormats
+
+        for filename, expected in [
+            ("test.gpl", ".gpl"),
+            ("test.aco", ".aco"),
+            ("test.ase", ".ase"),
+            ("test.json", ".json"),
+            ("TEST.GPL", ".gpl"),
+        ]:
+            assert PaletteFormats.detect_format(filename) == expected, (
+                f"detect_format({filename!r}) should be {expected!r}")
+
+    def test_the_import_filter_data_is_usable_by_a_file_dialog(self):
+        """RNV-NO-VACUOUS-TESTS, 2026-09-10.
+
+        This was `test_get_palette_format_filter_returns_string`, which
+        called `FileUtils.get_palette_format_filter()` — a name that exists
+        nowhere in the codebase — and skipped on the AttributeError. It was
+        a specification for a function nobody wrote, reported as a skip.
+
+        What does exist is `PaletteFormats.get_import_formats()`, returning
+        the (label, pattern) pairs a QFileDialog filter is built from. That
+        is the thing worth guarding.
+        """
+        from core.palette_formats import PaletteFormats
+
+        formats = PaletteFormats.get_import_formats()
+        assert formats, "no import formats are offered at all"
+
+        for entry in formats:
+            assert isinstance(entry, tuple) and len(entry) == 2, (
+                f"expected (label, pattern) pairs, got {entry!r}")
+            label, pattern = entry
+            assert label and isinstance(label, str), f"empty label in {entry!r}"
+            assert pattern.startswith("*."), (
+                f"{pattern!r} is not a glob a file dialog can use")
+
+        patterns = " ".join(p for _, p in formats)
+        assert "*.gpl" in patterns, (
+            f"GIMP palettes are importable but not offered: {patterns[:120]}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

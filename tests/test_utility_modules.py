@@ -125,17 +125,16 @@ class TestErrorHandler:
         )
         assert result is None
 
-    def test_safe_execute_with_default_value_returns_default_on_exception(self):
-        """Some callers pass `default=` to get a non-None fallback."""
-        # Check whether safe_execute supports a `default` kwarg
-        import inspect
-        sig = inspect.signature(ErrorHandler.safe_execute)
-        if "default" not in sig.parameters:
-            pytest.skip("safe_execute doesn't support `default=` kwarg")
-        result = ErrorHandler.safe_execute(
-            lambda: 1 / 0, "div zero", default="fallback"
-        )
-        assert result == "fallback"
+    # RNV-NO-VACUOUS-TESTS, 2026-09-10.
+    # `test_safe_execute_with_default_value_returns_default_on_exception`
+    # stood here. It skipped itself with "safe_execute doesn't support
+    # `default=` kwarg", which was true and permanent: no such parameter has
+    # ever existed. Its docstring said "Some callers pass `default=`" -- a
+    # factual claim, and a false one; nothing in the application passes it.
+    # It was a specification for a feature nobody asked for, reported as a
+    # skip. The behaviour that DOES exist -- returning None when the call
+    # raises -- is asserted by the test immediately above. Deleted rather
+    # than left skipping, because a permanent skip reads as coverage.
 
     def test_safe_execute_logs_with_correct_context_name(self):
         """The context name shows up in the logged error message."""

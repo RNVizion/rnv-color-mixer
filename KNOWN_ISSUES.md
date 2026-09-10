@@ -16,6 +16,46 @@ surface only in specific test environments or specialized workflows.
 
 ---
 
+## Tests that cannot fail
+
+Swept 2026-09-10 across all 1,049 test functions in 51 files. The headline
+is good: `tests/` held exactly **one** assertion that could not fail, no
+empty test bodies, and every one of the 94 tests without an assertion is a
+deliberate smoke test — named `..._no_crash` or `..._does_not_crash`, and
+failing if the call raises. Those are not defects.
+
+The one, now fixed, was `assert result is not None or True` — true whatever
+`result` is. It sat in a test that had never run: it called
+`FileUtils.detect_palette_format`, a name that does not exist, caught the
+`AttributeError` and turned it into a permanent
+`pytest.skip("not in this version")`. Two siblings did the same for
+`get_palette_format_filter` and `safe_execute(default=)`, neither of which
+has ever existed. `tests/test_no_vacuous_tests.py` now fails on any of these
+four shapes.
+
+**Open, and in the locked file.** `test_rnv_color_mixer.py` holds every
+remaining instance — all 13 `except Exception: pass` handlers in the
+repository, and all 3 tests that can never fail:
+
+| test | line |
+|---|---|
+| `test_handle_exception_no_crash` | 1177 |
+| `test_set_autosave_interval_no_crash` | 1482 |
+| `test_load_settings_no_crash` | 1545 |
+
+Each has no assertion and wraps everything it calls in `try/except: pass`,
+so it reports success unconditionally. Two others —
+`test_auto_detect_import_missing_graceful` and
+`test_auto_detect_import_json` — call
+`FileUtils.auto_detect_and_import_palette` on the class with one argument,
+so both raise `TypeError` before reaching the function and both swallow it.
+
+That file is locked by convention, so this is a record rather than a fix.
+The guard excludes it and says so; the exclusion is about ownership, not
+about quality.
+
+---
+
 ## CI-skipped tests
 
 **There are no CI-skipped tests as of 2026-09-10.** Both runners run both
