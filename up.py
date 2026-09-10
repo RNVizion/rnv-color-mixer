@@ -1,78 +1,74 @@
 #!/usr/bin/env python3
-"""RNV-HISTORY-WRITER — a save must not destroy the save before it.
+"""RNV-PALETTE-IMPORT — read the file, or show the dialog. Not both.
 
     python up.py             # apply, then run the guard and both suites
     python up.py --check     # rehearse every edit in memory, write nothing
 
+Derived against a fresh clone of rnv-color-mixer at head e538c2f.
 
-Derived against a fresh clone of rnv-color-mixer at head 61ecf57.
+WHAT WAS WRONG. `FileUtils.auto_detect_and_import_palette` parsed a palette
+file and, on any failure, called `show_warning_dialog` / `show_error_dialog`
+from inside the same function. A modal dialog does not return without a
+user, so anywhere there is nobody to click it — CI, a test, a batch script —
+the function **blocked forever**.
 
-WHAT WAS WRONG. `ColorHistory.save_async()` ended in
+Measured. A valid `.gpl` returned fine; **missing, empty and garbage input
+all hung**, printing `This plugin does not support propagateSizeHints()` on
+the way in. Not a crash. A hang, which is worse: a crash gets noticed, a
+hang gets a job cancelled an hour later and blamed on the runner.
 
-    self._save_thread = FileWriterThread(self.history_file, data, 'json')
-    self._save_thread.start()
+THREE TESTS NAMED AFTER THIS FUNCTION. NONE OF THEM ENTERED IT.
 
-That assignment is the only Python reference to the previous writer. A
-second save while the first is still writing therefore drops a **running
-QThread**, and Qt aborts the process for that — `QThread: Destroyed while
-thread is still running`, SIGABRT, exit 134.
+  1. `tests/test_error_recovery_paths.py` held a method called
+     `test_auto_detect_palette_skipped` whose body was `pass`, carrying
+     `@pytest.mark.skip(reason="Native crash on offscreen Qt")`. A skipped
+     `pass` measures nothing; the note was its entire contribution, and the
+     note was wrong about the mechanism.
 
-Not a race and not a test artifact. Reproduced through the product API
-alone, no pytest and no fixtures, **five times in five**:
+  2 & 3. The locked `test_rnv_color_mixer.py` calls
 
-    ch = ColorHistory(); ch.clear(); ch.add_color((100, 150, 200))
+         r = FileUtils.auto_detect_and_import_palette("/no/such.xyz")
 
-`clear()` and `add_color()` each call `save_async()`, and both are ordinary
-application paths: `RNV_Color_Mixer.py` adds a colour on every mix,
-`core/package_d_panel.py` clears the history from the panel. Sixty rapid
-saves with no `cleanup()` at all now survive; before, three in three
-aborted.
+     on the CLASS, with one argument, so `filepath` is never supplied. Both
+     raise `TypeError: missing 1 required positional argument` and both
+     swallow it with `except Exception: pass`. That is why the locked suite
+     never hung — it never called the function. Those two are in the locked
+     file and are left alone; this is the record that they measure nothing.
 
-WHAT THIS COST FOR A YEAR. Six tests in `tests/test_error_recovery_paths.py`
-carried a class-level skip whose reason said the crash was **Windows-only**
-and that the fault lay in "the test harness's interaction with that
-thread". `KNOWN_ISSUES.md` recorded **User impact: None**. It reproduces on
-Linux, deterministically, through the product's own API, with no harness
-present. The tests were right and were skipped for it.
+THE FIX, AND WHY NO CALLER CHANGES. `import_palette_data` does the work and
+returns `(colors, problem)`, where `problem` is `None` or
+`(severity, title, message)`. `auto_detect_and_import_palette` keeps its
+name, its signature, its return value and BOTH dialogs, and does no parsing
+of its own. Verified in both directions: the wrapper still blocks on its
+dialog headless (the feature is intact), and the locked file still sees the
+identical `TypeError`.
 
-WORSE, AND CORRECTED HERE. The thread-ownership round — mine — wrote into
-`KNOWN_ISSUES.md` that "the application itself never had the bug, because
-`ColorHistory` holds `_save_thread` on the object ... and checks
-`isRunning()` before letting go". `ColorHistory` does hold the thread on the
-object. `save_async()` then overwrites that attribute on the next save
-without checking anything. Both prose claims are corrected by this round.
+The severity is returned rather than inferred from the title, because a
+title is display text; a wrapper that matched on it would show the wrong
+dialog the first time someone rewords a string.
 
-THE FIX. A writer is retained until Qt reports it finished, and released on
-the next save and in `cleanup()`. `isFinished()` is asked rather than the
-`finished` signal, because `FileWriterThread` declares
+THE RULE, AND THE ONE PLACE IT IS STILL BROKEN. The guard states a general
+rule over `utils/file_utils.py`: a function may read a file, or show a
+dialog, never both. It is scoped to that module, and it says so, because
+**`core/image_handler.py` has the same defect and this round does not fix
+it**:
 
-    finished = pyqtSignal(bool, str)
+    if file_size_mb > 10:
+        reply = QMessageBox.question(None, "Large Image File", ...)
 
-which SHADOWS `QThread.finished()` and is emitted from inside `run()`, so it
-fires while the QThread is still running. That shadowing is the same one the
-thread-ownership round found behind seventeen test sites; this is the same
-defect in the product rather than the tests.
+`background.png` is 10.1 MB, so the threshold trips and `load_image` blocks
+on a modal question. That is the whole of `test_load_real_image_if_available`,
+which `KNOWN_ISSUES.md` has recorded as skipped on **both** runners with
+"Planned fix: None required. This is a test-environment artifact, not a code
+defect." It is a code defect. This round corrects that entry and leaves the
+fix for its own: `load_image` is a hundred lines on the main image path.
 
-THE SIX TESTS. They build their histories through a `history_factory`
-fixture that calls `cleanup()` on every instance it hands out, so a dropped
-instance cannot take the process down. Both halves are load-bearing:
-verified by discriminating, the fixture WITHOUT the product fix still aborts
-3 times in 3.
-
-One of them additionally waits for the background writes to settle. Its
-original note said the round-trip was timing-dependent "because add_color
-triggers save_async, so we test save() directly" — but calling `save()`
-directly is not enough, because the writes started by `clear()` and
-`add_color()` land *after* the synchronous one. Without the wait,
-`json.load()` read a half-written file **9 times in 20**. With it, 0 in 25.
-
-NOT FIXED HERE, AND DELIBERATELY. Two async writers can still interleave on
-the same path if two saves are started close together, so a history file
-could in principle be written by both. In production `save()` is only ever
-reached as the no-async fallback, so the sync/async race the test hit cannot
-occur there. Left alone rather than folded in: an atomic write-and-rename in
-`FileWriterThread` would fix it, and that class is covered by the LOCKED
-suite, which is not something to change in passing.
+Note what the rule does NOT forbid. Showing a dialog is fine, and so is
+taking a filepath. `show_format_info_dialog` does both — it splits the
+extension off the path and displays a lookup from a table, never opening the
+file. The rule is about reading CONTENTS, and it was written by checking it
+against every dialog-showing function in the module rather than against the
+one that prompted it.
 """
 from __future__ import annotations
 
@@ -85,10 +81,10 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "core/color_history.py"
-SENTINEL = "RNV-HISTORY-WRITER"
-GUARD = "tests/test_history_writer_ownership.py"
-DESCRIPTION = "stop a save destroying the save before it"
+SENTINEL_FILE = "utils/file_utils.py"
+SENTINEL = "RNV-PALETTE-IMPORT"
+GUARD = "tests/test_palette_import.py"
+DESCRIPTION = "stop a data path blocking on a modal dialog"
 SUITES = [("\"pytest tests/\"",
            [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
           ("\"the LOCKED file, 355 tests\"",
@@ -98,273 +94,303 @@ SUITES = [("\"pytest tests/\"",
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-HISTORY-WRITER-GUARD -- a save must not destroy the save before it.
+GUARD_SOURCE = r'''"""RNV-PALETTE-IMPORT-GUARD -- read the file, or show the dialog. Not both.
 
-Installed 2026-09-09, un-skipping six tests that had been skipped since
-Phase 9.3 and fixing the product defect that was the real reason they could
-not run.
+Installed 2026-09-10.
 
-WHAT WAS WRONG. `ColorHistory.save_async()` did
+WHAT WAS WRONG. `FileUtils.auto_detect_and_import_palette` parsed a palette
+file and, on any failure, called `show_warning_dialog` / `show_error_dialog`
+from inside the same function. A modal dialog does not return without a
+user, so in any headless context -- CI, a test, a batch script -- the
+function **blocked forever**. Measured: a valid `.gpl` returned fine;
+missing, empty and garbage input all hung, with
 
-    self._save_thread = FileWriterThread(self.history_file, data, 'json')
-    self._save_thread.start()
+    This plugin does not support propagateSizeHints()
 
-The assignment is the only Python reference to the previous writer, so a
-second save while the first is still writing drops a **running QThread**.
-Qt aborts the process for that -- `QThread: Destroyed while thread is still
-running`, SIGABRT, exit 134.
+printed on the way in.
 
-Not a test artifact and not a race. Reproduced through the product API
-alone, no pytest and no fixtures, five times in five:
+WHAT WAS RECORDED INSTEAD. A test named `test_auto_detect_palette_skipped`,
+body `pass`, carrying
 
-    ch = ColorHistory(); ch.clear(); ch.add_color((100, 150, 200))
+    @pytest.mark.skip(reason="Native crash on offscreen Qt -- see Phase 8.7")
 
-`clear()` and `add_color()` each call `save_async()`. Both are ordinary
-application paths -- `RNV_Color_Mixer.py` adds a colour on every mix,
-`core/package_d_panel.py` clears the history from the panel.
+It is not a crash, it is a hang, and the difference matters: a crash gets
+noticed, a hang gets a CI job cancelled an hour later and blamed on the
+runner. And a skipped `pass` measures nothing, so the note was the only
+thing that test ever contributed.
 
-The skip reason on those six tests said the crash was Windows-only. It
-reproduces on Linux, deterministically.
+THREE TESTS, NONE OF THEM ENTERING THE FUNCTION. The locked
+`test_rnv_color_mixer.py` also calls this function twice:
 
-THE FIX. A writer is retained until Qt reports it finished, and released on
-the next save and in `cleanup()`. `isFinished()` is asked rather than the
-`finished` signal, because `FileWriterThread` declares
-`finished = pyqtSignal(bool, str)`, which SHADOWS `QThread.finished()` and
-is emitted from inside `run()` -- so it fires while the QThread is still
-running. That is the same shadowing the thread-ownership round found behind
-seventeen test sites; this is the same defect in the product.
+    r = FileUtils.auto_detect_and_import_palette("/no/such.xyz")
 
-WHAT THIS GUARD CANNOT DO GENTLY. A regression here does not fail a test,
-it aborts the interpreter. `test_a_history_survives_rapid_saves` runs the
-exact sequence that used to abort, so on a regressed build the suite dies
-with exit 134 rather than printing a diff. That is loud and ugly and it is
-the correct failure: the defect being guarded is an abort.
+on the CLASS, with one argument, so `filepath` is never supplied. Both raise
+`TypeError: missing 1 required positional argument` and both swallow it with
+`except Exception: pass`. That is why the locked suite never hung: it never
+called the function. Those two are in the locked file and are left alone
+here; this note is the record that they measure nothing.
 
-Which is why the cheap static check is deliberately FIRST in this file.
-pytest runs tests in definition order, and both tampering experiments --
-removing the retention, and moving it after the reassignment -- fail that
-check with a readable message (`assert None is not None`, `assert 210 <
-206`) before the behavioural test gets far enough to kill the run. Ordering
-is load-bearing here; do not sort these alphabetically.
+THE RULE THIS GUARD ENFORCES. A function may read a file, or it may show a
+dialog. Not both. `import_palette_data` does the work and returns
+`(colors, problem)`; `auto_detect_and_import_palette` keeps its name, its
+return and both dialogs, and does no parsing of its own. Callers are
+untouched, and the locked file still sees the identical TypeError.
+
+Note what is NOT in the rule: showing a dialog is fine, and so is taking a
+filepath. `show_format_info_dialog` does both -- it splits the extension off
+the path and shows a lookup from a table. It never opens the file, so it
+cannot block on anything but its own dialog, which is its whole purpose. The
+rule is about reading CONTENTS, and it was written by checking it against
+every dialog-showing function in the module rather than against the one that
+prompted it.
+
+THE SWEEP IS SCOPED TO utils/file_utils.py, AND THERE IS A KNOWN VIOLATION
+OUTSIDE IT. `ImageHandler.load_image` in core/image_handler.py has the same
+defect and is not fixed by this round:
+
+    if file_size_mb > 10:
+        reply = QMessageBox.question(None, "Large Image File", ...)
+
+`resources/background_images/background.png` is 10.1 MB, so the threshold
+trips, the modal question blocks, and the load never returns. That is the
+whole of `test_load_real_image_if_available`, which KNOWN_ISSUES.md records
+as skipped on BOTH runners with "Planned fix: None required. This is a
+test-environment artifact, not a code defect." It is a code defect, of
+exactly the kind this rule names.
+
+It is left out rather than quietly excluded: `load_image` is a hundred lines
+on the application's main image path, and prising the confirmation out of it
+is a bigger change than the one this round is carrying. FILES below is the
+list to extend when that lands. A guard that had simply pointed at the file
+it happened to pass on would have hidden this.
 """
 from __future__ import annotations
 
 import ast
-import os
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-HISTORY = ROOT / "core" / "color_history.py"
-RESTORED = ROOT / "tests" / "test_error_recovery_paths.py"
+FILE_UTILS = ROOT / "utils" / "file_utils.py"
+
+#: The modules the rule is enforced over. core/image_handler.py belongs here
+#: and is not in it yet -- see the module docstring. Adding it before
+#: load_image is split would make this guard red on arrival, which is how a
+#: guard gets an exemption written into it and stops meaning anything.
+FILES = (FILE_UTILS,)
+
+PURE = "import_palette_data"
+WRAPPER = "auto_detect_and_import_palette"
+
+#: Calls that mean "this function reads a file's contents". Splitting an
+#: extension off a path does not count, and neither does a lookup table.
+READS_CONTENT = ("open", "import_palette", "read_text", "read_bytes",
+                 "load", "loads", "readlines", "read")
 
 
-def _fn(path: Path, name: str):
-    """The FunctionDef called `name` in `path`, or None."""
-    tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+def _functions():
+    src = FILE_UTILS.read_text(encoding="utf-8")
+    return src, ast.parse(src, str(FILE_UTILS))
+
+
+def _fn(name: str):
+    src, tree = _functions()
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == name:
             return node
     return None
 
 
-def _history(real_color_history, tmp_path, **kwargs):
-    """A real ColorHistory on a temp file, entries emptied."""
-    ch = real_color_history(**kwargs)
-    ch.history_file = str(tmp_path / "guard_history.json")
-    ch.entries = []
-    ch._save_thread = None
-    return ch
-
-
-def _quiet(ch) -> bool:
-    current = getattr(ch, "_save_thread", None)
-    if current is not None and current.isRunning():
-        return False
-    return not any(w.isRunning() for w in getattr(ch, "_pending_writers", []))
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# the product
-# ═══════════════════════════════════════════════════════════════════════
-
-def test_save_async_retains_before_it_reassigns():
-    """Order matters, and only the source can show it.
-
-    Retaining the previous writer *after* rebinding `_save_thread` retains
-    the new one and drops the old -- which reads almost identically and
-    fixes nothing.
-    """
-    node = _fn(HISTORY, "save_async")
-    assert node is not None, "save_async is gone from core/color_history.py"
-
-    retain = assign = None
+def _shows_dialog(node) -> list[str]:
+    out = []
     for n in ast.walk(node):
-        if isinstance(n, ast.Attribute) and n.attr == "_pending_writers":
-            if retain is None or n.lineno < retain:
-                retain = n.lineno
-        if (isinstance(n, ast.Assign) and n.targets
-                and isinstance(n.targets[0], ast.Attribute)
-                and n.targets[0].attr == "_save_thread"):
-            if assign is None or n.lineno < assign:
-                assign = n.lineno
-
-    assert retain is not None, (
-        "save_async no longer retains anything. The previous writer is "
-        "dropped when `_save_thread` is rebound, and a running QThread "
-        "destroyed that way aborts the process.")
-    assert assign is not None, "save_async no longer assigns _save_thread"
-    assert retain < assign, (
-        f"save_async touches _pending_writers at line {retain}, after it "
-        f"rebinds _save_thread at line {assign}. Retaining after the "
-        f"reassignment retains the new writer and drops the old one.")
+        if isinstance(n, ast.Call):
+            attr = getattr(n.func, "attr", "")
+            if attr.startswith("show_") and "dialog" in attr:
+                out.append(attr)
+    return out
 
 
-def test_a_history_survives_rapid_saves(real_color_history, tmp_path, qtbot):
+def _reads_content(node) -> list[str]:
+    out = []
+    for n in ast.walk(node):
+        if isinstance(n, ast.Call):
+            name = getattr(n.func, "attr", getattr(n.func, "id", ""))
+            if name in READS_CONTENT:
+                out.append(name)
+    return out
+
+
+def _fu():
+    from utils.file_utils import FileUtils
+    return FileUtils()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# the rule, stated over every function in the module
+# ═══════════════════════════════════════════════════════════════════════
+
+def test_no_function_both_reads_a_file_and_shows_a_dialog():
+    """The general rule, not a special case for the one that prompted it.
+
+    Checked across the whole module, because the next one to acquire a
+    dialog on its error path will not be this one, and a rule written about
+    a single function is a rule that only ever catches that function.
+    """
+    src, tree = _functions()
+    bad = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        shows = _shows_dialog(node)
+        reads = _reads_content(node)
+        if shows and reads:
+            bad.append(f"{node.name} (line {node.lineno}): "
+                       f"shows {sorted(set(shows))}, reads {sorted(set(reads))}")
+
+    assert not bad, (
+        "these functions read a file and show a dialog in the same body:\n  "
+        + "\n  ".join(bad)
+        + "\n\nA modal dialog never returns without a user, so this blocks "
+          "forever anywhere there is no one to click it -- CI, a test, a "
+          "batch script. Split it: one function returns the result, another "
+          "presents it. See import_palette_data / "
+          "auto_detect_and_import_palette.")
+
+
+def test_the_data_path_shows_nothing():
+    """The specific half of the rule, so the message names the function."""
+    node = _fn(PURE)
+    assert node is not None, f"{PURE} is gone from utils/file_utils.py"
+
+    shows = _shows_dialog(node)
+    assert not shows, (
+        f"{PURE} calls {sorted(set(shows))}. This is the half that has to be "
+        f"callable with nobody watching; put the dialog in the wrapper.")
+
+
+def test_the_wrapper_still_shows_both_dialogs():
+    """No feature was removed, and this is what says so.
+
+    A split that quietly dropped the dialogs would pass every other test
+    here and would change what the user sees on a bad file.
+    """
+    node = _fn(WRAPPER)
+    assert node is not None, f"{WRAPPER} is gone; callers depend on it"
+
+    shows = set(_shows_dialog(node))
+    assert "show_warning_dialog" in shows, (
+        f"{WRAPPER} no longer warns on a file with no usable colours")
+    assert "show_error_dialog" in shows, (
+        f"{WRAPPER} no longer reports an import failure to the user")
+
+
+def test_the_wrapper_delegates_rather_than_reimplementing():
+    """One copy of the logic.
+
+    A wrapper that parsed the file itself would satisfy every assertion
+    above and would drift out of step with the function it shadows.
+    """
+    node = _fn(WRAPPER)
+    assert node is not None
+
+    calls = {getattr(n.func, "attr", getattr(n.func, "id", ""))
+             for n in ast.walk(node) if isinstance(n, ast.Call)}
+    assert PURE in calls, (
+        f"{WRAPPER} does not call {PURE}; the parsing logic has been "
+        f"duplicated rather than shared")
+
+    reads = _reads_content(node)
+    assert not reads, (
+        f"{WRAPPER} reads the file itself ({sorted(set(reads))}) as well as "
+        f"delegating. That is two implementations of one thing.")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# behaviour
+# ═══════════════════════════════════════════════════════════════════════
+
+@pytest.mark.timeout(60)
+def test_every_bad_input_returns_instead_of_blocking(tmp_path):
     """The reproduction, as a test.
 
-    Two saves close together used to abort the process here, five times in
-    five. If this regresses, the run dies rather than fails -- see the
-    module docstring.
+    Each of these blocked forever before the split. Sixty seconds is not a
+    performance budget -- these run in milliseconds -- it is the line
+    between slow and never, wide enough that a cold runner cannot make it
+    flaky.
     """
-    ch = _history(real_color_history, tmp_path)
-    try:
-        ch.clear()
-        ch.add_color((100, 150, 200))
-        ch.add_color((10, 20, 30))
-        ch.add_color((40, 50, 60))
-        qtbot.waitUntil(lambda: _quiet(ch), timeout=5000)
-    finally:
-        ch.cleanup()
+    cases = {
+        "missing.gpl": None,
+        "empty.gpl": b"",
+        "garbage.pal": b"\xa4\x00\xff\xfe" * 64,
+        "truncated.json": b'{"colors": [',
+    }
+    fu = _fu()
+    for name, content in cases.items():
+        target = tmp_path / name
+        if content is not None:
+            target.write_bytes(content)
 
-    assert os.path.exists(ch.history_file), (
-        "four rapid saves left no file behind")
+        colors, problem = fu.import_palette_data(str(target))
+
+        assert colors is None, f"{name} produced colours: {colors!r}"
+        assert problem is not None, f"{name} reported no problem"
 
 
-def test_save_async_keeps_the_writer_it_replaces(
-    real_color_history, tmp_path, qtbot
-):
-    """The mechanism, not just the absence of a crash.
+@pytest.mark.timeout(60)
+def test_a_good_palette_still_imports(tmp_path):
+    """Without this, "does not block" could be satisfied by doing nothing."""
+    target = tmp_path / "ok.gpl"
+    target.write_bytes(b"GIMP Palette\nName: t\n#\n255 0 0 Red\n")
 
-    Without this, a fix that made saves synchronous -- or dropped the second
-    save entirely -- would also stop the abort and would also be wrong.
+    colors, problem = _fu().import_palette_data(str(target))
+
+    assert problem is None, f"a valid palette reported: {problem}"
+    assert colors, "a valid palette imported no colours"
+
+
+@pytest.mark.timeout(60)
+def test_the_severity_is_returned_not_left_to_the_caller_to_guess(tmp_path):
+    """The caller has to choose between a warning and an error dialog.
+
+    Returning only a message would push that decision onto whoever reads the
+    string, which is how a wrapper ends up matching on display text.
     """
-    ch = _history(real_color_history, tmp_path)
-    try:
-        ch.save_async()
-        first = ch._save_thread
-        assert first is not None, "save_async did not start a writer at all"
+    empty = tmp_path / "empty.gpl"
+    empty.write_bytes(b"")
+    _, problem = _fu().import_palette_data(str(empty))
+    assert problem is not None
+    assert len(problem) == 3, f"expected (severity, title, message), got {problem!r}"
+    severity, title, message = problem
+    assert severity in ("warning", "error"), f"unknown severity {severity!r}"
+    assert title and message, "the caller was given nothing to display"
 
-        ch.save_async()
-        second = ch._save_thread
-        assert second is not first, (
-            "the second save reused the first writer; it must start its own")
-
-        if first.isRunning():
-            assert first in getattr(ch, "_pending_writers", []), (
-                "the first writer was still running and was not retained. "
-                "Dropping it destroys a running QThread, which aborts the "
-                "process.")
-
-        qtbot.waitUntil(lambda: _quiet(ch), timeout=5000)
-    finally:
-        ch.cleanup()
+    missing = tmp_path / "nope.gpl"
+    _, problem = _fu().import_palette_data(str(missing))
+    assert problem is not None
+    assert problem[0] in ("warning", "error")
 
 
-def test_cleanup_waits_for_retired_writers_too(
-    real_color_history, tmp_path, qtbot
-):
-    """A retired writer left running at shutdown is just as fatal.
-
-    cleanup() handled `_save_thread` only. If it still does, a history torn
-    down mid-write takes the process with it at interpreter exit -- which is
-    exactly the close-time crash cleanup() was written for.
-    """
-    ch = _history(real_color_history, tmp_path)
-    ch.clear()
-    ch.add_color((1, 2, 3))
-    ch.add_color((4, 5, 6))
-
-    ch.cleanup()
-
-    assert ch._save_thread is None, "cleanup left the current writer attached"
-    assert not any(w.isRunning() for w in getattr(ch, "_pending_writers", [])), (
-        "cleanup returned with a retired writer still running")
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# the six restored tests
-# ═══════════════════════════════════════════════════════════════════════
-
-def test_the_colorhistory_tests_are_not_skipped():
-    """They were skipped for a year for a defect that is now fixed."""
-    tree = ast.parse(RESTORED.read_text(encoding="utf-8"), str(RESTORED))
-    target = None
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef) and node.name == "TestColorHistoryLoadExport":
-            target = node
-    assert target is not None, (
-        "TestColorHistoryLoadExport is gone. If it was deleted rather than "
-        "un-skipped, this guard has no subject and should go with it.")
-
-    skips = [ast.unparse(d) for d in target.decorator_list
-             if "skip" in ast.unparse(d)]
-    assert not skips, (
-        "TestColorHistoryLoadExport is skipped again:\n  "
-        + "\n  ".join(skips)
-        + "\n\nThe defect behind the original skip -- save_async destroying "
-          "a running writer -- is fixed. If a new reason has appeared, it "
-          "needs its own diagnosis, not the old decorator back.")
-
-    tests = [f.name for f in target.body if isinstance(f, ast.FunctionDef)]
-    assert len(tests) >= 6, (
-        f"expected the six restored tests, found {len(tests)}: {tests}")
-
-    inner = [f.name for f in target.body if isinstance(f, ast.FunctionDef)
-             and any("skip" in ast.unparse(d) for d in f.decorator_list)]
-    assert not inner, f"individual tests are skipped again: {inner}"
-
-
-def test_every_restored_test_gets_cleanup():
-    """The fixture is what makes them safe; a test that bypasses it is not.
-
-    A ColorHistory dropped with a write in flight destroys a running
-    QThread. `history_factory` cleans up every instance it makes, so the
-    rule is simply that these tests build their histories through it.
-    """
-    tree = ast.parse(RESTORED.read_text(encoding="utf-8"), str(RESTORED))
-    target = next(n for n in tree.body
-                  if isinstance(n, ast.ClassDef)
-                  and n.name == "TestColorHistoryLoadExport")
-
-    direct = []
-    for fn in [f for f in target.body if isinstance(f, ast.FunctionDef)]:
-        for n in ast.walk(fn):
-            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-                    and n.func.id == "ColorHistory"):
-                direct.append(f"{fn.name}:{n.lineno}")
-    assert not direct, (
-        "these tests build a ColorHistory directly instead of through "
-        "history_factory, so nothing cleans it up:\n  " + "\n  ".join(direct))
-
-    factory = _fn(RESTORED, "history_factory")
-    assert factory is not None, "the history_factory fixture is gone"
-    assert any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-               and n.func.attr == "cleanup" for n in ast.walk(factory)), (
-        "history_factory no longer calls cleanup(). Every instance it hands "
-        "out can then take the process down when it is collected.")
-
-
-def test_this_guard_can_see_the_files_it_judges():
+def test_this_guard_can_see_the_file_it_judges():
     """A sweep that finds nothing passes every assertion above."""
-    assert HISTORY.exists(), f"{HISTORY} is not where this guard looks"
-    assert RESTORED.exists(), f"{RESTORED} is not where this guard looks"
-    assert _fn(HISTORY, "save_async") is not None
-    assert _fn(HISTORY, "cleanup") is not None
+    assert FILE_UTILS.exists(), f"{FILE_UTILS} is not where this guard looks"
+    src, tree = _functions()
+    functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+    assert len(functions) >= 20, (
+        f"only {len(functions)} functions found in file_utils.py; the guard "
+        f"is probably reading the wrong file")
+    assert any(_shows_dialog(n) for n in functions), (
+        "no function in file_utils.py shows a dialog at all, which means the "
+        "rule above has no subject and is passing vacuously")
 '''
 
-EDITS = [('core/color_history.py', '    def save_async(self, on_complete: callable = None) -> None:\n', '    def _release_finished_writers(self) -> None:\n        """Drop references to writers Qt has finished with.\n\n        RNV-HISTORY-WRITER, 2026-09-09. See\n        tests/test_history_writer_ownership.py.\n\n        isFinished() is asked rather than the `finished` signal, because this\n        thread class declares `finished = pyqtSignal(bool, str)`, which\n        SHADOWS QThread.finished() and is emitted from inside run() -- so it\n        fires while the QThread is still running. tests/test_threading.py\n        waits on the same state for the same reason.\n        """\n        pending = getattr(self, \'_pending_writers\', None)\n        if pending is None:\n            pending = self._pending_writers = []\n        self._pending_writers = [t for t in pending if not t.isFinished()]\n\n    def save_async(self, on_complete: callable = None) -> None:\n', 1), ('core/color_history.py', "            # Create and start writer thread\n            self._save_thread = FileWriterThread(self.history_file, data, 'json')\n", "            # Retire the previous writer rather than dropping it. Replacing\n            # self._save_thread while its QThread is still running destroys a\n            # running QThread, which aborts the process: reproduced 5 times in\n            # 5 with clear() followed by add_color(), on Linux and Windows\n            # alike. Finished writers are released on the next save and on\n            # cleanup(), so this list stays short.\n            self._release_finished_writers()\n            previous = getattr(self, '_save_thread', None)\n            if previous is not None and previous.isRunning():\n                self._pending_writers.append(previous)\n\n            # Create and start writer thread\n            self._save_thread = FileWriterThread(self.history_file, data, 'json')\n", 1), ('core/color_history.py', "            # Stop any running save thread\n            if hasattr(self, '_save_thread') and self._save_thread:\n", "            # Stop any running save thread, current and retired alike. A\n            # writer left behind by a rapid second save is just as fatal at\n            # interpreter shutdown as the current one.\n            for writer in list(getattr(self, '_pending_writers', [])):\n                if writer.isRunning():\n                    writer.quit()\n                    writer.wait(1000)\n            self._pending_writers = []\n\n            if hasattr(self, '_save_thread') and self._save_thread:\n", 1), ('tests/test_error_recovery_paths.py', '@pytest.mark.integration\n@pytest.mark.skip(\n    reason="ColorHistory\'s constructor + add_color() + save() chain "\n    "spawns a QThread for async filesystem writes that crashes Python "\n    "natively on Windows (no traceback, no exit code, just a dead "\n    "process). The locked test_rnv_color_mixer.py works around this by "\n    "module-level-mocking ColorHistory.__init__/load/save_async at "\n    "import time. These integration-style tests can\'t easily replicate "\n    "that pattern without mocking out the very methods they\'re trying "\n    "to verify. Phase 9.3 finding — kept for documentation; future "\n    "refactor could split the QThread machinery off from ColorHistory "\n    "construction so synchronous behavior is testable in isolation."\n)\nclass TestColorHistoryLoadExport:\n    """ColorHistory\'s load() and export_to_file() have format-specific\n    branches that need explicit drives."""\n\n    def test_load_with_no_existing_file_returns_false_or_true(\n        self, isolated_home\n    ):\n        """No prior history file — load() is either a no-op-true or\n        returns False, both fine."""\n        from color_history import ColorHistory\n        ch = ColorHistory()\n        # The constructor calls load() automatically\n        result = ch.load()\n        assert isinstance(result, bool)\n\n    def test_save_writes_history_file(self, isolated_home, tmp_path):\n        """Verify `save()` (the sync version) writes to disk. The\n        round-trip via a new instance is timing-dependent because\n        `add_color` triggers `save_async`, so we test save() directly."""\n        from color_history import ColorHistory\n        ch = ColorHistory()\n        ch.clear()\n        ch.add_color((100, 150, 200))\n\n        # Save synchronously (not save_async)\n        ok = ch.save()\n        assert ok is True\n\n        # File should now exist on disk\n        assert os.path.exists(ch.history_file)\n\n        # File contents should be valid JSON\n        with open(ch.history_file) as f:\n            data = json.load(f)\n        assert "entries" in data\n\n    def test_export_to_json_file(self, tmp_path, isolated_home):\n        from color_history import ColorHistory\n        ch = ColorHistory()\n        ch.add_color((255, 0, 0))\n        out = tmp_path / "hist.json"\n        try:\n            result = ch.export_to_file(str(out))\n        except Exception as e:\n            pytest.fail(\n                f"export_to_file JSON raised {type(e).__name__}: {e}"\n            )\n        if result:\n            assert out.exists()\n\n    def test_export_to_html_file_writes_html_with_color(\n        self, tmp_path, isolated_home\n    ):\n        """`export_to_file(\'*.html\')` writes HTML containing the colors.\n        Verify file exists and contains the hex of the added color."""\n        from color_history import ColorHistory\n        ch = ColorHistory()\n        ch.add_color((0, 255, 0))\n        out = tmp_path / "hist.html"\n\n        ch.export_to_file(str(out))\n\n        assert out.exists(), "HTML export did not write file"\n        text = out.read_text()\n        # Hex of (0, 255, 0) is #00FF00 (case-insensitive)\n        assert "00FF00" in text.upper(), (\n            f"HTML export does not contain hex \'00FF00\' for (0, 255, 0); "\n            f"first 200 chars: {text[:200]!r}"\n        )\n\n    def test_export_to_txt_file_writes_text_with_color(\n        self, tmp_path, isolated_home\n    ):\n        """`export_to_file(\'*.txt\')` writes plain text. Verify file\n        exists and contains a representation of the added color."""\n        from color_history import ColorHistory\n        ch = ColorHistory()\n        ch.add_color((0, 0, 255))\n        out = tmp_path / "hist.txt"\n\n        ch.export_to_file(str(out))\n\n        assert out.exists(), "TXT export did not write file"\n        text = out.read_text()\n        # Should mention the color in some form (hex 0000FF or rgb 0,0,255)\n        text_upper = text.upper()\n        has_hex = "0000FF" in text_upper\n        has_rgb = "0, 0, 255" in text or "(0, 0, 255)" in text\n        assert has_hex or has_rgb, (\n            f"TXT export does not contain (0,0,255) in any format; "\n            f"first 200 chars: {text[:200]!r}"\n        )\n\n    def test_add_color_with_max_entries_evicts_oldest(\n        self, isolated_home\n    ):\n        """ColorHistory caps at max_entries (default 20). Adding more\n        than that should evict the oldest."""\n        from color_history import ColorHistory\n        ch = ColorHistory(max_entries=5)\n        for i in range(10):\n            ch.add_color((i * 25, i * 25, i * 25))\n        entries = ch.get_entries()\n        # Should be capped at max_entries\n        assert len(entries) <= 5\n\n\n# ═══════════════════════════════════════════════════════════════════════════\n', 'def _settle(ch, qtbot, timeout: int = 3000) -> None:\n    """Wait until every background write this history started has finished.\n\n    `clear()` and `add_color()` each kick off a FileWriterThread against\n    `history_file`. Anything that then reads or rewrites that path is racing\n    them. Waiting on isRunning() rather than the `finished` signal is\n    deliberate and is the rule the thread-ownership round established: this\n    thread class declares `finished = pyqtSignal(bool, str)`, shadowing\n    QThread.finished(), and emits it from inside run() -- so it fires while\n    the QThread is still going. tests/test_threading.py waits the same way.\n    """\n    def quiet() -> bool:\n        current = getattr(ch, \'_save_thread\', None)\n        if current is not None and current.isRunning():\n            return False\n        return not any(\n            w.isRunning() for w in getattr(ch, \'_pending_writers\', []))\n\n    qtbot.waitUntil(quiet, timeout=timeout)\n\n\n@pytest.fixture\ndef history_factory(real_color_history, tmp_path):\n    """Build real ColorHistory instances and guarantee they are cleaned up.\n\n    `real_color_history` (tests/conftest.py) restores the pristine\n    __init__/load/save_async that conftest and the locked file patch to\n    no-ops, so these tests drive the REAL FileWriterThread. That is the\n    point of them -- and it is also why they were skipped for a year: a\n    ColorHistory dropped with a write still in flight destroys a running\n    QThread, and Qt aborts the process. `cleanup()` is the codebase\'s own\n    answer to that, and this fixture applies it to every instance a test\n    makes, whatever the test asserts or how it fails.\n\n    Each instance gets its own file under tmp_path. The pristine __init__\n    calls load() against the real home directory, so entries are reset\n    immediately -- the same precaution _fresh_history takes in\n    tests/test_threading.py.\n    """\n    made = []\n\n    def make(**kwargs):\n        ch = real_color_history(**kwargs)\n        ch.history_file = str(tmp_path / f"history_{len(made)}.json")\n        ch.entries = []\n        ch._save_thread = None\n        made.append(ch)\n        return ch\n\n    yield make\n\n    for ch in made:\n        ch.cleanup()\n\n\n@pytest.mark.integration\nclass TestColorHistoryLoadExport:\n    """ColorHistory\'s load() and export_to_file() have format-specific\n    branches that need explicit drives.\n\n    UN-SKIPPED 2026-09-09 (RNV-HISTORY-WRITER). These six ran against the\n    real threading path and aborted the process, so the class carried a\n    class-level skip whose reason said the pattern could not be replicated\n    "without mocking out the very methods they\'re trying to verify". It can:\n    tests/test_threading.py has driven the same path through\n    `real_color_history` since Phase 3. Two things were actually needed --\n    a product fix so `save_async` stops destroying its own running writer,\n    and the fixture above so a dropped instance cannot take the process with\n    it.\n    """\n\n    def test_load_with_no_existing_file_returns_false_or_true(\n        self, history_factory\n    ):\n        """No prior history file — load() is either a no-op-true or\n        returns False, both fine."""\n        ch = history_factory()\n        result = ch.load()\n        assert isinstance(result, bool)\n\n    def test_save_writes_history_file(self, history_factory, qtbot):\n        """Verify `save()` (the sync version) writes to disk.\n\n        The original note here said the round-trip was timing-dependent\n        "because add_color triggers save_async, so we test save() directly".\n        Calling save() directly is not enough on its own: clear() and\n        add_color() have each already started a background write to this same\n        path, and they land *after* the synchronous one. Without the wait\n        below, json.load() read a half-written file 9 times in 20.\n        """\n        ch = history_factory()\n        ch.clear()\n        ch.add_color((100, 150, 200))\n\n        # Let the two background writes finish before writing synchronously.\n        _settle(ch, qtbot)\n\n        # Save synchronously (not save_async)\n        ok = ch.save()\n        assert ok is True\n\n        # File should now exist on disk\n        assert os.path.exists(ch.history_file)\n\n        # File contents should be valid JSON\n        with open(ch.history_file) as f:\n            data = json.load(f)\n        assert "entries" in data\n\n    def test_export_to_json_file(self, history_factory, tmp_path):\n        ch = history_factory()\n        ch.add_color((255, 0, 0))\n        out = tmp_path / "hist.json"\n        try:\n            result = ch.export_to_file(str(out))\n        except Exception as e:\n            pytest.fail(\n                f"export_to_file JSON raised {type(e).__name__}: {e}"\n            )\n        if result:\n            assert out.exists()\n\n    def test_export_to_html_file_writes_html_with_color(\n        self, history_factory, tmp_path\n    ):\n        """`export_to_file(\'*.html\')` writes HTML containing the colors.\n        Verify file exists and contains the hex of the added color."""\n        ch = history_factory()\n        ch.add_color((0, 255, 0))\n        out = tmp_path / "hist.html"\n\n        ch.export_to_file(str(out))\n\n        assert out.exists(), "HTML export did not write file"\n        text = out.read_text()\n        # Hex of (0, 255, 0) is #00FF00 (case-insensitive)\n        assert "00FF00" in text.upper(), (\n            f"HTML export does not contain hex \'00FF00\' for (0, 255, 0); "\n            f"first 200 chars: {text[:200]!r}"\n        )\n\n    def test_export_to_txt_file_writes_text_with_color(\n        self, history_factory, tmp_path\n    ):\n        """`export_to_file(\'*.txt\')` writes plain text. Verify file\n        exists and contains a representation of the added color."""\n        ch = history_factory()\n        ch.add_color((0, 0, 255))\n        out = tmp_path / "hist.txt"\n\n        ch.export_to_file(str(out))\n\n        assert out.exists(), "TXT export did not write file"\n        text = out.read_text()\n        # Should mention the color in some form (hex 0000FF or rgb 0,0,255)\n        text_upper = text.upper()\n        has_hex = "0000FF" in text_upper\n        has_rgb = "0, 0, 255" in text or "(0, 0, 255)" in text\n        assert has_hex or has_rgb, (\n            f"TXT export does not contain (0,0,255) in any format; "\n            f"first 200 chars: {text[:200]!r}"\n        )\n\n    def test_add_color_with_max_entries_evicts_oldest(self, history_factory):\n        """ColorHistory caps at max_entries (default 20). Adding more\n        than that should evict the oldest."""\n        ch = history_factory(max_entries=5)\n        for i in range(10):\n            ch.add_color((i * 25, i * 25, i * 25))\n        entries = ch.get_entries()\n        # Should be capped at max_entries\n        assert len(entries) <= 5\n\n\n', 1), ('KNOWN_ISSUES.md', "Six tests in `tests/test_error_recovery_paths.py` exercise the\n`ColorHistory` constructor + `add_color()` + `save()` chain. The save\npath spawns a QThread for async filesystem writes, and the test harness's\ninteraction with that thread crashes Python natively on Windows.\n\n**User impact:** None. These tests were attempts to extend coverage on\nexisting code paths; the code itself works correctly at runtime.\n\n**Planned fix:** Split QThread machinery off from `ColorHistory`\nconstruction. Same architectural pattern as the `AsyncFileOps` refactor\nlisted above — both classes mix lifecycle management of background\nthreads into operations that conceptually shouldn't require them.", '**Fixed 2026-09-09.** All six run on both runners.\n\nThe skip reason blamed "the test harness\'s interaction with that thread"\nand recorded **User impact: None**. Both were wrong. `save_async()`\nassigned the new `FileWriterThread` straight over `self._save_thread`,\nwhich is the only Python reference to the previous writer — so a second\nsave while the first was still writing destroyed a **running QThread** and\nQt aborted the process.\n\nReproduced through the product API alone, no pytest and no fixtures, five\ntimes in five, and on Linux as well as Windows:\n\n```python\nch = ColorHistory(); ch.clear(); ch.add_color((100, 150, 200))\n```\n\n`clear()` and `add_color()` each call `save_async()`. Both are ordinary\napplication paths — the mixer adds a colour on every mix, and\n`core/package_d_panel.py` clears the history from the panel. Sixty rapid\nsaves now survive with no `cleanup()` at all; before, three in three\naborted.\n\nA writer is now retained until Qt reports it finished, and released on the\nnext save and in `cleanup()`. The six tests build their histories through\na `history_factory` fixture that calls `cleanup()` on every instance, and\none of them waits for the background writes to settle before reading the\nfile — without that wait it read a half-written file 9 times in 20.\n\nGuarded by `tests/test_history_writer_ownership.py`. The planned\narchitectural split is no longer required for these tests to run, though\nit remains a reasonable thing to want.', 1), ('KNOWN_ISSUES.md', 'tests rather than to `utils/async_file_ops.py`; the application itself never\nhad the bug, because `ColorHistory` holds `_save_thread` on the object and\n`AsyncFileManager` keeps `_active_threads`, and both check `isRunning()`\nbefore letting go.', 'tests rather than to `utils/async_file_ops.py`.\n\n**That round also claimed the application itself never had the bug, on the\ngrounds that `ColorHistory` holds `_save_thread` on the object and\n`AsyncFileManager` keeps `_active_threads`, and both check `isRunning()`\nbefore letting go. The claim was wrong and is corrected here.**\n`ColorHistory` did hold the thread on the object — and `save_async()`\noverwrote that attribute on the next save without checking anything, which\nis the same defect one level up. Fixed 2026-09-09; see the entry above.\n`AsyncFileManager` was checked again and is fine.', 1)]
+EDITS = [('utils/file_utils.py', '    def auto_detect_and_import_palette(self, filepath: str) -> list[tuple[tuple[int, int, int], int]] | None:\n        """\n        Auto-detect palette format and import.\n        \n        Args:\n            filepath: Path to palette file\n            \n        Returns:\n            List of (color, weight) tuples or None if failed\n        """\n        try:\n            from core.palette_formats import PaletteFormats\n            \n            # Try to detect format\n            detected_ext = PaletteFormats.detect_format(filepath)\n            if detected_ext:\n                logger.debug(f"Detected format: {detected_ext}")\n            \n            # Import palette\n            colors = PaletteFormats.import_palette(filepath)\n            \n            if colors:\n                # Validate colors\n                colors = PaletteFormats.validate_colors(colors)\n                return colors\n            else:\n                self.show_warning_dialog(\n                    "Import Warning",\n                    "No valid colors found in the file."\n                )\n                return None\n                \n        except Exception as e:\n            self.show_error_dialog(\n                "Import Error",\n                f"Failed to import palette:\\n{str(e)}"\n            )\n            return None', '    def import_palette_data(self, filepath: str) -> tuple[list[tuple[tuple[int, int, int], int]] | None, tuple[str, str, str] | None]:\n        """Auto-detect palette format and import. Shows nothing, ever.\n\n        RNV-PALETTE-IMPORT, 2026-09-10. See tests/test_palette_import.py.\n\n        Returns:\n            (colors, problem). `colors` is a list of (color, weight) tuples,\n            or None. `problem` is None on success, otherwise\n            (severity, title, message) with severity \'warning\' or \'error\'.\n\n        The severity is returned explicitly rather than inferred from the\n        title: a title is display text and will be reworded one day, and a\n        caller that dispatched on it would then quietly show the wrong kind\n        of dialog.\n\n        This half exists so the import can be driven from a test, a script\n        or any headless context. `auto_detect_and_import_palette` below is\n        unchanged for callers and still shows the dialogs.\n        """\n        try:\n            from core.palette_formats import PaletteFormats\n            \n            # Try to detect format\n            detected_ext = PaletteFormats.detect_format(filepath)\n            if detected_ext:\n                logger.debug(f"Detected format: {detected_ext}")\n            \n            # Import palette\n            colors = PaletteFormats.import_palette(filepath)\n            \n            if colors:\n                # Validate colors\n                colors = PaletteFormats.validate_colors(colors)\n                return colors, None\n            \n            return None, ("warning", "Import Warning",\n                          "No valid colors found in the file.")\n                \n        except Exception as e:\n            return None, ("error", "Import Error",\n                          f"Failed to import palette:\\n{str(e)}")\n\n    def auto_detect_and_import_palette(self, filepath: str) -> list[tuple[tuple[int, int, int], int]] | None:\n        """\n        Auto-detect palette format and import.\n        \n        Args:\n            filepath: Path to palette file\n            \n        Returns:\n            List of (color, weight) tuples or None if failed\n        """\n        colors, problem = self.import_palette_data(filepath)\n        if problem is not None:\n            severity, title, message = problem\n            if severity == "warning":\n                self.show_warning_dialog(title, message)\n            else:\n                self.show_error_dialog(title, message)\n        return colors', 1), ('tests/test_error_recovery_paths.py', 'class TestFileUtilsPaletteImport:\n    """`auto_detect_and_import_palette` invokes specific format\n    importers that crash hard on certain inputs in offscreen Qt\n    (likely because of QPixmap reading from binary palette formats).\n    Skipped — covered transitively by integration tests already."""\n\n    @pytest.mark.skip(\n        reason="Native crash on offscreen Qt — see Phase 8.7 report"\n    )\n    def test_auto_detect_palette_skipped(self):\n        pass\n\n\n', 'class TestFileUtilsPaletteImport:\n    """Driving the palette import for real, which nothing did before.\n\n    RESTORED 2026-09-10 (RNV-PALETTE-IMPORT). What stood here was a single\n    method named `test_auto_detect_palette_skipped` whose body was `pass`,\n    carrying `@pytest.mark.skip(reason="Native crash on offscreen Qt")`.\n\n    Two things were wrong with that. It measured nothing — a skipped `pass`\n    reports as a skip and covers no line. And the reason was wrong: the\n    function does not crash, it **hangs**. Its failure path called\n    `show_warning_dialog` / `show_error_dialog`, and a modal dialog never\n    returns without a user. Valid input returned fine; missing, empty and\n    garbage input all blocked forever.\n\n    Nor was it the only test that looked like coverage here. The locked\n    `test_rnv_color_mixer.py` calls `FileUtils.auto_detect_and_import_palette`\n    twice — unbound, with one argument — so both raise\n    `TypeError: missing 1 required positional argument` and both swallow it\n    with `except Exception: pass`. Three tests named after this function, and\n    not one of them entered it.\n\n    `import_palette_data` is the same work with the dialogs lifted out. The\n    wrapper keeps its name, its return and its dialogs, so callers and the\n    locked file see no change at all.\n    """\n\n    @staticmethod\n    def _fu():\n        from utils.file_utils import FileUtils\n        return FileUtils()\n\n    @pytest.mark.timeout(60)\n    def test_a_valid_palette_imports(self, tmp_path):\n        out = tmp_path / "ok.gpl"\n        out.write_bytes(b"GIMP Palette\\nName: t\\n#\\n255 0 0 Red\\n")\n\n        colors, problem = self._fu().import_palette_data(str(out))\n\n        assert problem is None, f"a valid palette reported a problem: {problem}"\n        assert colors, "a valid palette imported no colors"\n\n    @pytest.mark.timeout(60)\n    @pytest.mark.parametrize("name,content", [\n        ("missing.gpl", None),\n        ("empty.gpl", b""),\n        ("garbage.pal", b"\\xa4\\x00\\xff\\xfe" * 64),\n        ("empty.json", b""),\n    ])\n    def test_bad_input_returns_a_problem_instead_of_blocking(\n        self, tmp_path, name, content\n    ):\n        """The whole point. Each of these used to block forever.\n\n        The timeout is the assertion that matters: a regression that puts a\n        dialog back on this path fails the test in a minute instead of\n        hanging CI until someone notices.\n\n        Sixty seconds, not five, on purpose. The bodies here run in under\n        five milliseconds; the number is not a performance budget, it is the\n        line between "slow" and "never". A tight bound would only buy the\n        chance of a false failure on a cold runner.\n        """\n        target = tmp_path / name\n        if content is not None:\n            target.write_bytes(content)\n\n        colors, problem = self._fu().import_palette_data(str(target))\n\n        assert colors is None, f"{name} produced colors: {colors!r}"\n        assert problem is not None, f"{name} reported no problem"\n        severity, title, message = problem\n        assert severity in ("warning", "error"), f"unknown severity {severity!r}"\n        assert title and message, f"{name} gave an empty {title!r}/{message!r}"\n\n    @pytest.mark.timeout(60)\n    def test_the_import_never_raises(self, tmp_path):\n        """It reports; it does not throw.\n\n        Callers treat a None return as "no palette". A function that raises\n        instead would take the caller down, and the original swallowed\n        everything precisely to avoid that.\n        """\n        target = tmp_path / "a-directory-not-a-file.gpl"\n        target.mkdir()\n\n        colors, problem = self._fu().import_palette_data(str(target))\n\n        assert colors is None\n        assert problem is not None\n\n\n', 1), ('KNOWN_ISSUES.md', '**User impact:** None. Production users always run with a real display\nserver, where the load completes instantly. The test passes in the local\ndevelopment environment for the same reason.\n\n**Planned fix:** None required. This is a test-environment artifact, not\na code defect.', '**User impact:** None *on a desktop*. The dialog below is shown and the\nuser clicks through it.\n\n**This is a code defect, not a test-environment artifact.** Corrected\n2026-09-10; the previous wording said "Planned fix: None required. This is\na test-environment artifact, not a code defect", and that is wrong.\n`ImageHandler.load_image` calls\n\n```python\nif file_size_mb > 10:\n    reply = QMessageBox.question(None, "Large Image File", ...)\n```\n\n`resources/background_images/background.png` is 10.1 MB, so the threshold\ntrips and a **modal question dialog** opens inside a data-loading function.\nA modal dialog never returns without a user, so the load never completes\nanywhere there is nobody to click it. Reproduced directly: the call blocks\nuntil killed, printing `This plugin does not support propagateSizeHints()`\non the way in. Nothing about the CI runner is at fault; the same call blocks\nin any headless context.\n\n**Planned fix:** the same split applied to the palette importer on\n2026-09-10 — the function that reads the file returns a result, and the\ncaller decides whether to ask the user. `tests/test_palette_import.py`\nstates the rule and names this as the outstanding violation.\n**Not fixed yet:** `load_image` is a hundred lines on the main image path\nand deserves its own round.', 1)]
+
+PURE = "import_palette_data"
+WRAPPER = "auto_detect_and_import_palette"
+READS_CONTENT = ("open", "import_palette", "read_text", "read_bytes",
+                 "load", "loads", "readlines", "read")
 
 
 def edits(tree) -> None:
@@ -381,118 +407,114 @@ def edits(tree) -> None:
     print("  " + ", ".join(f"{n} in {rel}" for rel, n in sorted(by_file.items())))
 
 
+def _shows(node) -> list:
+    return [getattr(n.func, "attr", "") for n in ast.walk(node)
+            if isinstance(n, ast.Call)
+            and getattr(n.func, "attr", "").startswith("show_")
+            and "dialog" in getattr(n.func, "attr", "")]
+
+
+def _reads(node) -> list:
+    return [getattr(n.func, "attr", getattr(n.func, "id", ""))
+            for n in ast.walk(node) if isinstance(n, ast.Call)
+            and getattr(n.func, "attr", getattr(n.func, "id", "")) in READS_CONTENT]
+
+
 def checks(tree) -> None:
-    ch = tree.files["core/color_history.py"]
+    fu = tree.files["utils/file_utils.py"]
     erp = tree.files["tests/test_error_recovery_paths.py"]
 
-    # 1. both files parse. Every check below reads a syntax tree, and a file
-    #    that does not parse makes them vacuous rather than red.
-    for rel, text in (("core/color_history.py", ch),
+    # 1. both files parse, or every check below is vacuous rather than red.
+    for rel, text in (("utils/file_utils.py", fu),
                       ("tests/test_error_recovery_paths.py", erp)):
         try:
             ast.parse(text, rel)
         except SyntaxError as e:
             raise SystemExit(f"{rel} does not parse after the edits: {e}")
 
-    tree_ch = ast.parse(ch)
-    save_async = next((n for n in ast.walk(tree_ch)
-                       if isinstance(n, ast.FunctionDef) and n.name == "save_async"), None)
-    if save_async is None:
-        raise SystemExit("save_async is gone from core/color_history.py")
+    tree_fu = ast.parse(fu)
+    funcs = {n.name: n for n in ast.walk(tree_fu) if isinstance(n, ast.FunctionDef)}
 
-    # 2. the retention happens BEFORE the reassignment. Retaining after it
-    #    retains the new writer and drops the old one, which reads almost
-    #    identically and fixes nothing. This is the check that caught the
-    #    inverted-order tampering in under a fifth of a second, before the
-    #    behavioural test could abort the run.
-    retain = assign = None
-    for n in ast.walk(save_async):
-        if isinstance(n, ast.Attribute) and n.attr == "_pending_writers":
-            retain = n.lineno if retain is None else min(retain, n.lineno)
-        if (isinstance(n, ast.Assign) and n.targets
-                and isinstance(n.targets[0], ast.Attribute)
-                and n.targets[0].attr == "_save_thread"):
-            assign = n.lineno if assign is None else min(assign, n.lineno)
-    if retain is None:
-        raise SystemExit("save_async does not retain the previous writer")
-    if assign is None:
-        raise SystemExit("save_async no longer assigns _save_thread")
-    if retain >= assign:
-        raise SystemExit(f"save_async retains at line {retain}, after it "
-                         f"reassigns at line {assign} -- that keeps the new "
-                         f"writer and drops the old one")
+    # 2. the rule, over the whole module rather than the one function that
+    #    prompted it. Checked here as well as in the installed guard so a
+    #    broken tree is refused before anything is written.
+    bad = []
+    for name, node in funcs.items():
+        shows, reads = _shows(node), _reads(node)
+        if shows and reads:
+            bad.append(f"{name}: shows {sorted(set(shows))}, reads {sorted(set(reads))}")
+    if bad:
+        raise SystemExit("a function still reads a file and shows a dialog: "
+                         + "; ".join(bad))
 
-    # 3. cleanup() drains the retired writers too. A writer left running at
-    #    interpreter shutdown is exactly the close-time crash cleanup() was
-    #    written for.
-    cleanup = next((n for n in ast.walk(tree_ch)
-                    if isinstance(n, ast.FunctionDef) and n.name == "cleanup"), None)
-    if cleanup is None:
-        raise SystemExit("cleanup() is gone from ColorHistory")
-    if not any(isinstance(n, ast.Attribute) and n.attr == "_pending_writers"
-               for n in ast.walk(cleanup)):
-        raise SystemExit("cleanup() does not drain the retired writers")
+    # 3. the pure half is silent and the wrapper still speaks. Both halves
+    #    matter: a split that dropped the dialogs would pass the rule above
+    #    and would change what a user sees on a bad file.
+    if PURE not in funcs:
+        raise SystemExit(f"{PURE} did not land")
+    if _shows(funcs[PURE]):
+        raise SystemExit(f"{PURE} shows a dialog; it is the half that has to "
+                         f"be callable with nobody watching")
+    if WRAPPER not in funcs:
+        raise SystemExit(f"{WRAPPER} is gone; callers depend on it")
+    kept = set(_shows(funcs[WRAPPER]))
+    for needed in ("show_warning_dialog", "show_error_dialog"):
+        if needed not in kept:
+            raise SystemExit(f"{WRAPPER} no longer calls {needed} -- that is a "
+                             f"feature removed, not a refactor")
 
-    # 4. the six tests are un-skipped, still six, and none of them builds a
-    #    ColorHistory outside the fixture that cleans it up.
+    # 4. the wrapper delegates rather than keeping a second copy of the parse.
+    calls = {getattr(n.func, "attr", getattr(n.func, "id", ""))
+             for n in ast.walk(funcs[WRAPPER]) if isinstance(n, ast.Call)}
+    if PURE not in calls:
+        raise SystemExit(f"{WRAPPER} does not call {PURE}; the logic has been "
+                         f"duplicated rather than shared")
+
+    # 5. the placeholder is gone and what replaced it actually drives the
+    #    function. A skipped `pass` is what this round exists to remove.
     tree_erp = ast.parse(erp)
     klass = next((n for n in tree_erp.body if isinstance(n, ast.ClassDef)
-                  and n.name == "TestColorHistoryLoadExport"), None)
+                  and n.name == "TestFileUtilsPaletteImport"), None)
     if klass is None:
-        raise SystemExit("TestColorHistoryLoadExport did not survive the rewrite")
-    skipped = [ast.unparse(d) for d in klass.decorator_list if "skip" in ast.unparse(d)]
+        raise SystemExit("TestFileUtilsPaletteImport did not survive the rewrite")
+    skipped = [f.name for f in klass.body if isinstance(f, ast.FunctionDef)
+               and any("skip" in ast.unparse(d) for d in f.decorator_list)]
     if skipped:
-        raise SystemExit(f"the class is still skipped: {skipped}")
-    tests = [f for f in klass.body if isinstance(f, ast.FunctionDef)]
-    if len(tests) != 6:
-        raise SystemExit(f"expected six tests, found {len(tests)}: "
-                         f"{[f.name for f in tests]}")
-    inner = [f.name for f in tests if any("skip" in ast.unparse(d) for d in f.decorator_list)]
-    if inner:
-        raise SystemExit(f"individual tests are still skipped: {inner}")
-    direct = [f"{f.name}:{n.lineno}" for f in tests for n in ast.walk(f)
-              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-              and n.func.id == "ColorHistory"]
-    if direct:
-        raise SystemExit(f"these tests build a ColorHistory outside the "
-                         f"fixture, so nothing cleans it up: {direct}")
+        raise SystemExit(f"tests are still skipped: {skipped}")
+    tests = [f for f in klass.body if isinstance(f, ast.FunctionDef)
+             and f.name.startswith("test_")]
+    if len(tests) < 3:
+        raise SystemExit(f"only {len(tests)} tests replaced the placeholder")
+    for f in tests:
+        body = ast.unparse(f)
+        if "pass" == body.strip().splitlines()[-1].strip():
+            raise SystemExit(f"{f.name} still has an empty body")
+    if PURE not in erp:
+        raise SystemExit("the replacement tests do not call the function")
 
-    factory = next((n for n in ast.walk(tree_erp)
-                    if isinstance(n, ast.FunctionDef) and n.name == "history_factory"), None)
-    if factory is None:
-        raise SystemExit("the history_factory fixture did not land")
-    if not any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-               and n.func.attr == "cleanup" for n in ast.walk(factory)):
-        raise SystemExit("history_factory does not call cleanup()")
+    # 6. a hang cannot be caught by waiting, so every drive carries a bound.
+    if "timeout" not in erp:
+        raise SystemExit("the replacement tests carry no timeout; a "
+                         "regression would hang CI rather than fail it")
 
-    # 5. the prose. Read with whitespace collapsed, because a markdown
-    #    paragraph wraps where the width runs out and a check that looked for
-    #    a phrase the file had split across a line break has failed here
-    #    before on the line break rather than the meaning.
+    # 7. the prose. Collapsed whitespace, because markdown wraps where the
+    #    width runs out and a check has failed here before on a line break.
     ki = " ".join(tree.files["KNOWN_ISSUES.md"].split())
-    if "User impact:** None. These tests were attempts" in ki:
-        raise SystemExit("KNOWN_ISSUES.md still records User impact: None")
-    if "the application itself never had the bug" in ki and "claim was wrong" not in ki:
-        raise SystemExit("KNOWN_ISSUES.md still asserts the application was clean")
-    if "test_history_writer_ownership.py" not in ki:
+    if "test-environment artifact, not a code defect" in ki and "is wrong" not in ki:
+        raise SystemExit("KNOWN_ISSUES.md still calls the image-load hang a "
+                         "test-environment artifact")
+    if "test_palette_import.py" not in ki:
         raise SystemExit("KNOWN_ISSUES.md does not name the guard")
 
-    # 6. the sweep sees something. A guard that reads no file passes every
-    #    assertion above; the image-budget round shipped exactly that.
-    if "_release_finished_writers" not in ch:
-        raise SystemExit("the release helper did not land")
-
-    # 7. the sentinel is actually IN the file the re-run check reads. The
-    #    first version of this script checked core/color_history.py for
-    #    "RNV-HISTORY-WRITER" and never wrote it there, so a second run
-    #    skipped the "already applied" message and died on a missing anchor
-    #    instead. A guard against re-running that cannot fire is worse than
-    #    none, because it looks like protection.
-    if SENTINEL not in ch:
+    # 8. the sentinel is in the file the re-run check reads. Shipped broken
+    #    once: the script applied everything and then died on a missing
+    #    anchor because the already-applied guard could never fire.
+    if SENTINEL not in fu:
         raise SystemExit(f"'{SENTINEL}' is not in {SENTINEL_FILE}, so the "
                          f"already-applied check can never fire")
-    print("  guards: retention precedes reassignment, cleanup drains, "
-          "6 tests un-skipped and all cleaned up")
+
+    print("  guards: the data path is silent, both dialogs kept, "
+          "placeholder replaced by 6 bounded tests")
 
 
 # ------------------------------------------------------------------ plumbing
