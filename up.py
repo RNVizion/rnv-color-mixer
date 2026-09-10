@@ -1,64 +1,73 @@
 #!/usr/bin/env python3
-"""RNV-IMAGE-CONFIRM — the load reads the file; the caller asks.
+"""RNV-NO-VACUOUS-TESTS — a test that cannot fail is not a test.
 
-    python up.py             # apply, then run the guards and both suites
+    python up.py             # apply, then run the guard and both suites
     python up.py --check     # rehearse every edit in memory, write nothing
 
-Derived against a fresh clone of rnv-color-mixer at head e538c2f with
-up-for-rnv-color-mixer-palette-import.py already applied. **Run that one
-first** — this round widens the guard it installs, and refuses if it is
-not there.
+Derived against a fresh clone of rnv-color-mixer at head 34e3536, after a
+sweep of all 1,049 test functions in 51 files.
 
-THIS RETIRES THE LAST DESELECT IN THE REPOSITORY.
+THE HEADLINE IS GOOD, AND IT IS THE POINT OF SAYING IT FIRST. `tests/` held
+exactly **one** assertion that could not fail. No empty test bodies. Every
+one of the 94 tests with no assertion turned out to be a deliberate smoke
+test — they are named `..._no_crash` and `..._does_not_crash`, and they fail
+if the call raises, which is what they are for. This round does not touch
+them, and the guard it installs does not either.
 
-WHAT WAS WRONG. `ImageHandler.load_image` — a function whose whole job is to
-read an image off disk — contained
+THE ONE.
 
-    if file_size_mb > 10:
-        reply = QMessageBox.question(None, "Large Image File", ...)
+    result = FileUtils.detect_palette_format(ext)
+    assert result is not None or True   # Some impls return None
 
-A modal question does not return until a person answers it, and
-`resources/background_images/background.png` is **10.1 MB**, so the
-threshold tripped and the load never completed anywhere there was nobody to
-click. Both CI workflows deselected the locked
-`test_load_real_image_if_available` because of it — the only skip left on
-either runner — and `KNOWN_ISSUES.md` recorded
+`x or True` is true whatever x is. Worse, the assertion never executed:
+`FileUtils.detect_palette_format` does not exist and never has, so the call
+raised AttributeError, which the test caught and turned into
 
-    **Planned fix:** None required. This is a test-environment artifact,
-    not a code defect.
+    pytest.skip("detect_palette_format not in this version")
 
-It is a code defect. Nothing about the runners was at fault: the same call
-blocks in any headless process. Measured: the test hangs until killed on the
-tree before this change and passes three times in three after.
+A permanent skip, a reason that was wrong, and an inert assertion behind it.
+Its `expected` column — "gpl", "aco", "ase", "json" — was never compared
+against anything either. It now drives `PaletteFormats.detect_format`, the
+function that does exist, and asserts the extension it returns.
 
-THE FIX. `large_image_confirmation_size` stats the file and returns the size
-in MB when the user should be asked, or None. It never opens the file and
-never shows anything. `load_image` no longer asks at all. The question moved
-to `RNV_Color_Mixer._do_image_load`, the one production path a person
-actually takes — the only place that knows there is someone to answer it —
-with the wording copied across unchanged.
+TWO MORE OF THE SAME FAMILY.
 
-The threshold became `ImageHandler.LARGE_IMAGE_WARNING_MB` rather than a
-bare `10`, because the check and the caller now both have to agree about
-what counts as large, and two copies of a magic number drift. The caller
-never sees the number: it asks whether there is a size to confirm and
-displays whatever it is handed.
+  * `get_palette_format_filter` names a function that exists nowhere in the
+    codebase. Rewritten against `PaletteFormats.get_import_formats()`, the
+    (label, pattern) pairs a QFileDialog filter is actually built from.
 
-THE RULE GOT WIDER, WHICH MATTERS MORE THAN THIS FIX. The palette round
-installed a guard saying a function may read a file or wait on a dialog,
-never both — and scoped it to `utils/file_utils.py`, naming this defect as
-a known violation left for its own round. That guard **would not have caught
-this one**: it looked for the project's own `show_*_dialog` helpers, and
-this blocker was a plain `QMessageBox.question`. A rule named after one
-helper only ever catches code that uses that helper. It now recognises any
-blocking Qt call — QMessageBox and friends, QInputDialog, a bare `.exec()` —
-across both modules. Checked against the trees before each fix: the wider
-rule flags both original defects and neither fixed one.
+  * `safe_execute(default=)` names a parameter that has never existed, and
+    the test's docstring asserted in prose that "some callers pass
+    `default=`" — a factual claim, and a false one: nothing in the
+    application passes it. Deleted, with the reason left in its place. The
+    behaviour that does exist is covered by the test above it.
 
-ONE FILE IS DELETED. `tests/test_ci_deselects.py` swept every `--deselect`
-in CI and asserted the node it named still existed. With none left it would
-pass over nothing, and its own failure message says to delete it in the
-commit that removes the last one. That is this commit.
+A specification reported as a skip reads, in a summary line, exactly like
+coverage.
+
+WHAT THE GUARD ENFORCES, over tests/ only: no assertion that is true
+regardless of the code; no test body that is only `pass`; no test that can
+never fail (no assertion AND every statement swallowed); no test that skips
+itself on AttributeError. What it deliberately does NOT enforce: a test
+having no assertion. Ninety of those are legitimate here, and a rule against
+them would be noise that gets suppressed — which is worse than no rule.
+
+WHERE THE PROBLEM ACTUALLY IS, AND WHY THIS ROUND LEAVES IT.
+`test_rnv_color_mixer.py` holds every remaining instance in the repository:
+all 13 `except Exception: pass` handlers, and all 3 tests that can never
+fail —
+
+    test_handle_exception_no_crash          line 1177
+    test_set_autosave_interval_no_crash     line 1482
+    test_load_settings_no_crash             line 1545
+
+each with no assertion and everything it calls swallowed. Two others there
+call `FileUtils.auto_detect_and_import_palette` on the class with one
+argument, so both raise TypeError before reaching the function and both
+swallow it. That file is locked by convention, so this round records rather
+than edits, in KNOWN_ISSUES.md and in the guard's own docstring. The
+exclusion is a statement about ownership, not about quality: those are the
+tests worth fixing.
 """
 from __future__ import annotations
 
@@ -71,432 +80,403 @@ import tempfile
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
-SENTINEL_FILE = "core/image_handler.py"
-SENTINEL = "RNV-IMAGE-CONFIRM"
-GUARD = "tests/test_image_confirm.py"
-DESCRIPTION = "move the large-image question off the data path"
+SENTINEL_FILE = "tests/test_app_event_handlers.py"
+SENTINEL = "RNV-NO-VACUOUS-TESTS"
+GUARD = "tests/test_no_vacuous_tests.py"
+DESCRIPTION = "remove the assertions that cannot fail"
 SUITES = [("\"pytest tests/\"",
            [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-          ("\"the LOCKED file, now 356 tests with nothing deselected\"",
+          ("\"the LOCKED file, 356 tests\"",
            [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
             "-p", "no:cacheprovider", "--timeout=120"])]
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-IMAGE-CONFIRM-GUARD -- the load reads the file; the caller asks.
+GUARD_SOURCE = r'''"""RNV-NO-VACUOUS-TESTS-GUARD -- a test that cannot fail is not a test.
 
-Installed 2026-09-10. This retires the last deselect in the repository.
+Installed 2026-09-10, after a sweep of all 1,049 test functions in the
+repository.
 
-WHAT WAS WRONG. `ImageHandler.load_image` -- a function whose job is to read
-an image off disk -- contained
+WHAT THE SWEEP FOUND, AND WHAT IT DID NOT. The honest headline first: this
+suite is in good shape. Across 51 files there was exactly **one** assertion
+in tests/ that could not fail, no empty test bodies, and every one of the 94
+tests without an assertion turned out to be a deliberate smoke test -- they
+are named `..._no_crash` and `..._does_not_crash`, and they fail if the call
+raises, which is the whole point of them. Those are not defects and this
+guard does not touch them.
 
-    if file_size_mb > 10:
-        reply = QMessageBox.question(None, "Large Image File", ...)
+THE ONE. tests/test_app_event_handlers.py held
 
-A modal question does not return until a person answers it.
-`resources/background_images/background.png` is **10.1 MB**, so the
-threshold tripped and the load never completed anywhere there was nobody to
-click. Measured: on the tree before this change the locked
-`test_load_real_image_if_available` hangs until killed; after, it passes
-three times in three.
+    result = FileUtils.detect_palette_format(ext)
+    assert result is not None or True   # Some impls return None
 
-WHAT WAS RECORDED. `KNOWN_ISSUES.md` carried it as
+`x or True` is true whatever x is. The assertion could not fail. Worse, it
+never ran: `FileUtils.detect_palette_format` does not exist and never has,
+so the call raised AttributeError, which the test caught and turned into
+`pytest.skip("detect_palette_format not in this version")`. A permanent
+skip, a wrong reason, and an assertion that was inert anyway. Its `expected`
+column was never compared with anything either.
 
-    **Planned fix:** None required. This is a test-environment artifact,
-    not a code defect.
+TWO MORE OF THE SAME FAMILY went with it. `get_palette_format_filter` names
+a function that exists nowhere in the codebase, and
+`safe_execute(default=)` a parameter that has never existed -- and whose
+test claimed in its docstring that "some callers pass `default=`" when none
+do. Both skipped themselves permanently. A specification reported as a skip
+reads, in a summary line, exactly like coverage.
 
-and both CI workflows deselected the test -- the only skip left on either
-runner. It was a code defect, and nothing about the runners was at fault:
-the same call blocks in any headless process.
+WHAT THIS GUARD ENFORCES, over tests/ only:
 
-THE FIX. `large_image_confirmation_size` stats the file and returns the size
-in MB when the user should be asked, or None. It never opens the file and
-never shows anything. `load_image` no longer asks at all. The question moved
-to `RNV_Color_Mixer._do_image_load`, the one production path a person
-actually takes -- the only place that knows there is someone to answer it --
-with the wording unchanged.
+  * no assertion that is true regardless of the code under test;
+  * no test whose body is only `pass`;
+  * no test that can never fail -- no assertion of any kind AND every
+    statement wrapped in a `try` whose handler is a bare `pass`.
 
-WHY THE THRESHOLD IS A NAMED CONSTANT NOW. The check and the caller both
-have to agree about what counts as large. It was a bare `10` in one
-function; two copies of a magic number drift, so it is
-`ImageHandler.LARGE_IMAGE_WARNING_MB` and the caller never sees the number
-at all -- it asks whether there is a size to confirm and shows what it is
-handed.
+WHAT IT DELIBERATELY DOES NOT ENFORCE. A test with no assertion is fine on
+its own: `def test_set_theme_does_not_crash` asserts by not raising. Ninety
+of those are legitimate here and a rule against them would be noise that
+gets suppressed, which is worse than no rule.
 
-THE RULE THIS SITS UNDER. tests/test_palette_import.py states it: a
-function may read a file, or wait on a dialog, never both. That guard's
-sweep now covers this module too. Worth recording why it did not catch this
-one on the day it was written: it looked for the project's own
-`show_*_dialog` helpers, and this blocker was a plain `QMessageBox.question`.
-A rule named after one helper only ever catches code using that helper.
+THE LOCKED FILE IS EXCLUDED, AND IT IS WHERE THE PROBLEM ACTUALLY IS.
+test_rnv_color_mixer.py holds all 13 `except Exception: pass` handlers in
+the repository and all 3 tests that can never fail:
+
+    test_handle_exception_no_crash          (line 1177)
+    test_set_autosave_interval_no_crash     (line 1482)
+    test_load_settings_no_crash             (line 1545)
+
+Each has no assertion and swallows everything it calls. Two others in that
+file call `FileUtils.auto_detect_and_import_palette` on the class with one
+argument, so both raise TypeError before reaching the function and both
+swallow it -- documented in tests/test_palette_import.py.
+
+That file is locked by convention, so this round reports rather than edits.
+LOCKED below is the exclusion, and it is a statement about ownership, not
+about quality: those tests are the ones worth fixing.
 """
 from __future__ import annotations
 
 import ast
-import os
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
-HANDLER = ROOT / "core" / "image_handler.py"
-APP = ROOT / "RNV_Color_Mixer.py"
-WORKFLOWS = ROOT / ".github" / "workflows"
+TESTS = ROOT / "tests"
 
-CHECK = "large_image_confirmation_size"
-DESELECTED = "test_load_real_image_if_available"
+#: Not swept: changing it is out of scope by convention, not because it is
+#: clean. See the module docstring -- it is where every finding lives.
+LOCKED = "test_rnv_color_mixer.py"
+
+#: Names that promise the test asserts by not raising. Used only to explain
+#: a NO-ASSERT test in a message, never to excuse one from a real rule.
+SMOKE_MARKERS = ("no_crash", "does_not_crash", "no_error", "survives")
 
 
-def _fn(path: Path, name: str):
-    tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+def _test_files():
+    for path in sorted(TESTS.rglob("test_*.py")):
+        if path.name == LOCKED:
+            continue
+        yield path
+
+
+def _tests(path: Path):
+    src = path.read_text(encoding="utf-8")
+    try:
+        tree = ast.parse(src, str(path))
+    except SyntaxError as exc:                      # pragma: no cover
+        raise AssertionError(f"{path} does not parse: {exc}")
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == name:
-            return node
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test"):
+            yield src, node
+
+
+def _body(fn: ast.FunctionDef) -> list:
+    body = list(fn.body)
+    if (body and isinstance(body[0], ast.Expr)
+            and isinstance(body[0].value, ast.Constant)
+            and isinstance(body[0].value.value, str)):
+        body = body[1:]
+    return body
+
+
+def _always_true(node: ast.expr) -> str | None:
+    """Why this expression is true whatever the code does, or None."""
+    if isinstance(node, ast.Constant):
+        if node.value is True:
+            return "the literal True"
+        if isinstance(node.value, (int, float, str)) and node.value:
+            return f"the truthy literal {node.value!r}"
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+        for value in node.values:
+            why = _always_true(value)
+            if why:
+                return f"an `or` against {why}"
+    if isinstance(node, ast.Compare) and len(node.ops) == 1:
+        # Both sides must be side-effect-free. `list(g) == list(g)` is NOT a
+        # tautology: if g is lazy the first call exhausts it and the second
+        # returns []. tests/test_pil_compat.py uses exactly that to prove a
+        # result is not a generator, and the first draft of this rule called
+        # that clever test a defect.
+        pure = (ast.Name, ast.Attribute, ast.Constant)
+        left, op, right = node.left, node.ops[0], node.comparators[0]
+        if (isinstance(op, (ast.Eq, ast.Is))
+                and isinstance(left, pure) and isinstance(right, pure)
+                and ast.dump(left) == ast.dump(right)):
+            return "a comparison of a value with itself"
+    if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "isinstance"
+            and len(node.args) == 2 and getattr(node.args[1], "id", "") == "object"):
+        return "isinstance(..., object), which holds for everything"
     return None
 
 
-def _waits(node) -> list[str]:
-    out = []
-    for n in ast.walk(node):
-        if not isinstance(n, ast.Call):
+def _has_assertion(fn: ast.FunctionDef) -> bool:
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Assert):
+            return True
+        if isinstance(n, ast.Call) and getattr(n.func, "attr", "").startswith("assert"):
+            return True
+    rendered = ast.unparse(fn)
+    return "raises" in rendered or "warns" in rendered
+
+
+def test_no_assertion_is_true_no_matter_what_the_code_does():
+    """The rule that caught the one.
+
+    An assertion whose truth does not depend on the subject is worse than no
+    assertion: it reports as coverage, it survives every refactor, and it
+    reads at a glance like a real check.
+    """
+    bad = []
+    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
+        for node in ast.walk(fn):
+            if isinstance(node, ast.Assert):
+                why = _always_true(node.test)
+                if why:
+                    rel = path.relative_to(ROOT).as_posix()
+                    bad.append(f"{rel}:{node.lineno}  {fn.name}\n"
+                               f"      {ast.unparse(node)[:96]}\n"
+                               f"      -- always true, because of {why}")
+    assert not bad, (
+        "these assertions cannot fail:\n  " + "\n  ".join(bad)
+        + "\n\nAssert the thing the test is named after, or delete the line. "
+          "A check that cannot fail is worse than none: it looks like one.")
+
+
+def test_no_test_body_is_only_pass():
+    """A skipped `pass` was how the palette-import hang stayed hidden.
+
+    It reported as a skip for a year and covered nothing; the reason
+    attached to it was the only thing it ever contributed, and the reason
+    was wrong.
+    """
+    bad = []
+    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
+        body = _body(fn)
+        if body and all(isinstance(s, ast.Pass) for s in body):
+            rel = path.relative_to(ROOT).as_posix()
+            bad.append(f"{rel}:{fn.lineno}  {fn.name}")
+    assert not bad, (
+        "these tests have no body:\n  " + "\n  ".join(bad)
+        + "\n\nIf the note attached to it is the point, put the note in the "
+          "module docstring and delete the function.")
+
+
+def test_no_test_can_never_fail():
+    """No assertion AND everything swallowed. The complete case.
+
+    Either half alone is defensible -- a smoke test asserts by not raising,
+    and a `try/except` can be the assertion when something else checks the
+    result. Together they are a function that runs and reports success
+    unconditionally.
+    """
+    bad = []
+    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
+        body = _body(fn)
+        if not body or _has_assertion(fn):
             continue
-        rendered = ast.unparse(n.func)
-        attr = getattr(n.func, "attr", "")
-        if rendered.startswith(("QMessageBox.", "QInputDialog.", "QColorDialog.",
-                                "QFontDialog.")):
-            out.append(rendered)
-        elif attr in ("exec", "exec_"):
-            out.append(rendered)
-        elif attr.startswith("show_") and "dialog" in attr:
-            out.append(rendered)
-    return out
+        tries = [s for s in body if isinstance(s, ast.Try)]
+        if len(tries) != len(body) or not tries:
+            continue
+        if all(all(len(h.body) == 1 and isinstance(h.body[0], ast.Pass)
+                   for h in t.handlers) for t in tries):
+            rel = path.relative_to(ROOT).as_posix()
+            bad.append(f"{rel}:{fn.lineno}  {fn.name}")
+    assert not bad, (
+        "these tests cannot fail -- no assertion, and every call swallowed:\n  "
+        + "\n  ".join(bad)
+        + "\n\nAssert something, or narrow the except to the exception the "
+          "test is about, or delete it.")
 
 
-def _handler():
-    from core.image_handler import ImageHandler
-    return ImageHandler()
+def test_no_test_skips_itself_over_a_name_that_does_not_exist():
+    """The permanent skip.
 
-
-# ═══════════════════════════════════════════════════════════════════════
-# the data path
-# ═══════════════════════════════════════════════════════════════════════
-
-def test_load_image_waits_for_nobody():
-    """The defect, stated where the message will be read.
-
-    The general rule in tests/test_palette_import.py covers this too. This
-    one exists so the failure names `load_image` and says what breaks.
+    `except AttributeError: pytest.skip("not in this version")` is how three
+    tests here reported as skipped for a year while naming functions that
+    had never existed. A skip whose condition can never change is a deleted
+    test that still shows up in the summary line.
     """
-    node = _fn(HANDLER, "load_image")
-    assert node is not None, "load_image is gone from core/image_handler.py"
-
-    waits = _waits(node)
-    assert not waits, (
-        f"load_image waits on {sorted(set(waits))}. It reads a file, so it "
-        f"has to be callable with nobody watching -- a modal call here hangs "
-        f"CI, a batch script, and anything else without a person in front of "
-        f"it. The question belongs to the caller.")
-
-
-def test_the_confirmation_check_shows_nothing_either():
-    node = _fn(HANDLER, CHECK)
-    assert node is not None, f"{CHECK} is gone"
-
-    waits = _waits(node)
-    assert not waits, (
-        f"{CHECK} waits on {sorted(set(waits))}; its whole purpose is to let "
-        f"the caller decide without one")
-
-    reads = [n for n in ast.walk(node) if isinstance(n, ast.Call)
-             and getattr(n.func, "id", getattr(n.func, "attr", "")) == "open"]
-    assert not reads, (
-        f"{CHECK} opens the file. It should stat it and nothing more -- "
-        f"opening it here duplicates work load_image is about to do.")
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# the feature, which must survive the move
-# ═══════════════════════════════════════════════════════════════════════
-
-def test_the_caller_still_asks_before_loading_a_large_image():
-    """Moving a dialog out is only a refactor if it lands somewhere.
-
-    Every other test here would pass if the confirmation had simply been
-    deleted, and a user would silently wait on a 150 MB load with no warning.
-    """
-    node = _fn(APP, "_do_image_load")
-    assert node is not None, "_do_image_load is gone from RNV_Color_Mixer.py"
-
-    calls = {ast.unparse(n.func) for n in ast.walk(node) if isinstance(n, ast.Call)}
-    assert any(c.endswith(CHECK) for c in calls), (
-        f"_do_image_load never calls {CHECK}, so nothing decides whether to "
-        f"warn about a large image")
-    assert any(c.startswith("QMessageBox.") for c in calls), (
-        "_do_image_load no longer asks the user anything. The large-image "
-        "confirmation was removed rather than moved.")
-
-
-def test_the_caller_does_not_hardcode_the_threshold():
-    """One definition of "large".
-
-    The caller asks whether there is a size to confirm and displays what it
-    is given. If it grew its own `> 10`, the two would drift the first time
-    the constant changed.
-    """
-    node = _fn(APP, "_do_image_load")
-    assert node is not None
-
-    # Read as a comparison against the number 10, not as the text "> 10".
-    # The first version of this test matched the substring and fired on
-    # `canvas_size.width() > 100`, which is the same use-versus-mention
-    # mistake in numeric form.
-    hardcoded = [ast.unparse(c) for c in ast.walk(node)
-                 if isinstance(c, ast.Compare)
-                 for comp in c.comparators
-                 if isinstance(comp, ast.Constant) and comp.value in (10, 10.0)]
-    assert not hardcoded, (
-        f"_do_image_load compares against 10 itself:\n  "
-        + "\n  ".join(hardcoded)
-        + f"\n\nThe threshold lives in ImageHandler.LARGE_IMAGE_WARNING_MB "
-          f"and reaches the caller through {CHECK}. Two copies drift.")
-
-    body = ast.unparse(node)
-    assert "LARGE_IMAGE_WARNING_MB" not in body, (
-        "_do_image_load reaches for the threshold constant directly; it "
-        f"should ask {CHECK} whether there is a size to confirm and display "
-        f"whatever it is handed")
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# behaviour
-# ═══════════════════════════════════════════════════════════════════════
-
-@pytest.mark.timeout(60)
-def test_the_real_background_image_loads_without_a_person(qapp):
-    """The reproduction, as a test.
-
-    This is the exact call the locked suite makes and that both runners
-    deselected. It hung. Sixty seconds is the line between slow and never,
-    not a performance budget.
-    """
-    import utils.config as cfg
-    target = getattr(cfg, "DEFAULT_BACKGROUND", None)
-    if not target or not os.path.exists(target):
-        pytest.skip("the default background image is not in this checkout")
-
-    size_mb = os.path.getsize(target) / (1024 * 1024)
-    assert size_mb > 10, (
-        f"the background image is {size_mb:.1f}MB, below the 10MB threshold "
-        f"that made this hang. The test still passes, but it is no longer "
-        f"exercising the case it was written for -- point it at a larger "
-        f"file or retire it.")
-
-    assert isinstance(_handler().load_image(target), bool)
-
-
-@pytest.mark.timeout(60)
-def test_the_check_asks_only_when_it_should(tmp_path, qapp):
-    handler = _handler()
-
-    small = tmp_path / "small.png"
-    small.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 512)
-    assert handler.large_image_confirmation_size(str(small)) is None, (
-        "a small image should load without asking anyone anything")
-
-    assert handler.large_image_confirmation_size(str(tmp_path / "nope.png")) is None, (
-        "a missing file should not produce a dialog; load_image reports it")
-
-    not_an_image = tmp_path / "notes.txt"
-    not_an_image.write_text("hello")
-    assert handler.large_image_confirmation_size(str(not_an_image)) is None, (
-        "an unsupported extension is refused by load_image, so asking first "
-        "would show the user a pointless dialog before the refusal")
-
-    import utils.config as cfg
-    target = getattr(cfg, "DEFAULT_BACKGROUND", None)
-    if target and os.path.exists(target):
-        got = handler.large_image_confirmation_size(target)
-        assert isinstance(got, float) and got > 10, (
-            f"the 10.1MB background image should be confirmed, got {got!r}")
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# the deselect, retired
-# ═══════════════════════════════════════════════════════════════════════
-
-def test_the_locked_test_is_not_deselected_on_any_runner():
-    """It was skipped on both runners for a defect that is now fixed.
-
-    A deselect is the cheapest thing in the world to re-add when a test goes
-    red, and the reason it went red is the thing worth knowing.
-    """
-    assert WORKFLOWS.is_dir(), f"{WORKFLOWS} is not where this guard looks"
-
-    offenders = []
-    for wf in sorted(WORKFLOWS.glob("*.yml")):
-        text = wf.read_text(encoding="utf-8")
-        for i, line in enumerate(text.splitlines(), 1):
-            if DESELECTED in line and "--deselect" in line:
-                offenders.append(f"{wf.name}:{i}")
-
-    assert not offenders, (
-        f"{DESELECTED} is deselected again at:\n  " + "\n  ".join(offenders)
-        + f"\n\nIt was skipped because ImageHandler.load_image raised a modal "
-          f"QMessageBox.question for files over 10MB and the background image "
-          f"is 10.1MB. If it is failing again, that is worth diagnosing "
-          f"rather than hiding.")
+    bad = []
+    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
+        for handler in [n for n in ast.walk(fn) if isinstance(n, ast.ExceptHandler)]:
+            catches = ast.unparse(handler.type) if handler.type else ""
+            if "AttributeError" not in catches:
+                continue
+            if any(isinstance(n, ast.Call)
+                   and getattr(n.func, "attr", "") == "skip"
+                   for n in ast.walk(handler)):
+                rel = path.relative_to(ROOT).as_posix()
+                bad.append(f"{rel}:{handler.lineno}  {fn.name}")
+    assert not bad, (
+        "these tests skip themselves when an attribute is missing:\n  "
+        + "\n  ".join(bad)
+        + "\n\nThat skip is permanent if the name never existed, and it "
+          "reads as coverage. Call the function that does exist, or delete "
+          "the test and say why.")
 
 
 def test_this_guard_can_see_the_files_it_judges():
-    for path in (HANDLER, APP):
-        assert path.exists(), f"{path} is not where this guard looks"
-    assert list(WORKFLOWS.glob("*.yml")), "no workflows found to check"
-    assert _fn(HANDLER, "load_image") is not None
-    assert _fn(HANDLER, CHECK) is not None
+    """A sweep that finds nothing passes every assertion above.
+
+    Not hypothetical here: the image-budget guard shipped with a rule whose
+    glob matched no file in three of five repositories, and every other test
+    in it was green.
+    """
+    files = list(_test_files())
+    assert len(files) >= 30, (
+        f"only {len(files)} test files found under {TESTS}; the sweep is "
+        f"looking in the wrong place")
+
+    counted = sum(1 for p in files for _ in _tests(p))
+    assert counted >= 500, (
+        f"only {counted} test functions parsed out of those files; the "
+        f"walk has stopped seeing them")
+
+    assert not (TESTS / LOCKED).exists(), (
+        f"{LOCKED} is inside tests/, so the exclusion above is silently "
+        f"skipping a file this guard was meant to read")
 '''
 
-EDITS = [('core/image_handler.py', '    MAX_FILE_SIZE_MB = 200  # Maximum file size in megabytes\n', "    MAX_FILE_SIZE_MB = 200  # Maximum file size in megabytes\n\n    #: Above this, loading is slow enough that the user is asked first.\n    #: RNV-IMAGE-CONFIRM, 2026-09-10 -- named rather than the bare 10 it was,\n    #: because the caller now applies the same threshold and two copies of a\n    #: magic number drift.\n    LARGE_IMAGE_WARNING_MB = 10\n\n    #: One definition, used by load_image and by the confirmation check, so\n    #: the two cannot disagree about what is loadable.\n    VALID_IMAGE_EXTENSIONS = frozenset({\n        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp'})\n    # Signals\n    image_loaded = pyqtSignal(str)  # image path\n    image_cleared = pyqtSignal()\n    zoom_changed = pyqtSignal(float)  # zoom level\n    status_message = pyqtSignal(str)  # status message\n    ", 1), ('core/image_handler.py', "            valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp'}\n", '            valid_extensions = self.VALID_IMAGE_EXTENSIONS\n', 1), ('core/image_handler.py', '            # === LARGE IMAGE WARNING (>10MB) ===\n            from PyQt6.QtWidgets import QMessageBox, QProgressDialog, QApplication\n            from PyQt6.QtCore import Qt\n            \n            if file_size_mb > 10:\n                reply = QMessageBox.question(\n                    None,\n                    "Large Image File",\n                    f"This image is {file_size_mb:.1f}MB.\\n\\n"\n                    f"Large images may:\\n"\n                    f"• Use significant memory\\n"\n                    f"• Take longer to load and zoom\\n"\n                    f"• Slow down color sampling\\n\\n"\n                    f"Continue loading?",\n                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,\n                    QMessageBox.StandardButton.Yes\n                )\n                \n                if reply != QMessageBox.StandardButton.Yes:\n                    self.status_message.emit("Image loading cancelled by user")\n                    return False\n            \n', '            # === LARGE IMAGE WARNING ===\n            # The confirmation used to be a QMessageBox.question right here.\n            # A modal question never returns without a user, so this\n            # function -- which reads a file -- could not be called headless\n            # at all: background.png is 10.1MB, the threshold tripped, and\n            # the load blocked forever. The question now belongs to the\n            # caller, which is the only place that knows whether there is\n            # anyone to answer it. See large_image_confirmation_size above.\n            from PyQt6.QtWidgets import QProgressDialog, QApplication\n            from PyQt6.QtCore import Qt\n            \n', 1), ('core/image_handler.py', '    def load_image(self, path: str) -> bool:\n', '    def large_image_confirmation_size(self, path: str) -> float | None:\n        """The file\'s size in MB if the user should be asked before loading it.\n\n        RNV-IMAGE-CONFIRM, 2026-09-10. See tests/test_image_confirm.py.\n\n        Returns None when there is nothing to ask about: the file cannot be\n        stat-ed, is not an image this handler accepts, is small enough to\n        load without comment, or is over MAX_FILE_SIZE_MB and will be\n        refused anyway.\n\n        Stats the file. Never opens it, and never shows anything -- so it can\n        be called from a test, a script or CI. The conditions are exactly the\n        ones under which load_image used to raise its own dialog, which is\n        what keeps the user-visible behaviour identical.\n        """\n        try:\n            if not path or not isinstance(path, str) or len(path) > 255:\n                return None\n            if not os.path.exists(path) or not os.access(path, os.R_OK):\n                return None\n            if os.path.splitext(path)[1].lower() not in self.VALID_IMAGE_EXTENSIONS:\n                return None\n            size_mb = os.path.getsize(path) / (1024 * 1024)\n        except OSError:\n            return None\n\n        if size_mb <= self.LARGE_IMAGE_WARNING_MB:\n            return None\n        if size_mb > self.MAX_FILE_SIZE_MB:\n            return None\n        return size_mb\n\n    def load_image(self, path: str) -> bool:\n', 1), ('RNV_Color_Mixer.py', '            if not self.image_handler.load_image(path):', '            # RNV-IMAGE-CONFIRM, 2026-09-10. This question used to live\n            # inside ImageHandler.load_image, where it made a file-reading\n            # function impossible to call without a user -- the load blocked\n            # forever on CI, which KNOWN_ISSUES.md recorded as a test\n            # environment quirk for months. It belongs here instead: this is\n            # the path a person actually took, so this is the place that\n            # knows there is someone to answer. The wording is unchanged.\n            file_size_mb = self.image_handler.large_image_confirmation_size(path)\n            if file_size_mb is not None:\n                from PyQt6.QtWidgets import QMessageBox\n                reply = QMessageBox.question(\n                    None,\n                    "Large Image File",\n                    f"This image is {file_size_mb:.1f}MB.\\n\\n"\n                    f"Large images may:\\n"\n                    f"• Use significant memory\\n"\n                    f"• Take longer to load and zoom\\n"\n                    f"• Slow down color sampling\\n\\n"\n                    f"Continue loading?",\n                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,\n                    QMessageBox.StandardButton.Yes\n                )\n                if reply != QMessageBox.StandardButton.Yes:\n                    logger.info("Image loading cancelled by user")\n                    self.status_updated.emit("Image loading cancelled by user")\n                    return\n\n            if not self.image_handler.load_image(path):', 1), ('tests/test_palette_import.py', '"""RNV-PALETTE-IMPORT-GUARD -- read the file, or show the dialog. Not both.\n\nInstalled 2026-09-10.\n\nWHAT WAS WRONG. `FileUtils.auto_detect_and_import_palette` parsed a palette\nfile and, on any failure, called `show_warning_dialog` / `show_error_dialog`\nfrom inside the same function. A modal dialog does not return without a\nuser, so in any headless context -- CI, a test, a batch script -- the\nfunction **blocked forever**. Measured: a valid `.gpl` returned fine;\nmissing, empty and garbage input all hung, with\n\n    This plugin does not support propagateSizeHints()\n\nprinted on the way in.\n\nWHAT WAS RECORDED INSTEAD. A test named `test_auto_detect_palette_skipped`,\nbody `pass`, carrying\n\n    @pytest.mark.skip(reason="Native crash on offscreen Qt -- see Phase 8.7")\n\nIt is not a crash, it is a hang, and the difference matters: a crash gets\nnoticed, a hang gets a CI job cancelled an hour later and blamed on the\nrunner. And a skipped `pass` measures nothing, so the note was the only\nthing that test ever contributed.\n\nTHREE TESTS, NONE OF THEM ENTERING THE FUNCTION. The locked\n`test_rnv_color_mixer.py` also calls this function twice:\n\n    r = FileUtils.auto_detect_and_import_palette("/no/such.xyz")\n\non the CLASS, with one argument, so `filepath` is never supplied. Both raise\n`TypeError: missing 1 required positional argument` and both swallow it with\n`except Exception: pass`. That is why the locked suite never hung: it never\ncalled the function. Those two are in the locked file and are left alone\nhere; this note is the record that they measure nothing.\n\nTHE RULE THIS GUARD ENFORCES. A function may read a file, or it may show a\ndialog. Not both. `import_palette_data` does the work and returns\n`(colors, problem)`; `auto_detect_and_import_palette` keeps its name, its\nreturn and both dialogs, and does no parsing of its own. Callers are\nuntouched, and the locked file still sees the identical TypeError.\n\nNote what is NOT in the rule: showing a dialog is fine, and so is taking a\nfilepath. `show_format_info_dialog` does both -- it splits the extension off\nthe path and shows a lookup from a table. It never opens the file, so it\ncannot block on anything but its own dialog, which is its whole purpose. The\nrule is about reading CONTENTS, and it was written by checking it against\nevery dialog-showing function in the module rather than against the one that\nprompted it.\n\nTHE SWEEP IS SCOPED TO utils/file_utils.py, AND THERE IS A KNOWN VIOLATION\nOUTSIDE IT. `ImageHandler.load_image` in core/image_handler.py has the same\ndefect and is not fixed by this round:\n\n    if file_size_mb > 10:\n        reply = QMessageBox.question(None, "Large Image File", ...)\n\n`resources/background_images/background.png` is 10.1 MB, so the threshold\ntrips, the modal question blocks, and the load never returns. That is the\nwhole of `test_load_real_image_if_available`, which KNOWN_ISSUES.md records\nas skipped on BOTH runners with "Planned fix: None required. This is a\ntest-environment artifact, not a code defect." It is a code defect, of\nexactly the kind this rule names.\n\nIt is left out rather than quietly excluded: `load_image` is a hundred lines\non the application\'s main image path, and prising the confirmation out of it\nis a bigger change than the one this round is carrying. FILES below is the\nlist to extend when that lands. A guard that had simply pointed at the file\nit happened to pass on would have hidden this.\n"""\nfrom __future__ import annotations\n\nimport ast\nfrom pathlib import Path\n\nimport pytest\n\nROOT = Path(__file__).resolve().parent.parent\nFILE_UTILS = ROOT / "utils" / "file_utils.py"\n\n#: The modules the rule is enforced over. core/image_handler.py belongs here\n#: and is not in it yet -- see the module docstring. Adding it before\n#: load_image is split would make this guard red on arrival, which is how a\n#: guard gets an exemption written into it and stops meaning anything.\nFILES = (FILE_UTILS,)\n\nPURE = "import_palette_data"\nWRAPPER = "auto_detect_and_import_palette"\n\n#: Calls that mean "this function reads a file\'s contents". Splitting an\n#: extension off a path does not count, and neither does a lookup table.\nREADS_CONTENT = ("open", "import_palette", "read_text", "read_bytes",\n                 "load", "loads", "readlines", "read")\n\n\ndef _functions():\n    src = FILE_UTILS.read_text(encoding="utf-8")\n    return src, ast.parse(src, str(FILE_UTILS))\n\n\ndef _fn(name: str):\n    src, tree = _functions()\n    for node in ast.walk(tree):\n        if isinstance(node, ast.FunctionDef) and node.name == name:\n            return node\n    return None\n\n\ndef _shows_dialog(node) -> list[str]:\n    out = []\n    for n in ast.walk(node):\n        if isinstance(n, ast.Call):\n            attr = getattr(n.func, "attr", "")\n            if attr.startswith("show_") and "dialog" in attr:\n                out.append(attr)\n    return out\n\n\ndef _reads_content(node) -> list[str]:\n    out = []\n    for n in ast.walk(node):\n        if isinstance(n, ast.Call):\n            name = getattr(n.func, "attr", getattr(n.func, "id", ""))\n            if name in READS_CONTENT:\n                out.append(name)\n    return out\n\n\ndef _fu():\n    from utils.file_utils import FileUtils\n    return FileUtils()\n\n\n# ═══════════════════════════════════════════════════════════════════════\n# the rule, stated over every function in the module\n# ═══════════════════════════════════════════════════════════════════════\n\ndef test_no_function_both_reads_a_file_and_shows_a_dialog():\n    """The general rule, not a special case for the one that prompted it.\n\n    Checked across the whole module, because the next one to acquire a\n    dialog on its error path will not be this one, and a rule written about\n    a single function is a rule that only ever catches that function.\n    """\n    src, tree = _functions()\n    bad = []\n    for node in ast.walk(tree):\n        if not isinstance(node, ast.FunctionDef):\n            continue\n        shows = _shows_dialog(node)\n        reads = _reads_content(node)\n        if shows and reads:\n            bad.append(f"{node.name} (line {node.lineno}): "\n                       f"shows {sorted(set(shows))}, reads {sorted(set(reads))}")\n\n    assert not bad, (\n        "these functions read a file and show a dialog in the same body:\\n  "\n        + "\\n  ".join(bad)\n        + "\\n\\nA modal dialog never returns without a user, so this blocks "\n          "forever anywhere there is no one to click it -- CI, a test, a "\n          "batch script. Split it: one function returns the result, another "\n          "presents it. See import_palette_data / "\n          "auto_detect_and_import_palette.")\n\n\ndef test_the_data_path_shows_nothing():\n    """The specific half of the rule, so the message names the function."""\n    node = _fn(PURE)\n    assert node is not None, f"{PURE} is gone from utils/file_utils.py"\n\n    shows = _shows_dialog(node)\n    assert not shows, (\n        f"{PURE} calls {sorted(set(shows))}. This is the half that has to be "\n        f"callable with nobody watching; put the dialog in the wrapper.")\n\n\ndef test_the_wrapper_still_shows_both_dialogs():\n    """No feature was removed, and this is what says so.\n\n    A split that quietly dropped the dialogs would pass every other test\n    here and would change what the user sees on a bad file.\n    """\n    node = _fn(WRAPPER)\n    assert node is not None, f"{WRAPPER} is gone; callers depend on it"\n\n    shows = set(_shows_dialog(node))\n    assert "show_warning_dialog" in shows, (\n        f"{WRAPPER} no longer warns on a file with no usable colours")\n    assert "show_error_dialog" in shows, (\n        f"{WRAPPER} no longer reports an import failure to the user")\n\n\ndef test_the_wrapper_delegates_rather_than_reimplementing():\n    """One copy of the logic.\n\n    A wrapper that parsed the file itself would satisfy every assertion\n    above and would drift out of step with the function it shadows.\n    """\n    node = _fn(WRAPPER)\n    assert node is not None\n\n    calls = {getattr(n.func, "attr", getattr(n.func, "id", ""))\n             for n in ast.walk(node) if isinstance(n, ast.Call)}\n    assert PURE in calls, (\n        f"{WRAPPER} does not call {PURE}; the parsing logic has been "\n        f"duplicated rather than shared")\n\n    reads = _reads_content(node)\n    assert not reads, (\n        f"{WRAPPER} reads the file itself ({sorted(set(reads))}) as well as "\n        f"delegating. That is two implementations of one thing.")\n\n\n# ═══════════════════════════════════════════════════════════════════════\n# behaviour\n# ═══════════════════════════════════════════════════════════════════════\n\n@pytest.mark.timeout(60)\ndef test_every_bad_input_returns_instead_of_blocking(tmp_path):\n    """The reproduction, as a test.\n\n    Each of these blocked forever before the split. Sixty seconds is not a\n    performance budget -- these run in milliseconds -- it is the line\n    between slow and never, wide enough that a cold runner cannot make it\n    flaky.\n    """\n    cases = {\n        "missing.gpl": None,\n        "empty.gpl": b"",\n        "garbage.pal": b"\\xa4\\x00\\xff\\xfe" * 64,\n        "truncated.json": b\'{"colors": [\',\n    }\n    fu = _fu()\n    for name, content in cases.items():\n        target = tmp_path / name\n        if content is not None:\n            target.write_bytes(content)\n\n        colors, problem = fu.import_palette_data(str(target))\n\n        assert colors is None, f"{name} produced colours: {colors!r}"\n        assert problem is not None, f"{name} reported no problem"\n\n\n@pytest.mark.timeout(60)\ndef test_a_good_palette_still_imports(tmp_path):\n    """Without this, "does not block" could be satisfied by doing nothing."""\n    target = tmp_path / "ok.gpl"\n    target.write_bytes(b"GIMP Palette\\nName: t\\n#\\n255 0 0 Red\\n")\n\n    colors, problem = _fu().import_palette_data(str(target))\n\n    assert problem is None, f"a valid palette reported: {problem}"\n    assert colors, "a valid palette imported no colours"\n\n\n@pytest.mark.timeout(60)\ndef test_the_severity_is_returned_not_left_to_the_caller_to_guess(tmp_path):\n    """The caller has to choose between a warning and an error dialog.\n\n    Returning only a message would push that decision onto whoever reads the\n    string, which is how a wrapper ends up matching on display text.\n    """\n    empty = tmp_path / "empty.gpl"\n    empty.write_bytes(b"")\n    _, problem = _fu().import_palette_data(str(empty))\n    assert problem is not None\n    assert len(problem) == 3, f"expected (severity, title, message), got {problem!r}"\n    severity, title, message = problem\n    assert severity in ("warning", "error"), f"unknown severity {severity!r}"\n    assert title and message, "the caller was given nothing to display"\n\n    missing = tmp_path / "nope.gpl"\n    _, problem = _fu().import_palette_data(str(missing))\n    assert problem is not None\n    assert problem[0] in ("warning", "error")\n\n\ndef test_this_guard_can_see_the_file_it_judges():\n    """A sweep that finds nothing passes every assertion above."""\n    assert FILE_UTILS.exists(), f"{FILE_UTILS} is not where this guard looks"\n    src, tree = _functions()\n    functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]\n    assert len(functions) >= 20, (\n        f"only {len(functions)} functions found in file_utils.py; the guard "\n        f"is probably reading the wrong file")\n    assert any(_shows_dialog(n) for n in functions), (\n        "no function in file_utils.py shows a dialog at all, which means the "\n        "rule above has no subject and is passing vacuously")\n', '"""RNV-PALETTE-IMPORT-GUARD -- read the file, or show the dialog. Not both.\n\nInstalled 2026-09-10.\n\nWHAT WAS WRONG. `FileUtils.auto_detect_and_import_palette` parsed a palette\nfile and, on any failure, called `show_warning_dialog` / `show_error_dialog`\nfrom inside the same function. A modal dialog does not return without a\nuser, so in any headless context -- CI, a test, a batch script -- the\nfunction **blocked forever**. Measured: a valid `.gpl` returned fine;\nmissing, empty and garbage input all hung, with\n\n    This plugin does not support propagateSizeHints()\n\nprinted on the way in.\n\nWHAT WAS RECORDED INSTEAD. A test named `test_auto_detect_palette_skipped`,\nbody `pass`, carrying\n\n    @pytest.mark.skip(reason="Native crash on offscreen Qt -- see Phase 8.7")\n\nIt is not a crash, it is a hang, and the difference matters: a crash gets\nnoticed, a hang gets a CI job cancelled an hour later and blamed on the\nrunner. And a skipped `pass` measures nothing, so the note was the only\nthing that test ever contributed.\n\nTHREE TESTS, NONE OF THEM ENTERING THE FUNCTION. The locked\n`test_rnv_color_mixer.py` also calls this function twice:\n\n    r = FileUtils.auto_detect_and_import_palette("/no/such.xyz")\n\non the CLASS, with one argument, so `filepath` is never supplied. Both raise\n`TypeError: missing 1 required positional argument` and both swallow it with\n`except Exception: pass`. That is why the locked suite never hung: it never\ncalled the function. Those two are in the locked file and are left alone\nhere; this note is the record that they measure nothing.\n\nTHE RULE THIS GUARD ENFORCES. A function may read a file, or it may show a\ndialog. Not both. `import_palette_data` does the work and returns\n`(colors, problem)`; `auto_detect_and_import_palette` keeps its name, its\nreturn and both dialogs, and does no parsing of its own. Callers are\nuntouched, and the locked file still sees the identical TypeError.\n\nNote what is NOT in the rule: showing a dialog is fine, and so is taking a\nfilepath. `show_format_info_dialog` does both -- it splits the extension off\nthe path and shows a lookup from a table. It never opens the file, so it\ncannot block on anything but its own dialog, which is its whole purpose. The\nrule is about reading CONTENTS, and it was written by checking it against\nevery dialog-showing function in the module rather than against the one that\nprompted it.\n\nTHE SWEEP NOW COVERS core/image_handler.py TOO, AND THE RULE IS WIDER.\nWhen this guard was installed it looked only for `show_*_dialog` helpers,\nand it was scoped to utils/file_utils.py with a note naming\n`ImageHandler.load_image` as a known violation left for its own round. That\nround landed on 2026-09-10.\n\nTwo things had to change, and the first is the more interesting. The\noriginal rule would **not** have caught load_image at all: its blocker was\n\n    reply = QMessageBox.question(None, "Large Image File", ...)\n\nwhich is not a `show_*_dialog` call. A rule that names one project-specific\nhelper only ever catches code that uses that helper. It now recognises any\nblocking Qt call -- QMessageBox and friends, QInputDialog, and a bare\n`.exec()` -- and it is checked over both modules. Verified against the trees\nbefore each fix: the wider rule flags both original defects and neither\nfixed one.\n\n"""\nfrom __future__ import annotations\n\nimport ast\nfrom pathlib import Path\n\nimport pytest\n\nROOT = Path(__file__).resolve().parent.parent\nFILE_UTILS = ROOT / "utils" / "file_utils.py"\n\n#: The modules the rule is enforced over.\nIMAGE_HANDLER = ROOT / "core" / "image_handler.py"\n\nFILES = (FILE_UTILS, IMAGE_HANDLER)\n\nPURE = "import_palette_data"\nWRAPPER = "auto_detect_and_import_palette"\n\n#: Calls that mean "this function reads a file\'s contents". Splitting an\n#: extension off a path does not count, and neither does a lookup table.\nREADS_CONTENT = ("open", "import_palette", "read_text", "read_bytes",\n                 "load", "loads", "readlines", "read")\n\n\ndef _functions():\n    src = FILE_UTILS.read_text(encoding="utf-8")\n    return src, ast.parse(src, str(FILE_UTILS))\n\n\ndef _fn(name: str):\n    src, tree = _functions()\n    for node in ast.walk(tree):\n        if isinstance(node, ast.FunctionDef) and node.name == name:\n            return node\n    return None\n\n\n#: Qt classes whose methods open a modal window and do not return until a\n#: person acts. QFileDialog is here for completeness even though its\n#: functions never read a file\'s contents, so the rule cannot fire on them.\nBLOCKING_CLASSES = ("QMessageBox.", "QInputDialog.", "QColorDialog.",\n                    "QFontDialog.", "QFileDialog.", "QProgressDialog.")\n\n\ndef _shows_dialog(node) -> list[str]:\n    """Every call in `node` that waits for a person.\n\n    Wider than the project\'s own `show_*_dialog` helpers on purpose. The\n    version of this guard that looked only for those would have passed\n    `ImageHandler.load_image`, whose blocker was a plain\n    `QMessageBox.question` -- so the rule caught the defect it was written\n    from and would have missed its twin.\n    """\n    out = []\n    for n in ast.walk(node):\n        if not isinstance(n, ast.Call):\n            continue\n        rendered = ast.unparse(n.func)\n        attr = getattr(n.func, "attr", "")\n        if attr.startswith("show_") and "dialog" in attr:\n            out.append(rendered)\n        elif rendered.startswith(BLOCKING_CLASSES):\n            out.append(rendered)\n        elif attr in ("exec", "exec_"):\n            out.append(rendered)\n    return out\n\n\ndef _all_functions():\n    """(path, FunctionDef) for every function in every governed module."""\n    for path in FILES:\n        tree = ast.parse(path.read_text(encoding="utf-8"), str(path))\n        for node in ast.walk(tree):\n            if isinstance(node, ast.FunctionDef):\n                yield path, node\n\n\ndef _reads_content(node) -> list[str]:\n    out = []\n    for n in ast.walk(node):\n        if isinstance(n, ast.Call):\n            name = getattr(n.func, "attr", getattr(n.func, "id", ""))\n            if name in READS_CONTENT:\n                out.append(name)\n    return out\n\n\ndef _fu():\n    from utils.file_utils import FileUtils\n    return FileUtils()\n\n\n# ═══════════════════════════════════════════════════════════════════════\n# the rule, stated over every function in the module\n# ═══════════════════════════════════════════════════════════════════════\n\ndef test_no_function_both_reads_a_file_and_shows_a_dialog():\n    """The general rule, not a special case for the one that prompted it.\n\n    Checked across the whole module, because the next one to acquire a\n    dialog on its error path will not be this one, and a rule written about\n    a single function is a rule that only ever catches that function.\n    """\n    bad = []\n    for path, node in _all_functions():\n        shows = _shows_dialog(node)\n        reads = _reads_content(node)\n        if shows and reads:\n            bad.append(f"{path.name}::{node.name} (line {node.lineno}): "\n                       f"waits on {sorted(set(shows))}, reads {sorted(set(reads))}")\n\n    assert not bad, (\n        "these functions read a file and show a dialog in the same body:\\n  "\n        + "\\n  ".join(bad)\n        + "\\n\\nA modal dialog never returns without a user, so this blocks "\n          "forever anywhere there is no one to click it -- CI, a test, a "\n          "batch script. Split it: one function returns the result, another "\n          "presents it. See import_palette_data / "\n          "auto_detect_and_import_palette.")\n\n\ndef test_the_data_path_shows_nothing():\n    """The specific half of the rule, so the message names the function."""\n    node = _fn(PURE)\n    assert node is not None, f"{PURE} is gone from utils/file_utils.py"\n\n    shows = _shows_dialog(node)\n    assert not shows, (\n        f"{PURE} calls {sorted(set(shows))}. This is the half that has to be "\n        f"callable with nobody watching; put the dialog in the wrapper.")\n\n\ndef test_the_wrapper_still_shows_both_dialogs():\n    """No feature was removed, and this is what says so.\n\n    A split that quietly dropped the dialogs would pass every other test\n    here and would change what the user sees on a bad file.\n    """\n    node = _fn(WRAPPER)\n    assert node is not None, f"{WRAPPER} is gone; callers depend on it"\n\n    shows = set(_shows_dialog(node))\n    # Matched by suffix: _shows_dialog reports the rendered call, so a\n    # helper reached through self comes back as "self.show_warning_dialog".\n    for needed in ("show_warning_dialog", "show_error_dialog"):\n        assert any(s.endswith(needed) for s in shows), (\n            f"{WRAPPER} no longer calls {needed}. That is a feature removed, "\n            f"not a refactor: the user stops being told why an import failed."\n            f" Calls found: {sorted(shows)}")\n\n\ndef test_the_wrapper_delegates_rather_than_reimplementing():\n    """One copy of the logic.\n\n    A wrapper that parsed the file itself would satisfy every assertion\n    above and would drift out of step with the function it shadows.\n    """\n    node = _fn(WRAPPER)\n    assert node is not None\n\n    calls = {getattr(n.func, "attr", getattr(n.func, "id", ""))\n             for n in ast.walk(node) if isinstance(n, ast.Call)}\n    assert PURE in calls, (\n        f"{WRAPPER} does not call {PURE}; the parsing logic has been "\n        f"duplicated rather than shared")\n\n    reads = _reads_content(node)\n    assert not reads, (\n        f"{WRAPPER} reads the file itself ({sorted(set(reads))}) as well as "\n        f"delegating. That is two implementations of one thing.")\n\n\n# ═══════════════════════════════════════════════════════════════════════\n# behaviour\n# ═══════════════════════════════════════════════════════════════════════\n\n@pytest.mark.timeout(60)\ndef test_every_bad_input_returns_instead_of_blocking(tmp_path):\n    """The reproduction, as a test.\n\n    Each of these blocked forever before the split. Sixty seconds is not a\n    performance budget -- these run in milliseconds -- it is the line\n    between slow and never, wide enough that a cold runner cannot make it\n    flaky.\n    """\n    cases = {\n        "missing.gpl": None,\n        "empty.gpl": b"",\n        "garbage.pal": b"\\xa4\\x00\\xff\\xfe" * 64,\n        "truncated.json": b\'{"colors": [\',\n    }\n    fu = _fu()\n    for name, content in cases.items():\n        target = tmp_path / name\n        if content is not None:\n            target.write_bytes(content)\n\n        colors, problem = fu.import_palette_data(str(target))\n\n        assert colors is None, f"{name} produced colours: {colors!r}"\n        assert problem is not None, f"{name} reported no problem"\n\n\n@pytest.mark.timeout(60)\ndef test_a_good_palette_still_imports(tmp_path):\n    """Without this, "does not block" could be satisfied by doing nothing."""\n    target = tmp_path / "ok.gpl"\n    target.write_bytes(b"GIMP Palette\\nName: t\\n#\\n255 0 0 Red\\n")\n\n    colors, problem = _fu().import_palette_data(str(target))\n\n    assert problem is None, f"a valid palette reported: {problem}"\n    assert colors, "a valid palette imported no colours"\n\n\n@pytest.mark.timeout(60)\ndef test_the_severity_is_returned_not_left_to_the_caller_to_guess(tmp_path):\n    """The caller has to choose between a warning and an error dialog.\n\n    Returning only a message would push that decision onto whoever reads the\n    string, which is how a wrapper ends up matching on display text.\n    """\n    empty = tmp_path / "empty.gpl"\n    empty.write_bytes(b"")\n    _, problem = _fu().import_palette_data(str(empty))\n    assert problem is not None\n    assert len(problem) == 3, f"expected (severity, title, message), got {problem!r}"\n    severity, title, message = problem\n    assert severity in ("warning", "error"), f"unknown severity {severity!r}"\n    assert title and message, "the caller was given nothing to display"\n\n    missing = tmp_path / "nope.gpl"\n    _, problem = _fu().import_palette_data(str(missing))\n    assert problem is not None\n    assert problem[0] in ("warning", "error")\n\n\ndef test_this_guard_can_see_the_file_it_judges():\n    """A sweep that finds nothing passes every assertion above."""\n    for path in FILES:\n        assert path.exists(), f"{path} is not where this guard looks"\n    src, tree = _functions()\n    functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]\n    assert len(functions) >= 20, (\n        f"only {len(functions)} functions found in file_utils.py; the guard "\n        f"is probably reading the wrong file")\n    assert any(_shows_dialog(n) for n in functions), (\n        "no function in file_utils.py shows a dialog at all, which means the "\n        "rule above has no subject and is passing vacuously")\n', 1), ('.github/workflows/tests-linux.yml', '          # Skips:\n          #   - test_load_real_image_if_available (unittest):\n          #       Hangs on offscreen Qt when loading background image.\n          #\n', '          # Skips: none. The list below records what was restored and why.\n          #\n          # RESTORED 2026-09-10 — test_load_real_image_if_available is no\n          # longer deselected, on either runner. It was skipped for a hang\n          # that KNOWN_ISSUES.md called "a test-environment artifact, not a\n          # code defect". It was a code defect: ImageHandler.load_image\n          # raised a modal QMessageBox.question for files over 10MB, and\n          # background.png is 10.1MB, so a file-reading function waited for\n          # a click that no runner can give. The question now belongs to the\n          # caller. Measured: the test hangs on the tree before this change\n          # and passes three times in three after.\n          # tests/test_image_confirm.py keeps the data path silent.\n          #\n', 1), ('.github/workflows/tests-linux.yml', '          coverage run --data-file=.coverage.unittest --branch -m pytest test_rnv_color_mixer.py -v --deselect "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"', '          coverage run --data-file=.coverage.unittest --branch -m pytest test_rnv_color_mixer.py -v', 1), ('.github/workflows/tests-windows.yml', '        # Skip test_load_real_image_if_available — it hangs on offscreen\n        # Qt (works fine locally with a real display). See KNOWN_ISSUES.md.\n', '        # RESTORED 2026-09-10 — nothing is deselected here any more.\n        # test_load_real_image_if_available hung because\n        # ImageHandler.load_image raised a modal QMessageBox.question for\n        # files over 10MB and background.png is 10.1MB. The question moved\n        # to the caller; the data path is silent. See KNOWN_ISSUES.md and\n        # tests/test_image_confirm.py.\n', 1), ('.github/workflows/tests-windows.yml', '          python -m pytest test_rnv_color_mixer.py -v --deselect "test_rnv_color_mixer.py::TestImageHandler::test_load_real_image_if_available"', '          python -m pytest test_rnv_color_mixer.py -v', 1), ('tests/test_brand_mirror.py', '        if path.suffix.lower() not in (".py", ".qss", ".css"):\n            continue\n', '        if path.suffix.lower() not in (".py", ".qss", ".css"):\n            continue\n        # `git ls-files` reports the INDEX, so a file deleted from the\n        # working tree is still listed until the deletion is committed.\n        # That is an ordinary transient state -- any `rm` before `git rm`\n        # produces it -- and reading it raised FileNotFoundError, turning a\n        # normal edit into three red tests with no useful message.\n        # test_the_retired_scan_is_still_looking still catches the case\n        # that matters, a scan that has stopped finding anything.\n        if not path.exists():\n            continue\n', 1), ('KNOWN_ISSUES.md', 'The following tests pass locally but are skipped on GitHub Actions CI\nrunners due to environment-specific quirks (no display server, virtualized\nfilesystems, etc.). Each skip is annotated in the workflow file with a\ncomment explaining the cause.', '**There are no CI-skipped tests as of 2026-09-10.** Both runners run both\nsuites complete. This section is kept as the record of what was skipped and\nwhy each one was retired — three of the four turned out to be code defects\nthat the skip was hiding, not the environment quirks they were filed as.', 1), ('KNOWN_ISSUES.md', '### `test_load_real_image_if_available` (locked unittest)\n\n**Skipped on:** Linux CI, Windows CI', '### `test_load_real_image_if_available` (locked unittest) — RESTORED\n\n**Skipped on:** nothing. Restored to both runners on 2026-09-10, and it was\nthe last deselect in the repository: the locked suite now runs all 356 of\nits tests on Linux and on Windows.\n', 1), ('KNOWN_ISSUES.md', '**Planned fix:** the same split applied to the palette importer on\n2026-09-10 — the function that reads the file returns a result, and the\ncaller decides whether to ask the user. `tests/test_palette_import.py`\nstates the rule and names this as the outstanding violation.\n**Not fixed yet:** `load_image` is a hundred lines on the main image path\nand deserves its own round.', '**Fixed 2026-09-10.** `ImageHandler.large_image_confirmation_size` stats\nthe file and returns the size in MB when the user should be asked, or None;\nit never opens the file and never shows anything. `load_image` no longer\nasks at all. The question moved to `RNV_Color_Mixer._do_image_load` — the\none production path a person actually takes, and so the only place that\nknows there is someone to answer it — with the wording unchanged. The\nthreshold is now `ImageHandler.LARGE_IMAGE_WARNING_MB` rather than a bare\n`10`, because the check and the caller both have to agree about it.\n\nMeasured: the test hangs until killed on the tree before this change, and\npasses three times in three after. Guarded by\n`tests/test_image_confirm.py`, which also fails if the deselect is ever\nre-added to either workflow.\n\n`tests/test_ci_deselects.py` was deleted in the same change. It swept every\n`--deselect` in CI and asserted the node it named still existed; with none\nleft it would have passed over nothing, and its own failure message said to\ndelete it in the commit that removed the last one.', 1)]
-DELETIONS = ['tests/test_ci_deselects.py']
+EDITS = [('tests/test_app_event_handlers.py', '    def test_detect_palette_format_for_known_extensions(self):\n        from file_utils import FileUtils\n        for ext, expected in [\n            ("test.gpl", "gpl"),\n            ("test.aco", "aco"),\n            ("test.ase", "ase"),\n            ("test.json", "json"),\n        ]:\n            try:\n                result = FileUtils.detect_palette_format(ext)\n                # Result should be the format name or similar\n                assert result is not None or True  # Some impls return None\n            except AttributeError:\n                # Method doesn\'t exist — skip\n                pytest.skip("detect_palette_format not in this version")\n                return\n\n    def test_get_palette_format_filter_returns_string(self):\n        """`get_palette_format_filter()` builds the QFileDialog filter\n        string for palette imports."""\n        from file_utils import FileUtils\n        try:\n            result = FileUtils.get_palette_format_filter()\n            assert isinstance(result, str)\n            assert len(result) > 0\n        except AttributeError:\n            pytest.skip("get_palette_format_filter not in this version")\n', '    def test_detect_format_returns_the_extension_for_known_types(self):\n        """RNV-NO-VACUOUS-TESTS, 2026-09-10.\n\n        This was `test_detect_palette_format_for_known_extensions`, and it\n        had never run. It called `FileUtils.detect_palette_format`, which\n        does not exist and never has; the AttributeError was caught and\n        turned into `pytest.skip("not in this version")`, so the skip was\n        permanent and the reason was wrong. Its one assertion was\n\n            assert result is not None or True\n\n        which is true whatever `result` is, so even had it run it would have\n        checked nothing. Its `expected` column was never compared against\n        anything either.\n\n        The real function is `PaletteFormats.detect_format`, and it returns\n        the lowercased extension INCLUDING the leading dot.\n        """\n        from core.palette_formats import PaletteFormats\n\n        for filename, expected in [\n            ("test.gpl", ".gpl"),\n            ("test.aco", ".aco"),\n            ("test.ase", ".ase"),\n            ("test.json", ".json"),\n            ("TEST.GPL", ".gpl"),\n        ]:\n            assert PaletteFormats.detect_format(filename) == expected, (\n                f"detect_format({filename!r}) should be {expected!r}")\n\n    def test_the_import_filter_data_is_usable_by_a_file_dialog(self):\n        """RNV-NO-VACUOUS-TESTS, 2026-09-10.\n\n        This was `test_get_palette_format_filter_returns_string`, which\n        called `FileUtils.get_palette_format_filter()` — a name that exists\n        nowhere in the codebase — and skipped on the AttributeError. It was\n        a specification for a function nobody wrote, reported as a skip.\n\n        What does exist is `PaletteFormats.get_import_formats()`, returning\n        the (label, pattern) pairs a QFileDialog filter is built from. That\n        is the thing worth guarding.\n        """\n        from core.palette_formats import PaletteFormats\n\n        formats = PaletteFormats.get_import_formats()\n        assert formats, "no import formats are offered at all"\n\n        for entry in formats:\n            assert isinstance(entry, tuple) and len(entry) == 2, (\n                f"expected (label, pattern) pairs, got {entry!r}")\n            label, pattern = entry\n            assert label and isinstance(label, str), f"empty label in {entry!r}"\n            assert pattern.startswith("*."), (\n                f"{pattern!r} is not a glob a file dialog can use")\n\n        patterns = " ".join(p for _, p in formats)\n        assert "*.gpl" in patterns, (\n            f"GIMP palettes are importable but not offered: {patterns[:120]}")\n', 1), ('tests/test_utility_modules.py', '    def test_safe_execute_with_default_value_returns_default_on_exception(self):\n        """Some callers pass `default=` to get a non-None fallback."""\n        # Check whether safe_execute supports a `default` kwarg\n        import inspect\n        sig = inspect.signature(ErrorHandler.safe_execute)\n        if "default" not in sig.parameters:\n            pytest.skip("safe_execute doesn\'t support `default=` kwarg")\n        result = ErrorHandler.safe_execute(\n            lambda: 1 / 0, "div zero", default="fallback"\n        )\n        assert result == "fallback"\n\n', '    # RNV-NO-VACUOUS-TESTS, 2026-09-10.\n    # `test_safe_execute_with_default_value_returns_default_on_exception`\n    # stood here. It skipped itself with "safe_execute doesn\'t support\n    # `default=` kwarg", which was true and permanent: no such parameter has\n    # ever existed. Its docstring said "Some callers pass `default=`" -- a\n    # factual claim, and a false one; nothing in the application passes it.\n    # It was a specification for a feature nobody asked for, reported as a\n    # skip. The behaviour that DOES exist -- returning None when the call\n    # raises -- is asserted by the test immediately above. Deleted rather\n    # than left skipping, because a permanent skip reads as coverage.\n\n', 1), ('KNOWN_ISSUES.md', '*No open user-facing bugs at this time.*', '*No open user-facing bugs at this time.*\n\n---\n\n## Tests that cannot fail\n\nSwept 2026-09-10 across all 1,049 test functions in 51 files. The headline\nis good: `tests/` held exactly **one** assertion that could not fail, no\nempty test bodies, and every one of the 94 tests without an assertion is a\ndeliberate smoke test — named `..._no_crash` or `..._does_not_crash`, and\nfailing if the call raises. Those are not defects.\n\nThe one, now fixed, was `assert result is not None or True` — true whatever\n`result` is. It sat in a test that had never run: it called\n`FileUtils.detect_palette_format`, a name that does not exist, caught the\n`AttributeError` and turned it into a permanent\n`pytest.skip("not in this version")`. Two siblings did the same for\n`get_palette_format_filter` and `safe_execute(default=)`, neither of which\nhas ever existed. `tests/test_no_vacuous_tests.py` now fails on any of these\nfour shapes.\n\n**Open, and in the locked file.** `test_rnv_color_mixer.py` holds every\nremaining instance — all 13 `except Exception: pass` handlers in the\nrepository, and all 3 tests that can never fail:\n\n| test | line |\n|---|---|\n| `test_handle_exception_no_crash` | 1177 |\n| `test_set_autosave_interval_no_crash` | 1482 |\n| `test_load_settings_no_crash` | 1545 |\n\nEach has no assertion and wraps everything it calls in `try/except: pass`,\nso it reports success unconditionally. Two others —\n`test_auto_detect_import_missing_graceful` and\n`test_auto_detect_import_json` — call\n`FileUtils.auto_detect_and_import_palette` on the class with one argument,\nso both raise `TypeError` before reaching the function and both swallow it.\n\nThat file is locked by convention, so this is a record rather than a fix.\nThe guard excludes it and says so; the exclusion is about ownership, not\nabout quality.', 1)]
 
-CHECK = "large_image_confirmation_size"
-DESELECTED = "test_load_real_image_if_available"
+LOCKED = "test_rnv_color_mixer.py"
 
 
 def edits(tree) -> None:
-    handler = tree.read(SENTINEL_FILE)
-    if SENTINEL in handler:
+    src = tree.read(SENTINEL_FILE)
+    if SENTINEL in src:
         raise SystemExit(f"already applied -- '{SENTINEL}' is present in "
                          f"{SENTINEL_FILE}")
-    if "RNV-PALETTE-IMPORT" not in tree.read("utils/file_utils.py"):
-        raise SystemExit(
-            "this round builds on the palette-import round, which is not "
-            "applied here. Run up-for-rnv-color-mixer-palette-import.py "
-            "first: this one widens the guard that one installs.")
-
     for rel, old, new, times in EDITS:
         tree.sub(rel, old, new, times)
-    for rel in DELETIONS:
-        tree.delete(rel)
 
     by_file: dict = {}
     for rel, *_ in EDITS:
         by_file[rel] = by_file.get(rel, 0) + 1
     print("  " + ", ".join(f"{n} in {rel}" for rel, n in sorted(by_file.items())))
-    print("  deleted: " + ", ".join(DELETIONS))
 
 
-def _waits(node) -> list:
-    out = []
-    for n in ast.walk(node):
-        if not isinstance(n, ast.Call):
-            continue
-        rendered = ast.unparse(n.func)
-        attr = getattr(n.func, "attr", "")
-        if rendered.startswith(("QMessageBox.", "QInputDialog.", "QColorDialog.",
-                                "QFontDialog.")) or attr in ("exec", "exec_"):
-            out.append(rendered)
-        elif attr.startswith("show_") and "dialog" in attr:
-            out.append(rendered)
-    return out
-
-
-def _fn(text, name):
-    for n in ast.walk(ast.parse(text)):
-        if isinstance(n, ast.FunctionDef) and n.name == name:
-            return n
+def _always_true(node):
+    if isinstance(node, ast.Constant):
+        if node.value is True:
+            return "the literal True"
+        if isinstance(node.value, (int, float, str)) and node.value:
+            return f"the truthy literal {node.value!r}"
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+        for value in node.values:
+            why = _always_true(value)
+            if why:
+                return f"an `or` against {why}"
+    if isinstance(node, ast.Compare) and len(node.ops) == 1:
+        # Both sides side-effect-free only. `list(g) == list(g)` is not a
+        # tautology: a generator exhausts, so the second call returns [].
+        # tests/test_pil_compat.py uses exactly that, and the first draft of
+        # this rule called that clever test a defect.
+        pure = (ast.Name, ast.Attribute, ast.Constant)
+        left, op, right = node.left, node.ops[0], node.comparators[0]
+        if (isinstance(op, (ast.Eq, ast.Is))
+                and isinstance(left, pure) and isinstance(right, pure)
+                and ast.dump(left) == ast.dump(right)):
+            return "a comparison of a value with itself"
     return None
 
 
 def checks(tree) -> None:
-    handler = tree.files["core/image_handler.py"]
-    app = tree.files["RNV_Color_Mixer.py"]
+    root = Path.cwd()
 
-    for rel, text in (("core/image_handler.py", handler),
-                      ("RNV_Color_Mixer.py", app),
-                      ("tests/test_palette_import.py",
-                       tree.files["tests/test_palette_import.py"])):
+    # 1. the two rewritten tests parse, run against real functions, and
+    #    carry no tautology.
+    aeh = tree.files["tests/test_app_event_handlers.py"]
+    try:
+        aeh_tree = ast.parse(aeh, "tests/test_app_event_handlers.py")
+    except SyntaxError as e:
+        raise SystemExit(f"the rewritten test file does not parse: {e}")
+
+    for name in ("test_detect_format_returns_the_extension_for_known_types",
+                 "test_the_import_filter_data_is_usable_by_a_file_dialog"):
+        if not any(isinstance(n, ast.FunctionDef) and n.name == name
+                   for n in ast.walk(aeh_tree)):
+            raise SystemExit(f"{name} did not land")
+    for gone in ("test_detect_palette_format_for_known_extensions",
+                 "test_get_palette_format_filter_returns_string"):
+        if any(isinstance(n, ast.FunctionDef) and n.name == gone
+               for n in ast.walk(aeh_tree)):
+            raise SystemExit(f"{gone} is still present; it never ran")
+
+    # 2. no tautology survives anywhere under tests/. Checked here as well
+    #    as in the installed guard, so a bad tree is refused before
+    #    anything is written to it.
+    bad = []
+    for path in sorted((root / "tests").rglob("test_*.py")):
+        rel = path.relative_to(root).as_posix()
+        text = tree.files.get(rel)
+        if text is None:
+            text = path.read_text(encoding="utf-8")
         try:
-            ast.parse(text, rel)
-        except SyntaxError as e:
-            raise SystemExit(f"{rel} does not parse after the edits: {e}")
+            parsed = ast.parse(text, rel)
+        except SyntaxError:
+            continue
+        for n in ast.walk(parsed):
+            if isinstance(n, ast.Assert):
+                why = _always_true(n.test)
+                if why:
+                    bad.append(f"{rel}:{n.lineno} {ast.unparse(n)[:60]} ({why})")
+    if bad:
+        raise SystemExit("assertions that cannot fail survive: " + "; ".join(bad))
 
-    # 1. the data path waits for nobody.
-    load = _fn(handler, "load_image")
-    if load is None:
-        raise SystemExit("load_image is gone from core/image_handler.py")
-    waiting = _waits(load)
-    if waiting:
-        raise SystemExit(f"load_image still waits on {sorted(set(waiting))}")
+    # 3. the deleted test is gone and left a reason behind. A silent
+    #    deletion looks identical to a test that was never written.
+    tum = tree.files["tests/test_utility_modules.py"]
+    if "test_safe_execute_with_default_value" in tum and "def test_safe_execute_with_default_value" in tum:
+        raise SystemExit("the aspirational test is still defined")
+    if SENTINEL not in tum:
+        raise SystemExit("the deletion left no note saying why")
 
-    check = _fn(handler, CHECK)
-    if check is None:
-        raise SystemExit(f"{CHECK} did not land")
-    if _waits(check):
-        raise SystemExit(f"{CHECK} waits on a dialog; it exists not to")
+    # 4. the guard excludes the locked file BY NAME, and the locked file is
+    #    not under tests/ -- otherwise the exclusion would be silently
+    #    skipping a file the sweep was meant to read.
+    guard = tree.files[GUARD]
+    if LOCKED not in guard:
+        raise SystemExit("the guard does not name the file it excludes")
+    if (root / "tests" / LOCKED).exists():
+        raise SystemExit(f"{LOCKED} is inside tests/; the exclusion would "
+                         f"blind the sweep")
 
-    # 2. the feature moved rather than vanished. Every other check here
-    #    would pass if the confirmation had simply been deleted, and a user
-    #    would then sit through a 150MB load with no warning at all.
-    do_load = _fn(app, "_do_image_load")
-    if do_load is None:
-        raise SystemExit("_do_image_load is gone from RNV_Color_Mixer.py")
-    calls = {ast.unparse(n.func) for n in ast.walk(do_load) if isinstance(n, ast.Call)}
-    if not any(c.endswith(CHECK) for c in calls):
-        raise SystemExit(f"_do_image_load never calls {CHECK}")
-    if not any(c.startswith("QMessageBox.") for c in calls):
-        raise SystemExit("_do_image_load no longer asks the user anything; "
-                         "the confirmation was removed, not moved")
-
-    # 3. one definition of "large". Read as a comparison against the NUMBER
-    #    10 -- the first draft matched the text "> 10" and fired on
-    #    `canvas_size.width() > 100`.
-    hardcoded = [ast.unparse(c) for c in ast.walk(do_load)
-                 if isinstance(c, ast.Compare)
-                 for comp in c.comparators
-                 if isinstance(comp, ast.Constant) and comp.value in (10, 10.0)]
-    if hardcoded:
-        raise SystemExit(f"_do_image_load compares against 10 itself: {hardcoded}")
-
-    # 4. no workflow deselects it any more, and none deselects anything.
-    for rel in (".github/workflows/tests-linux.yml",
-                ".github/workflows/tests-windows.yml"):
-        if DESELECTED in tree.files[rel] and "--deselect" in tree.files[rel]:
-            for line in tree.files[rel].splitlines():
-                if DESELECTED in line and "--deselect" in line:
-                    raise SystemExit(f"{rel} still deselects {DESELECTED}")
-
-    # 5. the widened rule is actually wider. A guard that still looked only
-    #    for show_*_dialog would pass this tree and would have passed the
-    #    defect it was supposed to catch.
-    widened = tree.files["tests/test_palette_import.py"]
-    if "QMessageBox." not in widened:
-        raise SystemExit("the palette guard was not widened to blocking Qt "
-                         "calls; it would still miss QMessageBox.question")
-    if "image_handler" not in widened:
-        raise SystemExit("the palette guard's sweep does not cover "
-                         "core/image_handler.py")
-
-    # 6. the prose no longer contradicts the code.
+    # 5. the record. Read with whitespace collapsed, because markdown wraps
+    #    where the width runs out and a check has failed here before on a
+    #    line break rather than the meaning.
     ki = " ".join(tree.files["KNOWN_ISSUES.md"].split())
-    # The phrase survives in the file as a QUOTATION of the wording being
-    # corrected, so its presence proves nothing on its own. What matters is
-    # that the correction stands beside it. Checking for the phrase alone
-    # failed the round's own prose -- use versus mention, a third time.
-    if ("test-environment artifact, not a code defect" in ki
-            and "This is a code defect, not a test-environment artifact" not in ki):
-        raise SystemExit("KNOWN_ISSUES.md still calls the hang an artifact "
-                         "without the correction beside it")
-    if "test_image_confirm.py" not in ki:
-        raise SystemExit("KNOWN_ISSUES.md does not name the guard")
+    for phrase in ("1,049 test functions", "test_handle_exception_no_crash",
+                   "test_no_vacuous_tests.py"):
+        if phrase not in ki:
+            raise SystemExit(f"KNOWN_ISSUES.md does not record {phrase!r}")
 
-    # 7. the sentinel is in the file the re-run check reads. Shipped broken
+    # 6. the sentinel is in the file the re-run check reads. Shipped broken
     #    once; never again without a check.
-    if SENTINEL not in handler:
+    if SENTINEL not in aeh:
         raise SystemExit(f"'{SENTINEL}' is not in {SENTINEL_FILE}, so the "
                          f"already-applied check can never fire")
 
-    print("  guards: load_image waits for nobody, the caller still asks, "
-          "no workflow deselects anything")
+    print("  guards: 0 tautologies under tests/, both rewritten tests drive "
+          "real functions, the locked file is named not hidden")
 
 
 # ------------------------------------------------------------------ plumbing
