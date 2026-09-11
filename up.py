@@ -1,472 +1,650 @@
 #!/usr/bin/env python3
-"""RNV-NO-VACUOUS-TESTS — a test that cannot fail is not a test.
+"""RNV-FLEET-FLOOR — one interpreter and one ceiling, fleet-wide.
 
     python up.py             # apply, then run the guard and both suites
     python up.py --check     # rehearse every edit in memory, write nothing
 
 For rnv-color-mixer, derived against a fresh clone at the live head.
 
-WHY THIS EXISTS HERE. The rule was written for rnv-color-mixer, where one
-assertion in tests/ could not fail:
+RNV-DELIVERY-SCRIPT-DO-NOT-SWEEP. This script is a delivery tool, not
+application source, and it quotes the code it replaces. That marker is what
+tells the brand scanners in this fleet to skip it — installed by this same
+round, so it takes effect in the run that installs it.
 
-    assert result is not None or True
+WHAT THE FLEET LOOKED LIKE. Five applications, one developer, one machine,
+and five different answers to "what Python does this run on":
 
-It sat in a test that had never run — it called a function that does not
-exist, caught the AttributeError, and turned it into a permanent
-`pytest.skip("not in this version")`. A specification reported as a skip
-reads, in a summary line, exactly like coverage.
+    repo              requires-python   CI ran                  classifiers
+    mixer             >=3.10            3.11 only               3.10-3.13
+    picker            >=3.13            3.13                    3.13
+    palette manager   >=3.13            3.13                    3.13
+    text transformer  >=3.10            3.13 only               3.10-3.13
+    icon builder      >=3.10            3.10 3.11 3.12 3.13     3.10-3.13
 
-Then the same sweep was run across the whole fleet: **5,667 test functions
-in five applications**. This is what it found here.
+Three declared support for 3.10 and never ran it. The palette manager
+declared 3.13 and meant it — seven of its files use PEP 695 `type X = ...`,
+which 3.11 cannot parse, so its suite does not even COLLECT on the floor
+three of its siblings were claiming.
 
-    nothing -- the one vacuous assertion here was fixed on 2026-09-10.
-    This round replaces the repo-specific copy of the guard with the
-    portable one, so all five checkouts carry the same file.
+A declared floor nobody runs is the same shape as a deselect nobody reads:
+an exemption with no subject. It looks like support and is not.
 
-WHAT THE GUARD ENFORCES: no assertion true regardless of the code; no test
-body that is only `pass`; no test that can never fail (no assertion AND
-every statement swallowed); no test that skips itself on AttributeError.
+WHAT THIS REPOSITORY NEEDED.
 
-WHAT IT DELIBERATELY DOES NOT: forbid a test having no assertion. Hundreds
-of those across this fleet are legitimate — they are named `..._no_crash`
-and they fail if the call raises. A rule against them would be noise that
-gets suppressed, which is worse than no rule.
+    requires-python said >=3.10 and both CI jobs ran 3.11 -- so the one version
+this application was ever tested on was neither the floor it declared nor
+the one its siblings ran. Its classifiers advertised 3.10 through 3.13 and
+mypy was pinned at 3.10.
 
-THE GUARD IS IDENTICAL IN ALL FIVE CHECKOUTS, AND THAT COST TWO MISTAKES.
-Its first version swept `tests/` only and asserted at least 500 test
-functions. Ported unchanged it would have landed **red** in the palette
-manager, which has 443 under tests/, and **blind** in the same repository,
-whose snapshots/ directory holds six more tests it would never have read.
-Both were numbers and paths taken from the repository it was written in. It
-now discovers what to read — every `test_*.py` except the ones at the
-repository root, where each application keeps its locked suite — and its
-floor is structural: at least twenty files, and at least as many test
-functions as files.
+    pyproject.toml    >=3.10 -> >=3.13, four classifiers -> one,
+                      [tool.mypy] python_version 3.10 -> 3.13
+    both workflows    3.11 -> 3.13
+    the marker        tests/test_brand_mirror.py
 
-THE LOCKED SUITE IS EXCLUDED EVERYWHERE, by ownership rather than by
-quality. In the mixer it is where every remaining instance lives: all 13
-`except Exception: pass` handlers and all 3 tests that can never fail.
+MEASURED, NOT ASSUMED. This is the repository that had never run on 3.13 at
+all. PyQt6 6.11 was installed for a real 3.13 and both suites run there
+before this script was written: 801 + 356, against 795 + 356 on 3.11. The
+six new tests are the guard.
+
+THE FLEET IS NOW 3.13 EVERYWHERE, declared and run, PyQt6 capped below 7.0
+in all five, and pytest-timeout declared in all five. tests/test_fleet_floor.py
+is the guard; it is byte-identical in every checkout and reads pyproject.toml
+as TOML rather than sweeping it as text, because `version = "3.3.13"` and
+`scikit-learn>=1.3.0` both match a regex for a Python version and neither is
+one.
 """
 from __future__ import annotations
 
 import argparse
 import ast
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import tomllib
+from importlib.util import find_spec
 from pathlib import Path
 
 REPO = "rnv-color-mixer"
 SENTINEL_FILE = "tests/conftest.py"
-SENTINEL = "RNV-NO-VACUOUS-TESTS"
-GUARD = "tests/test_no_vacuous_tests.py"
-DESCRIPTION = "install the rule that a test must be able to fail"
-SUITES = [("\"pytest tests/\"",
-           [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]),
-          ("\"the LOCKED file\"",
-           [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
-            "-p", "no:cacheprovider", "--timeout=120"])]
+SENTINEL = "RNV-FLEET-FLOOR"
+GUARD = "tests/test_fleet_floor.py"
+MARKER = "RNV-DELIVERY-SCRIPT-DO-NOT-SWEEP"
+FLOOR = "3.13"
+DESCRIPTION = "put this application on the fleet's Python floor"
 
 SHADOWS = {"colors.py", "config.py", "conftest.py", "run_tests.py"}
 
-GUARD_SOURCE = r'''"""RNV-NO-VACUOUS-TESTS-GUARD -- a test that cannot fail is not a test.
 
-Installed 2026-09-10, after a sweep of all 1,049 test functions in the
-repository.
+def _timeout_flag() -> list:
+    """--timeout only when the plugin can actually be imported.
 
-WHAT THE SWEEP FOUND, AND WHAT IT DID NOT. The honest headline first: this
-suite is in good shape. Across 51 files there was exactly **one** assertion
-in tests/ that could not fail, no empty test bodies, and every one of the 94
-tests without an assertion turned out to be a deliberate smoke test -- they
-are named `..._no_crash` and `..._does_not_crash`, and they fail if the call
-raises, which is the whole point of them. Those are not defects and this
-guard does not touch them.
+    This round ADDS pytest-timeout to two repositories, and declaring is not
+    installing: the script writes the requirements line and then runs pytest
+    in the interpreter it was started with. A flag no plugin defines is a
+    pytest USAGE error — exit 4, not a test failure — which is exactly how
+    the previous round's palette-manager run died. Asked of the environment
+    rather than answered from a list, so this cannot go stale.
+    """
+    return ["--timeout=120"] if find_spec("pytest_timeout") else []
 
-THE ONE. tests/test_app_event_handlers.py held
 
-    result = FileUtils.detect_palette_format(ext)
-    assert result is not None or True   # Some impls return None
+SUITES = [("\"pytest tests/\"",
+           [sys.executable, "-m", "pytest", "tests/", "-q",
+            "-p", "no:cacheprovider"]),
+          ("\"the LOCKED file\"",
+           [sys.executable, "-m", "pytest", "test_rnv_color_mixer.py", "-q",
+            "-p", "no:cacheprovider"] + _timeout_flag())]
 
-`x or True` is true whatever x is. The assertion could not fail. Worse, it
-never ran: `FileUtils.detect_palette_format` does not exist and never has,
-so the call raised AttributeError, which the test caught and turned into
-`pytest.skip("detect_palette_format not in this version")`. A permanent
-skip, a wrong reason, and an assertion that was inert anyway. Its `expected`
-column was never compared with anything either.
+GUARD_SOURCE = r'''"""RNV-FLEET-FLOOR-GUARD -- one interpreter and one ceiling, fleet-wide.
 
-TWO MORE OF THE SAME FAMILY went with it. `get_palette_format_filter` names
-a function that exists nowhere in the codebase, and
-`safe_execute(default=)` a parameter that has never existed -- and whose
-test claimed in its docstring that "some callers pass `default=`" when none
-do. Both skipped themselves permanently. A specification reported as a skip
-reads, in a summary line, exactly like coverage.
+Installed 2026-09-11, after a survey found the fleet stating its Python floor
+three different ways and disagreeing with itself in four repositories out of
+five.
 
-WHAT THIS GUARD ENFORCES, over tests/ only:
+WHAT WAS THERE. Three separate statements, none of them agreeing:
 
-  * no assertion that is true regardless of the code under test;
-  * no test whose body is only `pass`;
-  * no test that can never fail -- no assertion of any kind AND every
-    statement wrapped in a `try` whose handler is a bare `pass`.
+    repo              requires-python   CI ran
+    mixer             >=3.10            3.11 only
+    picker            >=3.13            3.13
+    palette manager   >=3.13            3.13
+    text transformer  >=3.10            3.13 only
+    icon builder      >=3.10            3.10, 3.11, 3.12, 3.13
 
-WHAT IT DELIBERATELY DOES NOT ENFORCE. A test with no assertion is fine on
-its own: `def test_set_theme_does_not_crash` asserts by not raising. Ninety
-of those are legitimate here and a rule against them would be noise that
-gets suppressed, which is worse than no rule.
+Three declared support for 3.10 and never ran it. The palette manager
+declared 3.13 and meant it -- seven of its files use PEP 695
+`type X = ...`, which 3.11 cannot parse, so its entire suite fails to
+collect on the floor three of its siblings claimed. The icon builder was the
+only one whose declaration matched what it tested, and it paid for that in
+`ui/theme_manager.py`, which carried a note explaining it avoided PEP 695
+"so the module imports on Python 3.10 and 3.11".
 
-THIS GUARD IS FLEET-PORTABLE, AND THAT COST TWO REPO-SPECIFIC MISTAKES.
-The first version swept `tests/` only and asserted at least 500 test
-functions. Ported unchanged it would have landed RED in the palette
-manager, which has 443 under tests/, and BLIND in the same repo, whose
-snapshots/ directory holds six more tests the sweep would never have read.
-Both were numbers and paths taken from the repository it was written in.
+A declared floor nobody runs is the same shape as a deselect nobody reads:
+an exemption with no subject. It looks like support and is not.
 
-It now discovers what to read: every `test_*.py` anywhere in the checkout
-except the repository ROOT, where each application keeps its one locked
-suite. The floor is structural rather than magic -- at least twenty files,
-and at least as many test functions as files, since a test file with no
-tests in it means the walk has gone blind.
+WHAT IS TRUE NOW. Every repository declares `requires-python >= 3.13` and
+every CI job runs 3.13. Measured before shipping, under a real 3.13 with
+PyQt6 6.11: the mixer -- the one repository that had never run on 3.13 --
+passes 795 + 356, identical to its 3.11 numbers, and the icon builder passes
+649 with `type ThemeDict = dict[str, str]` in place of the note.
 
-THE LOCKED SUITE IS EXCLUDED, AND IN THE MIXER IT IS WHERE THE PROBLEM
-ACTUALLY IS. test_rnv_color_mixer.py holds all 13 `except Exception: pass`
-handlers in that repository and all 3 tests that can never fail:
+THE SECOND PASS, AND WHY THERE HAD TO BE ONE. The first sweep read
+`requires-python` and the CI matrices, fixed both, and called the fleet
+consistent. It was not. Asked instead what ELSE in pyproject.toml names a
+Python version, three more statements came out:
 
-    test_handle_exception_no_crash          (line 1177)
-    test_set_autosave_interval_no_crash     (line 1482)
-    test_load_settings_no_crash             (line 1545)
+    repo              classifiers            mypy      ruff
+    mixer             3.10 3.11 3.12 3.13    "3.10"    --
+    picker            3.13                   --        --
+    palette manager   3.13                   --        --
+    text transformer  3.10 3.11 3.12 3.13    "3.10"    "py310"
+    icon builder      3.10 3.11 3.12 3.13    --        --
 
-Each has no assertion and swallows everything it calls. Two others in that
-file call `FileUtils.auto_detect_and_import_palette` on the class with one
-argument, so both raise TypeError before reaching the function and both
-swallow it -- documented in tests/test_palette_import.py.
+Classifiers are what the package advertises publicly; three repositories
+were advertising support for three versions they had just stopped running.
+The text transformer's ruff target was live behaviour rather than
+decoration -- with `UP` (pyupgrade) selected, `py310` tells the linter to
+rewrite modern syntax BACKWARDS, in the one repository whose runtime check
+this round moved to 3.13.
 
-That file is locked by convention, so this round reports rather than edits.
-The exclusion is a statement about ownership, not about quality: those
-tests are the ones worth fixing.
+Picker and palette manager needed no edit: they already listed 3.13 alone.
+The fix everywhere else is what those two already do.
+
+A RULE THAT WAS TRIED AND REMOVED. A fourth check flagged comments
+mentioning Python 3.10 or 3.11 next to words like "import" or "support". As
+a SURVEY it earned its place: it found the icon builder's PEP 695 note and,
+in the text transformer, `MIN_PYTHON_VERSION = (3, 10)` sitting above an
+error message that already called 3.13 "recommended" -- the code knew the
+answer and the constant did not. Both are fixed.
+
+As a standing guard it was useless, because it cannot tell a live
+constraint from a record of one. The comments written to EXPLAIN each fix
+mention the old versions, so the rule failed on its own repairs in both
+repositories. A rule that fires on the note explaining why it no longer
+applies is noise, and noise is what gets suppressed.
+
+TWO MORE RULES LIVE HERE, AND IT IS WORTH SAYING WHY. This repository
+already has `tests/test_dependency_coherence.py` (runtime packages) and
+`tests/test_test_tooling_pins.py` (dev packages), both byte-identical across
+the fleet. Neither has a rule of the kind added here: coherence checks that
+a repository does not contradict ITSELF and that nothing is pinned exactly;
+tooling-pins checks that declared RANGES match the fleet's. Neither asks
+whether a ceiling exists, or whether a package is declared at all.
+
+So the PyQt6 ceiling and pytest-timeout's presence are checked here rather
+than bolted onto files that would then be answering a different question.
+One round's decisions, enforced in one place. If either of those guards ever
+grows a rule of this kind, this is the file to fold into it.
+
+WHAT THIS GUARD DOES NOT DO. It does not check what interpreter is running
+it. Pinning that would make the guard fail on a developer's machine for a
+reason that is not a defect; CI is where the floor is enforced, and CI is
+what this reads.
 """
 from __future__ import annotations
 
-import ast
+import re
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: Each application keeps its one locked suite as a `test_*.py` at the
-#: repository root. Discovered rather than named, so this file is identical
-#: in all five checkouts -- two copies of a guard that differ by a filename
-#: are two copies that drift.
-def _locked_suites():
-    return sorted(p.name for p in ROOT.glob("test_*.py"))
+#: The floor, stated once. Every other statement in the repository is
+#: checked against this one rather than against a copy.
+FLOOR = "3.13"
 
-#: Names that promise the test asserts by not raising. Used only to explain
-#: a NO-ASSERT test in a message, never to excuse one from a real rule.
-SMOKE_MARKERS = ("no_crash", "does_not_crash", "no_error", "survives")
+WORKFLOWS = ROOT / ".github" / "workflows"
+PYPROJECT = ROOT / "pyproject.toml"
+REQUIREMENTS = ROOT / "requirements.txt"
+#: Written as one joined string rather than ROOT / "tests" / "...": the
+#: palette manager's test_dependency_file_placement.py reads these paths as
+#: TEXT, and skips a line only when it contains "tests/requirements-dev.txt"
+#: literally. The pathlib form is the same path and was invisible to it, so
+#: a correct line was reported as naming the root. Tenth time in this
+#: programme that a check matched text where the text was the wrong surface.
+DEV_REQUIREMENTS = ROOT / "tests/requirements-dev.txt"
 
+#: Runtime packages whose MAJOR version must be capped. PyQt7 does not exist
+#: yet; the cap is what stops five applications on one interpreter following
+#: a major version they have never been tested against. Two repositories had
+#: no ceiling at all until 2026-09-11.
+CEILINGS = {"pyqt6": "<7.0"}
 
-def _test_files():
-    """Every test file this guard governs, wherever it lives.
+#: Dev tooling every repository must declare, not merely agree about. A
+#: timeout is the only thing that turns a hang into a failure, and this fleet
+#: has had two hangs -- a modal dialog on a palette import, and another in
+#: the image loader. Two repositories did not declare it, and a script that
+#: passed --timeout anyway exited 4 on a pytest USAGE error.
+REQUIRED_DEV_TOOLING = {"pytest-timeout"}
 
-    Anything at the repository root is a locked suite and is skipped; so is
-    a delivery script. Everything else is swept, which is how the palette
-    manager's snapshots/ directory gets read at all.
-    """
-    for path in sorted(ROOT.rglob("test_*.py")):
-        if ".git" in path.parts:
-            continue
-        if path.parent == ROOT:
-            continue
-        if path.name.startswith("up"):
-            continue
-        yield path
+#: `python-version: "3.13"`, `python-version: ['3.13']`, and the matrix form
+#: `python-version: ${{ matrix.python-version }}` all appear in this fleet.
+#: The third names no version and is checked through the matrix it reads.
+_VERSION_LINE = re.compile(r"python-version:\s*(.+?)\s*$")
+_MATRIX_REF = re.compile(r"\$\{\{\s*matrix\.python-version\s*\}\}")
+_VERSIONS = re.compile(r"\d+\.\d+")
 
-
-def _read(path: Path) -> str:
-    """BOM-aware, because six files in this fleet carry one.
-
-    `read_text("utf-8")` leaves a U+FEFF at the start of the string and
-    ast.parse rejects it, so a BOM'd test file would turn this guard into a
-    collection error rather than a result. Python's own import machinery
-    strips it; tests/test_brand_mirror.py already decodes this way.
-    """
-    raw = path.read_bytes()
-    return raw.decode("utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8")
-
-
-def _tests(path: Path):
-    src = _read(path)
-    try:
-        tree = ast.parse(src, str(path))
-    except SyntaxError as exc:                      # pragma: no cover
-        raise AssertionError(f"{path} does not parse: {exc}")
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name.startswith("test"):
-            yield src, node
+#: Keys under [tool.*] that name the Python a tool assumes. Five spellings
+#: because five tools chose differently: mypy's `python_version`, ruff's and
+#: black's `target-version`, pylint's `py-version`. Matched by NAME at any
+#: depth rather than by section, so a tool added later is covered without
+#: this list being revisited.
+_TOOL_VERSION_KEYS = {"python_version", "python-version", "target-version",
+                      "target_version", "py-version"}
+_PY_SHORT = re.compile(r"^py(\d)(\d+)$")
+_PY_DOTTED = re.compile(r"^(\d+)\.(\d+)$")
 
 
-def _body(fn: ast.FunctionDef) -> list:
-    body = list(fn.body)
-    if (body and isinstance(body[0], ast.Expr)
-            and isinstance(body[0].value, ast.Constant)
-            and isinstance(body[0].value.value, str)):
-        body = body[1:]
-    return body
-
-
-def _always_true(node: ast.expr) -> str | None:
-    """Why this expression is true whatever the code does, or None."""
-    if isinstance(node, ast.Constant):
-        if node.value is True:
-            return "the literal True"
-        if isinstance(node.value, (int, float, str)) and node.value:
-            return f"the truthy literal {node.value!r}"
-    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
-        for value in node.values:
-            why = _always_true(value)
-            if why:
-                return f"an `or` against {why}"
-    if isinstance(node, ast.Compare) and len(node.ops) == 1:
-        # Both sides must be side-effect-free. `list(g) == list(g)` is NOT a
-        # tautology: if g is lazy the first call exhausts it and the second
-        # returns []. tests/test_pil_compat.py uses exactly that to prove a
-        # result is not a generator, and the first draft of this rule called
-        # that clever test a defect.
-        pure = (ast.Name, ast.Attribute, ast.Constant)
-        left, op, right = node.left, node.ops[0], node.comparators[0]
-        if (isinstance(op, (ast.Eq, ast.Is))
-                and isinstance(left, pure) and isinstance(right, pure)
-                and ast.dump(left) == ast.dump(right)):
-            return "a comparison of a value with itself"
-    if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "isinstance"
-            and len(node.args) == 2 and getattr(node.args[1], "id", "") == "object"):
-        return "isinstance(..., object), which holds for everything"
+def _as_version(value) -> str | None:
+    """"3.10" and "py310" are one statement in two spellings; else None."""
+    text = str(value).strip()
+    for pattern in (_PY_DOTTED, _PY_SHORT):
+        found = pattern.match(text)
+        if found:
+            return f"{found.group(1)}.{found.group(2)}"
     return None
 
 
-def _has_assertion(fn: ast.FunctionDef) -> bool:
-    for n in ast.walk(fn):
-        if isinstance(n, ast.Assert):
-            return True
-        if isinstance(n, ast.Call) and getattr(n.func, "attr", "").startswith("assert"):
-            return True
-    rendered = ast.unparse(fn)
-    return "raises" in rendered or "warns" in rendered
+def _tool_version_settings(table, path=()):
+    """Every [tool] key naming a Python version, however deeply nested."""
+    if not isinstance(table, dict):
+        return
+    for key, value in table.items():
+        here = path + (str(key),)
+        if key in _TOOL_VERSION_KEYS:
+            # black takes a LIST here, ruff and mypy take a string.
+            for item in (value if isinstance(value, list) else [value]):
+                version = _as_version(item)
+                if version:
+                    yield ".".join(here), item, version
+        elif isinstance(value, dict):
+            yield from _tool_version_settings(value, here)
 
 
-def test_no_assertion_is_true_no_matter_what_the_code_does():
-    """The rule that caught the one.
+def _classifier_versions(classifiers):
+    """The minor version each `Programming Language :: Python ::` entry names.
 
-    An assertion whose truth does not depend on the subject is worse than no
-    assertion: it reports as coverage, it survives every refactor, and it
-    reads at a glance like a real check.
+    `:: Python :: 3` and `:: Python :: 3 :: Only` name no minor version and
+    are not claims about 3.10 -- the palette manager carries the second and
+    is correct. Only an `X.Y` third field is a statement this rule judges.
     """
-    bad = []
-    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
-        for node in ast.walk(fn):
-            if isinstance(node, ast.Assert):
-                why = _always_true(node.test)
-                if why:
-                    rel = path.relative_to(ROOT).as_posix()
-                    bad.append(f"{rel}:{node.lineno}  {fn.name}\n"
-                               f"      {ast.unparse(node)[:96]}\n"
-                               f"      -- always true, because of {why}")
-    assert not bad, (
-        "these assertions cannot fail:\n  " + "\n  ".join(bad)
-        + "\n\nAssert the thing the test is named after, or delete the line. "
-          "A check that cannot fail is worse than none: it looks like one.")
-
-
-def test_no_test_body_is_only_pass():
-    """A skipped `pass` was how the palette-import hang stayed hidden.
-
-    It reported as a skip for a year and covered nothing; the reason
-    attached to it was the only thing it ever contributed, and the reason
-    was wrong.
-    """
-    bad = []
-    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
-        body = _body(fn)
-        if body and all(isinstance(s, ast.Pass) for s in body):
-            rel = path.relative_to(ROOT).as_posix()
-            bad.append(f"{rel}:{fn.lineno}  {fn.name}")
-    assert not bad, (
-        "these tests have no body:\n  " + "\n  ".join(bad)
-        + "\n\nIf the note attached to it is the point, put the note in the "
-          "module docstring and delete the function.")
-
-
-def test_no_test_can_never_fail():
-    """No assertion AND everything swallowed. The complete case.
-
-    Either half alone is defensible -- a smoke test asserts by not raising,
-    and a `try/except` can be the assertion when something else checks the
-    result. Together they are a function that runs and reports success
-    unconditionally.
-    """
-    bad = []
-    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
-        body = _body(fn)
-        if not body or _has_assertion(fn):
+    for entry in classifiers:
+        parts = [p.strip() for p in str(entry).split("::")]
+        if parts[:2] != ["Programming Language", "Python"] or len(parts) < 3:
             continue
-        tries = [s for s in body if isinstance(s, ast.Try)]
-        if len(tries) != len(body) or not tries:
+        version = _as_version(parts[2])
+        if version:
+            yield entry, version
+
+
+def _workflow_files():
+    if not WORKFLOWS.is_dir():
+        return []
+    return sorted(WORKFLOWS.glob("*.yml")) + sorted(WORKFLOWS.glob("*.yaml"))
+
+
+def _declared_versions(text: str):
+    """Every concrete Python version a workflow names, with its line number."""
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
             continue
-        if all(all(len(h.body) == 1 and isinstance(h.body[0], ast.Pass)
-                   for h in t.handlers) for t in tries):
-            rel = path.relative_to(ROOT).as_posix()
-            bad.append(f"{rel}:{fn.lineno}  {fn.name}")
-    assert not bad, (
-        "these tests cannot fail -- no assertion, and every call swallowed:\n  "
-        + "\n  ".join(bad)
-        + "\n\nAssert something, or narrow the except to the exception the "
-          "test is about, or delete it.")
+        found = _VERSION_LINE.search(line)
+        if not found:
+            continue
+        value = found.group(1)
+        if _MATRIX_REF.search(value):
+            # Reads the matrix rather than naming a version; the matrix
+            # itself is caught by its own `python-version:` line.
+            continue
+        for version in _VERSIONS.findall(value):
+            yield number, version
 
 
-def test_no_test_skips_itself_over_a_name_that_does_not_exist():
-    """The permanent skip.
+def test_the_declared_floor_is_the_fleet_s():
+    """`requires-python` says what this application supports.
 
-    `except AttributeError: pytest.skip("not in this version")` is how three
-    tests here reported as skipped for a year while naming functions that
-    had never existed. A skip whose condition can never change is a deleted
-    test that still shows up in the summary line.
+    Three repositories said `>=3.10` while their CI ran only 3.11 or 3.13.
+    A floor nobody exercises is a claim, not support.
     """
-    bad = []
-    for path, fn in ((p, f) for p in _test_files() for _, f in _tests(p)):
-        for handler in [n for n in ast.walk(fn) if isinstance(n, ast.ExceptHandler)]:
-            catches = ast.unparse(handler.type) if handler.type else ""
-            if "AttributeError" not in catches:
+    assert PYPROJECT.exists(), f"{PYPROJECT} is missing"
+    text = PYPROJECT.read_text(encoding="utf-8")
+
+    found = re.search(r'requires-python\s*=\s*"([^"]+)"', text)
+    assert found, "pyproject.toml declares no requires-python at all"
+
+    declared = found.group(1).strip()
+    assert declared == f">={FLOOR}", (
+        f'pyproject.toml declares requires-python = "{declared}", not '
+        f'">={FLOOR}". The fleet moved to {FLOOR} on 2026-09-11 because the '
+        f'palette manager already required it -- seven of its files use PEP '
+        f'695 syntax that 3.11 cannot parse -- and because three repositories '
+        f'were declaring support for 3.10 without ever running it.')
+
+
+def test_every_ci_job_runs_the_floor():
+    """And that CI actually exercises it.
+
+    The mixer declared `>=3.10` and ran 3.11. The icon builder ran four
+    versions. Neither is wrong on its own; both together mean the fleet has
+    no single answer to "what does this run on".
+    """
+    wrong = []
+    for path in _workflow_files():
+        rel = path.relative_to(ROOT).as_posix()
+        for number, version in _declared_versions(
+                path.read_text(encoding="utf-8")):
+            if version != FLOOR:
+                wrong.append(f"{rel}:{number} runs {version}")
+
+    assert not wrong, (
+        f"these CI jobs do not run Python {FLOOR}:\n  " + "\n  ".join(wrong)
+        + f"\n\nThe fleet's floor is {FLOOR} and `requires-python` says so. "
+          f"A job on another version is either testing something the "
+          f"application does not claim to support, or the floor moved and "
+          f"this constant did not.")
+
+
+def test_nothing_else_in_pyproject_names_an_older_version():
+    """`requires-python` was never the only statement in this file.
+
+    PARSED AS TOML, NOT SWEPT AS TEXT, and that is the whole reason this
+    rule is trustworthy. `version = "3.3.13"` in the palette manager and
+    `version = "3.0.3"` in the picker are APPLICATION versions;
+    `scikit-learn>=1.3.0` is a DEPENDENCY's. A sweep for `\\b3\\.\\d+\\b`
+    hits all three -- run, not imagined -- so a rule built that way would
+    land red in the two repositories that were ALREADY CORRECT, over three
+    numbers with nothing to do with Python. Eleventh time in this programme
+    that a check would have matched text where the text meant something
+    else, and the first where reading the structure cost nothing: the file
+    is TOML and the floor is 3.13, so tomllib is in the standard library.
+
+    Comments are invisible to the parse, which is the behaviour this rule
+    wants: a note in pyproject.toml explaining that the classifiers used to
+    list 3.10 is a mention, not a declaration. The rule that had to be
+    removed from this guard died precisely because it could not tell those
+    apart.
+    """
+    with PYPROJECT.open("rb") as handle:
+        data = tomllib.load(handle)
+
+    wrong = []
+    for entry, version in _classifier_versions(
+            data.get("project", {}).get("classifiers", [])):
+        if version != FLOOR:
+            wrong.append(f"classifiers: {entry!r} advertises {version}")
+    for key, raw, version in _tool_version_settings(data.get("tool", {}),
+                                                    ("tool",)):
+        if version != FLOOR:
+            wrong.append(f"[{key}] = {raw!r} assumes {version}")
+
+    assert not wrong, (
+        f"pyproject.toml still names Python versions other than {FLOOR}:\n  "
+        + "\n  ".join(wrong)
+        + f"\n\nA classifier is what this package advertises publicly, and a "
+          f"tool's target version changes what the tool DOES -- ruff with "
+          f"`UP` selected and an old target rewrites modern syntax backwards. "
+          f"Both are statements about the supported interpreter, and this "
+          f"repository has exactly one: {FLOOR}.")
+
+
+def test_every_capped_package_is_actually_capped():
+    """A lower bound with no upper bound is a promise about the future.
+
+    The text transformer and the icon builder declared `PyQt6>=6.6.0` and
+    nothing else, while the other three capped below 7.0. On a shared
+    interpreter that is the same shape as the pytest conflict that produced
+    `ModuleNotFoundError: No module named '_pytest.compat'`.
+    """
+    uncapped = []
+    for path in (REQUIREMENTS, PYPROJECT, DEV_REQUIREMENTS):
+        if not path.exists():
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        for number, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip().strip('"').strip("',")
+            if stripped.startswith("#") or not stripped:
                 continue
-            if any(isinstance(n, ast.Call)
-                   and getattr(n.func, "attr", "") == "skip"
-                   for n in ast.walk(handler)):
-                rel = path.relative_to(ROOT).as_posix()
-                bad.append(f"{rel}:{handler.lineno}  {fn.name}")
-    assert not bad, (
-        "these tests skip themselves when an attribute is missing:\n  "
-        + "\n  ".join(bad)
-        + "\n\nThat skip is permanent if the name never existed, and it "
-          "reads as coverage. Call the function that does exist, or delete "
-          "the test and say why.")
+            for package, ceiling in CEILINGS.items():
+                if not stripped.lower().startswith(package):
+                    continue
+                # A bare name with no comparison at all is not an uncapped
+                # RANGE -- pyproject lists `"pyqt6"` under dependencies with
+                # the version left to requirements.txt. The first version of
+                # this rule flagged that line in all five repositories.
+                if not any(op in stripped for op in ("<", ">", "=", "~", "!")):
+                    continue
+                if ceiling not in stripped.replace(" ", ""):
+                    uncapped.append(f"{rel}:{number} {stripped[:60]}")
+
+    assert not uncapped, (
+        "these declarations have no upper bound:\n  " + "\n  ".join(uncapped)
+        + "\n\nCEILINGS says what the cap is. A package with a floor and no "
+          "ceiling follows its next major version into five applications at "
+          "once, none of which have been tested against it.")
+
+
+def test_the_dev_tooling_this_fleet_relies_on_is_declared():
+    """Declared, not just agreed about.
+
+    `tests/test_test_tooling_pins.py` checks that what IS declared matches
+    the fleet's ranges. It cannot notice a package that is simply absent,
+    and two repositories were missing this one.
+    """
+    assert DEV_REQUIREMENTS.exists(), f"{DEV_REQUIREMENTS} is missing"
+    text = DEV_REQUIREMENTS.read_text(encoding="utf-8").lower()
+
+    declared = set()
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            declared.add(re.split(r"[<>=!~\[ ]", stripped, maxsplit=1)[0])
+
+    missing = sorted(REQUIRED_DEV_TOOLING - declared)
+    assert not missing, (
+        f"tests/requirements-dev.txt does not declare {missing}. "
+        f"A run that passes --timeout without the plugin installed is a "
+        f"pytest usage error -- exit 4, not a test failure -- and a run "
+        f"without a timeout turns a hang into a job that sits until someone "
+        f"cancels it.")
 
 
 def test_this_guard_can_see_the_files_it_judges():
-    """A sweep that finds nothing passes every assertion above.
+    """A sweep that finds nothing passes every assertion above."""
+    files = _workflow_files()
+    assert files, f"no workflow files found under {WORKFLOWS}"
 
-    Not hypothetical here: the image-budget guard shipped with a rule whose
-    glob matched no file in three of five repositories, and every other test
-    in it was green.
-    """
-    files = list(_test_files())
-    assert len(files) >= 20, (
-        f"only {len(files)} test files found under {ROOT}; the sweep is "
-        f"looking in the wrong place")
+    named = [(p, n, v) for p in files
+             for n, v in _declared_versions(p.read_text(encoding="utf-8"))]
+    assert named, (
+        f"none of the {len(files)} workflow files names a concrete Python "
+        f"version, so the rule above has no subject. Either they all read a "
+        f"matrix this guard cannot follow, or the sweep is broken.")
 
-    counted = sum(1 for p in files for _ in _tests(p))
-    assert counted >= len(files), (
-        f"{counted} test functions parsed out of {len(files)} files. At "
-        f"least one file yielded none, which means the walk has gone blind "
-        f"rather than that the repository is small -- a structural floor, "
-        f"not a number copied from whichever repository this was written in. "
-        f"The first version asserted 500 and would have landed red in the "
-        f"palette manager, which has 443.")
+    assert PYPROJECT.exists(), "pyproject.toml is not where this guard looks"
+    with PYPROJECT.open("rb") as handle:
+        data = tomllib.load(handle)
 
-    locked = _locked_suites()
-    assert locked, (
-        "no locked suite found at the repository root. Either this is not "
-        "one of the five applications, or the suite moved -- in which case "
-        "the exclusion in _test_files is now hiding it from the sweep.")
+    # The classifier rule above passes over an empty list without noticing.
+    # Every one of these five declares them, so an empty list means the
+    # parse found the wrong table, not that the repository stopped
+    # advertising.
+    classifiers = data.get("project", {}).get("classifiers", [])
+    assert any(str(c).startswith("Programming Language :: Python")
+               for c in classifiers), (
+        f"pyproject.toml lists {len(classifiers)} classifiers and none names "
+        f"Python, so the rule above has nothing to judge")
 '''
 
-EDITS = [('tests/conftest.py', '"""\nRNV Color Mixer — /tests/ Pytest Configuration  (Phase 1 deliverable)\n', '# RNV-NO-VACUOUS-TESTS, 2026-09-10 -- tests/test_no_vacuous_tests.py\n# sweeps this repository for tests that cannot fail: assertions true\n# whatever the code does, bodies that are only `pass`, tests with no\n# assertion that swallow everything they call, and self-skips on a\n# name that never existed. It deliberately permits a test with no\n# assertion at all -- those assert by not raising.\n"""\nRNV Color Mixer — /tests/ Pytest Configuration  (Phase 1 deliverable)\n', 1)]
+EDITS = [('tests/conftest.py', '# RNV-NO-VACUOUS-TESTS, 2026-09-10 -- tests/test_no_vacuous_tests.py\n# sweeps this repository for tests that cannot fail: assertions true\n', "# RNV-FLEET-FLOOR, 2026-09-11 -- tests/test_fleet_floor.py holds this\n# application to the fleet's Python floor (3.13, declared and run), the\n# PyQt6 major-version ceiling, and the dev tooling every repository must\n# declare rather than merely agree about.\n# RNV-NO-VACUOUS-TESTS, 2026-09-10 -- tests/test_no_vacuous_tests.py\n# sweeps this repository for tests that cannot fail: assertions true\n"), ('pyproject.toml', 'requires-python = ">=3.10"', 'requires-python = ">=3.13"'), ('pyproject.toml', '    "Programming Language :: Python :: 3.10",\n    "Programming Language :: Python :: 3.11",\n    "Programming Language :: Python :: 3.12",\n    "Programming Language :: Python :: 3.13",\n', '    "Programming Language :: Python :: 3.13",\n'), ('pyproject.toml', '[tool.mypy]\npython_version = "3.10"', '[tool.mypy]\npython_version = "3.13"'), ('.github/workflows/tests-linux.yml', 'python-version: "3.11"', 'python-version: "3.13"'), ('.github/workflows/tests-windows.yml', 'python-version: "3.11"', 'python-version: "3.13"'), ('tests/test_brand_mirror.py', '        if "RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN" in text or "RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP" in text:\n', '        # RNV-FLEET-FLOOR 2026-09-11: one marker every scanner in this\n        # fleet honours, so a delivery script is skipped whatever it is\n        # called. Such a script QUOTES the code it replaces, which reads\n        # to a sweep exactly like a live call site.\n        if ("RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN" in text\n                or "RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP" in text\n                or "RNV-DELIVERY-SCRIPT-DO-NOT-SWEEP" in text):\n')]
 
 
 def edits(tree) -> None:
-    for rel, old, new, times in EDITS:
-        tree.sub(rel, old, new, times)
+    for rel, old, new in EDITS:
+        tree.sub(rel, old, new, 1)
     by_file: dict = {}
     for rel, *_ in EDITS:
         by_file[rel] = by_file.get(rel, 0) + 1
     print("  " + ", ".join(f"{n} in {rel}" for rel, n in sorted(by_file.items())))
 
 
-def _read(path: Path) -> str:
-    raw = path.read_bytes()
-    return raw.decode("utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8")
+_TOOL_VERSION_KEYS = {"python_version", "python-version", "target-version",
+                      "target_version", "py-version"}
+_PY_SHORT = re.compile(r"^py(\d)(\d+)$")
+_PY_DOTTED = re.compile(r"^(\d+)\.(\d+)$")
 
 
-def _always_true(node):
-    if isinstance(node, ast.Constant):
-        if node.value is True:
-            return "the literal True"
-        if isinstance(node.value, (int, float, str)) and node.value:
-            return f"the truthy literal {node.value!r}"
-    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
-        for value in node.values:
-            why = _always_true(value)
-            if why:
-                return f"an `or` against {why}"
-    if isinstance(node, ast.Compare) and len(node.ops) == 1:
-        pure = (ast.Name, ast.Attribute, ast.Constant)
-        left, op, right = node.left, node.ops[0], node.comparators[0]
-        if (isinstance(op, (ast.Eq, ast.Is))
-                and isinstance(left, pure) and isinstance(right, pure)
-                and ast.dump(left) == ast.dump(right)):
-            return "a comparison of a value with itself"
+def _as_version(value):
+    text = str(value).strip()
+    for pattern in (_PY_DOTTED, _PY_SHORT):
+        found = pattern.match(text)
+        if found:
+            return f"{found.group(1)}.{found.group(2)}"
     return None
+
+
+def _tool_versions(table, path=()):
+    if not isinstance(table, dict):
+        return
+    for key, value in table.items():
+        here = path + (str(key),)
+        if key in _TOOL_VERSION_KEYS:
+            for item in (value if isinstance(value, list) else [value]):
+                version = _as_version(item)
+                if version:
+                    yield ".".join(here), version
+        elif isinstance(value, dict):
+            yield from _tool_versions(value, here)
+
+
+def _marker_is_honoured(text: str) -> bool:
+    """Does this file SKIP on the marker, or merely mention it?
+
+    Parsed, not matched. The substring is in the file either way — the
+    replacement quotes the condition it replaces — and every one of the ten
+    times this programme has been caught out, the answer was to read the
+    tree. This looks for a `continue` guarded by an `in` test against the
+    marker, by literal or through a constant bound to it.
+    """
+    tree = ast.parse(text)
+    aliases = {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
+               for t in n.targets
+               if isinstance(t, ast.Name) and isinstance(n.value, ast.Constant)
+               and n.value.value == MARKER}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        if not any(isinstance(s, ast.Continue) for s in node.body):
+            continue
+        for cmp_ in [n for n in ast.walk(node.test) if isinstance(n, ast.Compare)]:
+            if len(cmp_.ops) != 1 or not isinstance(cmp_.ops[0], ast.In):
+                continue
+            left = cmp_.left
+            if ((isinstance(left, ast.Constant) and left.value == MARKER)
+                    or (isinstance(left, ast.Name) and left.id in aliases)):
+                return True
+    return False
 
 
 def checks(tree) -> None:
     root = Path.cwd()
 
-    # 1. no assertion under sweep can be true regardless of the code.
-    #    Checked here as well as in the installed guard, so a bad tree is
-    #    refused before anything is written to it.
-    files = [p for p in sorted(root.rglob("test_*.py"))
-             if ".git" not in p.parts and p.parent != root
-             and not p.name.startswith("up")]
-    bad = []
-    for path in files:
+    # 1. Everything pyproject.toml says about Python says the same thing.
+    #    Read as TOML: `version = "3.3.13"` is an application version and a
+    #    text sweep cannot tell it from a Python one.
+    data = tomllib.loads(tree.read("pyproject.toml"))
+    declared = data.get("project", {}).get("requires-python", "")
+    if declared.strip() != f">={FLOOR}":
+        raise SystemExit(f'requires-python is {declared!r}, not ">={FLOOR}"')
+
+    named = []
+    for entry in data.get("project", {}).get("classifiers", []):
+        parts = [p.strip() for p in str(entry).split("::")]
+        if parts[:2] == ["Programming Language", "Python"] and len(parts) > 2:
+            version = _as_version(parts[2])
+            if version:
+                named.append((f"classifier {entry!r}", version))
+    if not named:
+        raise SystemExit("no Programming Language :: Python :: X.Y classifier "
+                         "survives, so nothing advertises a version at all")
+    named += list(_tool_versions(data.get("tool", {}), ("tool",)))
+    wrong = [f"{where} says {version}" for where, version in named
+             if version != FLOOR]
+    if wrong:
+        raise SystemExit("pyproject.toml still names other versions: "
+                         + "; ".join(wrong))
+
+    # 2. Every CI job runs the floor, and there is at least one to run it.
+    jobs = 0
+    for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
         rel = path.relative_to(root).as_posix()
-        text = tree.files.get(rel) or _read(path)
-        try:
-            parsed = ast.parse(text, rel)
-        except SyntaxError as e:
-            raise SystemExit(f"{rel} does not parse: {e}")
-        for n in ast.walk(parsed):
-            if isinstance(n, ast.Assert):
-                why = _always_true(n.test)
-                if why:
-                    bad.append(f"{rel}:{n.lineno} {ast.unparse(n)[:56]} ({why})")
-    if bad:
-        raise SystemExit("assertions that cannot fail survive: " + "; ".join(bad))
+        text = tree.files.get(rel, path.read_text(encoding="utf-8"))
+        for number, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith("#") or "python-version:" not in line:
+                continue
+            value = line.split("python-version:", 1)[1]
+            if "matrix.python-version" in value:
+                continue
+            for version in re.findall(r"\d+\.\d+", value):
+                jobs += 1
+                if version != FLOOR:
+                    raise SystemExit(f"{rel}:{number} still runs {version}")
+    if not jobs:
+        raise SystemExit("no workflow names a concrete Python version, so "
+                         "rule 2 passed over nothing")
 
-    # 2. the sweep can see something. A guard that reads no file passes
-    #    every rule above; the image-budget round shipped exactly that.
-    if len(files) < 20:
-        raise SystemExit(f"only {len(files)} test files found; the sweep is "
-                         f"looking in the wrong place")
-    counted = sum(1 for p in files
-                  for n in ast.walk(ast.parse(tree.files.get(
-                      p.relative_to(root).as_posix()) or _read(p)))
-                  if isinstance(n, ast.FunctionDef) and n.name.startswith("test"))
-    if counted < len(files):
-        raise SystemExit(f"{counted} test functions across {len(files)} files; "
-                         f"at least one file yielded none")
+    # 3. PyQt6 is capped wherever it is declared with a version at all. A
+    #    bare `"pyqt6"` under dependencies is not an uncapped range.
+    for rel in ("requirements.txt", "pyproject.toml", "tests/requirements-dev.txt"):
+        if not (root / rel).exists():
+            continue
+        text = tree.files.get(rel, (root / rel).read_text(encoding="utf-8"))
+        for number, line in enumerate(text.splitlines(), 1):
+            stripped = line.strip().strip('"').strip("',")
+            if not stripped.lower().startswith("pyqt6"):
+                continue
+            if not any(op in stripped for op in "<>=~!"):
+                continue
+            if "<7.0" not in stripped.replace(" ", ""):
+                raise SystemExit(f"{rel}:{number} has no ceiling: {stripped}")
 
-    # 3. the locked suite is at the root, where the sweep skips it. If it
-    #    moved under tests/, the exclusion would now be hiding it.
-    locked = sorted(p.name for p in root.glob("test_*.py"))
-    if not locked:
-        raise SystemExit("no locked suite at the repository root; either this "
-                         "is the wrong checkout or the suite moved")
+    # 4. pytest-timeout is declared here, not merely agreed about elsewhere.
+    dev = tree.read("tests/requirements-dev.txt").lower()
+    names = {re.split(r"[<>=!~\[ ]", ln.strip(), maxsplit=1)[0]
+             for ln in dev.splitlines()
+             if ln.strip() and not ln.strip().startswith("#")}
+    if "pytest-timeout" not in names:
+        raise SystemExit("tests/requirements-dev.txt does not declare "
+                         "pytest-timeout")
 
-    # 4. the sentinel is in the file the re-run check reads. Shipped broken
-    #    once in this programme; never again without a check.
+    # 5. Every scanner this round edits actually SKIPS on the marker.
+    #
+    #    A CHECK THAT CANNOT FAIL WAS REMOVED FROM HERE. It read
+    #    `if MARKER not in Path(__file__).read_text()` — does this script
+    #    carry the marker — and it could never fire, because the script
+    #    binds MARKER to that literal four lines above. Present by
+    #    construction, asserted anyway: the exact shape
+    #    tests/test_no_vacuous_tests.py was installed across this fleet to
+    #    forbid, written by the same hand a round later. Found by trying to
+    #    falsify it and failing. The question it was reaching for is asked
+    #    at build time instead, of the module docstring, where a human
+    #    writes the answer and can leave it out.
+    scanners = sorted({rel for rel, *_ in EDITS
+                       if rel.startswith("tests/test_brand")})
+    for rel in scanners:
+        if not _marker_is_honoured(tree.read(rel)):
+            raise SystemExit(f"{rel} mentions the marker but does not skip "
+                             f"on it -- the exclusion is decorative")
+
+    # 6. The sentinel is in the file the already-applied check reads.
     if SENTINEL not in tree.files[SENTINEL_FILE]:
         raise SystemExit(f"'{SENTINEL}' is not in {SENTINEL_FILE}, so the "
                          f"already-applied check can never fire")
 
-    print(f"  guards: 0 tautologies across {len(files)} test files, "
-          f"{counted} test functions, locked suite {locked[0]} left alone")
+    where = f", {len(scanners)} scanner(s) skip on the marker" if scanners else ""
+    print(f"  guards: requires-python >={FLOOR}, {len(named)} version "
+          f"statement(s) in pyproject agree, {jobs} CI job(s) run it{where}")
 
 
 # ------------------------------------------------------------------ plumbing
