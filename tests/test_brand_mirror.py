@@ -205,7 +205,13 @@ def _tracked_sources():
         except UnicodeDecodeError:
             text = raw.decode("utf-8", errors="surrogateescape")
         # Files whose JOB is to talk about these values are not call sites.
-        if "RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN" in text or "RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP" in text:
+        # RNV-FLEET-FLOOR 2026-09-11: one marker every scanner in this
+        # fleet honours, so a delivery script is skipped whatever it is
+        # called. Such a script QUOTES the code it replaces, which reads
+        # to a sweep exactly like a live call site.
+        if ("RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN" in text
+                or "RNV-GOLD-ALIGNMENT-TOOL-DO-NOT-SWEEP" in text
+                or "RNV-DELIVERY-SCRIPT-DO-NOT-SWEEP" in text):
             continue
         yield rel, text
 

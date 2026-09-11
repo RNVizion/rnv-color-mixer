@@ -16,7 +16,7 @@ name = "rnv-color-mixer"
 dynamic = ["version"]
 description = "Professional desktop color-mixing application with paint-mixing simulation and 16+ palette export formats"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 license = { file = "LICENSE" }
 authors = [
     { name = "RNV Development" },
@@ -46,9 +46,6 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Artistic Software",
     "Topic :: Multimedia :: Graphics",
@@ -125,7 +122,7 @@ version = { attr = "utils.config.VERSION" }
 # To tighten later: flip `disallow_untyped_defs` to true and remove files
 # from per-module overrides as you clean each one up.
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.13"
 files = ["core", "ui", "utils", "RNV_Color_Mixer.py"]
 
 # PyQt6 ships without type stubs by default; silence the import errors.

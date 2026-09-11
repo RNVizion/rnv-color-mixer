@@ -1,3 +1,7 @@
+# RNV-FLEET-FLOOR, 2026-09-11 -- tests/test_fleet_floor.py holds this
+# application to the fleet's Python floor (3.13, declared and run), the
+# PyQt6 major-version ceiling, and the dev tooling every repository must
+# declare rather than merely agree about.
 # RNV-NO-VACUOUS-TESTS, 2026-09-10 -- tests/test_no_vacuous_tests.py
 # sweeps this repository for tests that cannot fail: assertions true
 # whatever the code does, bodies that are only `pass`, tests with no
