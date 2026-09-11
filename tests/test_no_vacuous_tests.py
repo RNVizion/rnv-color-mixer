@@ -42,9 +42,22 @@ its own: `def test_set_theme_does_not_crash` asserts by not raising. Ninety
 of those are legitimate here and a rule against them would be noise that
 gets suppressed, which is worse than no rule.
 
-THE LOCKED FILE IS EXCLUDED, AND IT IS WHERE THE PROBLEM ACTUALLY IS.
-test_rnv_color_mixer.py holds all 13 `except Exception: pass` handlers in
-the repository and all 3 tests that can never fail:
+THIS GUARD IS FLEET-PORTABLE, AND THAT COST TWO REPO-SPECIFIC MISTAKES.
+The first version swept `tests/` only and asserted at least 500 test
+functions. Ported unchanged it would have landed RED in the palette
+manager, which has 443 under tests/, and BLIND in the same repo, whose
+snapshots/ directory holds six more tests the sweep would never have read.
+Both were numbers and paths taken from the repository it was written in.
+
+It now discovers what to read: every `test_*.py` anywhere in the checkout
+except the repository ROOT, where each application keeps its one locked
+suite. The floor is structural rather than magic -- at least twenty files,
+and at least as many test functions as files, since a test file with no
+tests in it means the walk has gone blind.
+
+THE LOCKED SUITE IS EXCLUDED, AND IN THE MIXER IT IS WHERE THE PROBLEM
+ACTUALLY IS. test_rnv_color_mixer.py holds all 13 `except Exception: pass`
+handlers in that repository and all 3 tests that can never fail:
 
     test_handle_exception_no_crash          (line 1177)
     test_set_autosave_interval_no_crash     (line 1482)
@@ -56,8 +69,8 @@ argument, so both raise TypeError before reaching the function and both
 swallow it -- documented in tests/test_palette_import.py.
 
 That file is locked by convention, so this round reports rather than edits.
-LOCKED below is the exclusion, and it is a statement about ownership, not
-about quality: those tests are the ones worth fixing.
+The exclusion is a statement about ownership, not about quality: those
+tests are the ones worth fixing.
 """
 from __future__ import annotations
 
@@ -65,11 +78,13 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TESTS = ROOT / "tests"
 
-#: Not swept: changing it is out of scope by convention, not because it is
-#: clean. See the module docstring -- it is where every finding lives.
-LOCKED = "test_rnv_color_mixer.py"
+#: Each application keeps its one locked suite as a `test_*.py` at the
+#: repository root. Discovered rather than named, so this file is identical
+#: in all five checkouts -- two copies of a guard that differ by a filename
+#: are two copies that drift.
+def _locked_suites():
+    return sorted(p.name for p in ROOT.glob("test_*.py"))
 
 #: Names that promise the test asserts by not raising. Used only to explain
 #: a NO-ASSERT test in a message, never to excuse one from a real rule.
@@ -77,14 +92,36 @@ SMOKE_MARKERS = ("no_crash", "does_not_crash", "no_error", "survives")
 
 
 def _test_files():
-    for path in sorted(TESTS.rglob("test_*.py")):
-        if path.name == LOCKED:
+    """Every test file this guard governs, wherever it lives.
+
+    Anything at the repository root is a locked suite and is skipped; so is
+    a delivery script. Everything else is swept, which is how the palette
+    manager's snapshots/ directory gets read at all.
+    """
+    for path in sorted(ROOT.rglob("test_*.py")):
+        if ".git" in path.parts:
+            continue
+        if path.parent == ROOT:
+            continue
+        if path.name.startswith("up"):
             continue
         yield path
 
 
+def _read(path: Path) -> str:
+    """BOM-aware, because six files in this fleet carry one.
+
+    `read_text("utf-8")` leaves a U+FEFF at the start of the string and
+    ast.parse rejects it, so a BOM'd test file would turn this guard into a
+    collection error rather than a result. Python's own import machinery
+    strips it; tests/test_brand_mirror.py already decodes this way.
+    """
+    raw = path.read_bytes()
+    return raw.decode("utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8")
+
+
 def _tests(path: Path):
-    src = path.read_text(encoding="utf-8")
+    src = _read(path)
     try:
         tree = ast.parse(src, str(path))
     except SyntaxError as exc:                      # pragma: no cover
@@ -247,15 +284,21 @@ def test_this_guard_can_see_the_files_it_judges():
     in it was green.
     """
     files = list(_test_files())
-    assert len(files) >= 30, (
-        f"only {len(files)} test files found under {TESTS}; the sweep is "
+    assert len(files) >= 20, (
+        f"only {len(files)} test files found under {ROOT}; the sweep is "
         f"looking in the wrong place")
 
     counted = sum(1 for p in files for _ in _tests(p))
-    assert counted >= 500, (
-        f"only {counted} test functions parsed out of those files; the "
-        f"walk has stopped seeing them")
+    assert counted >= len(files), (
+        f"{counted} test functions parsed out of {len(files)} files. At "
+        f"least one file yielded none, which means the walk has gone blind "
+        f"rather than that the repository is small -- a structural floor, "
+        f"not a number copied from whichever repository this was written in. "
+        f"The first version asserted 500 and would have landed red in the "
+        f"palette manager, which has 443.")
 
-    assert not (TESTS / LOCKED).exists(), (
-        f"{LOCKED} is inside tests/, so the exclusion above is silently "
-        f"skipping a file this guard was meant to read")
+    locked = _locked_suites()
+    assert locked, (
+        "no locked suite found at the repository root. Either this is not "
+        "one of the five applications, or the suite moved -- in which case "
+        "the exclusion in _test_files is now hiding it from the sweep.")

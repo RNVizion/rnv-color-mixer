@@ -1,3 +1,9 @@
+# RNV-NO-VACUOUS-TESTS, 2026-09-10 -- tests/test_no_vacuous_tests.py
+# sweeps this repository for tests that cannot fail: assertions true
+# whatever the code does, bodies that are only `pass`, tests with no
+# assertion that swallow everything they call, and self-skips on a
+# name that never existed. It deliberately permits a test with no
+# assertion at all -- those assert by not raising.
 """
 RNV Color Mixer — /tests/ Pytest Configuration  (Phase 1 deliverable)
 =====================================================================
