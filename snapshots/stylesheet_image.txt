@@ -82,7 +82,7 @@ QSlider::handle:horizontal {
 }
 
 QSlider::handle:horizontal:hover {
-    background: #eeeeee;
+    background: #d2bc93;
 }
 
 QScrollArea {
@@ -116,7 +116,7 @@ QScrollBar::handle:vertical {
 }
 
 QScrollBar::handle:vertical:hover {
-    background-color: rgba(100, 100, 100, 200);
+    background-color: #d2bc93;
 }
 
 QScrollBar::sub-page:vertical {
@@ -140,7 +140,7 @@ QScrollBar::handle:horizontal {
 }
 
 QScrollBar::handle:horizontal:hover {
-    background-color: rgba(100, 100, 100, 200);
+    background-color: #d2bc93;
 }
 
 QScrollBar::sub-page:horizontal {

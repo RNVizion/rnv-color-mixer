@@ -67,14 +67,14 @@ QSlider::groove:horizontal {
 
 QSlider::handle:horizontal {
     background: #666666;
-    border: 1px solid #999999;
+    border: 1px solid #888888;
     width: 18px;
     border-radius: 9px;
     margin: -5px 0;
 }
 
 QSlider::handle:horizontal:hover {
-    background: #555555;
+    background: #8c7337;
 }
 
 QScrollArea {
@@ -96,7 +96,7 @@ QScrollBar::handle:vertical {
 }
 
 QScrollBar::handle:vertical:hover {
-    background-color: #999999;
+    background-color: #8c7337;
 }
 
 QScrollBar::sub-page:vertical {
@@ -120,7 +120,7 @@ QScrollBar::handle:horizontal {
 }
 
 QScrollBar::handle:horizontal:hover {
-    background-color: #999999;
+    background-color: #8c7337;
 }
 
 QScrollBar::sub-page:horizontal {

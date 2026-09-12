@@ -5,8 +5,12 @@ Installed 2026-09-06. What it pins:
   * no value in any of the three palettes is a bare hex -- a literal cannot
     follow the register, so one appearing here is a value that will be
     orphaned the first time the brand moves;
-  * the two SPLITS: #444444 and #666666 each carry two constants, because each
-    plays two roles, and the guard states which name goes with which role;
+  * the SPLITS: each value in that table carries two constants, because each
+    plays two roles, and the guard states which name goes with which role.
+    Written as a count of two when this file was installed, which stopped
+    being true the moment #eeeeee was declared and nobody noticed -- a
+    parametrized test now names every entry, so the table is its own record
+    and this line does not have to be;
   * `slider_groove` is the ONLY key any QSlider groove reads, in every file;
   * `main_btn_hover_text` states the ruled dimming rather than inheriting it;
   * every name a palette uses is assigned ABOVE the palette that uses it.
@@ -41,6 +45,13 @@ SPLITS = {
                 'APP_MENU_DIM_DARK': 'the disabled menu label in dark and image'},
     '#eeeeee': {'APP_HANDLE_HOVER_DARK': 'a dark ink-grid step, app-owned',
                 'APP_ITEM_HOVER_LIGHT': 'the light register plate APP["hover-light"]'},
+    # RNV-GOLD-HOVER, 2026-09-12. The light handle edge held a step no other
+    # application used and nothing else in this one, and it lost its scrollbar
+    # role to the gold. It now takes the step this file already calls hint and
+    # muted text. Two roles, one value, both stated: as the #666666 split above.
+    '#888888': {'APP_HINT_DARK': 'hint and muted text in dark and image',
+                'APP_HANDLE_EDGE_LIGHT': 'the light slider handle edge, and the '
+                                         'light palette\'s disabled menu label'},
 }
 
 #: The four names this pass introduced, with the value each must hold.

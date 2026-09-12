@@ -303,9 +303,15 @@ MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 APP_HANDLE_LIGHT: Final[str] = "#666666"
 """Slider handle at rest, light."""
 
-APP_HANDLE_EDGE_LIGHT: Final[str] = "#999999"
-"""The emphasised edge of a light handle: the slider handle's border, and the
-scrollbar handle when hovered."""
+APP_HANDLE_EDGE_LIGHT: Final[str] = "#888888"
+"""The emphasised edge of a light handle: the slider handle's border.
+
+RNV-GOLD-HOVER, 2026-09-12: the light scrollbar handle on hover used to read
+this too, and now takes BRAND_DARK_GOLD with every other hover on the main
+surface. What is left is the border, and the light palette's `menu_disabled`.
+The value was #999999, a step this constant held alone in the whole fleet;
+against the white menu ground #888888 lifts disabled menu text from 2.85 to
+3.54."""
 
 APP_CONTROL_DIM: Final[str] = "#555555"
 """Two unrelated jobs on one step: the light slider handle when hovered, and
@@ -785,7 +791,7 @@ QSlider::handle:horizontal {{
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: {APP_HANDLE_HOVER_DARK};
+    background: {BRAND_GOLD};
 }}
 
 QScrollArea {{
@@ -807,7 +813,7 @@ QScrollBar::handle:vertical {{
 }}
 
 QScrollBar::handle:vertical:hover {{
-    background-color: rgba(68, 68, 68, 0.9);
+    background-color: {BRAND_GOLD};
 }}
 
 QScrollBar::sub-page:vertical {{
@@ -831,7 +837,7 @@ QScrollBar::handle:horizontal {{
 }}
 
 QScrollBar::handle:horizontal:hover {{
-    background-color: rgba(68, 68, 68, 0.9);
+    background-color: {BRAND_GOLD};
 }}
 
 QScrollBar::sub-page:horizontal {{
@@ -1001,7 +1007,7 @@ QSlider::handle:horizontal {{
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: {APP_CONTROL_DIM};
+    background: {BRAND_DARK_GOLD};
 }}
 
 QScrollArea {{
@@ -1023,7 +1029,7 @@ QScrollBar::handle:vertical {{
 }}
 
 QScrollBar::handle:vertical:hover {{
-    background-color: {APP_HANDLE_EDGE_LIGHT};
+    background-color: {BRAND_DARK_GOLD};
 }}
 
 QScrollBar::sub-page:vertical {{
@@ -1047,7 +1053,7 @@ QScrollBar::handle:horizontal {{
 }}
 
 QScrollBar::handle:horizontal:hover {{
-    background-color: {APP_HANDLE_EDGE_LIGHT};
+    background-color: {BRAND_DARK_GOLD};
 }}
 
 QScrollBar::sub-page:horizontal {{
@@ -1226,7 +1232,7 @@ QSlider::handle:horizontal {{
 }}
 
 QSlider::handle:horizontal:hover {{
-    background: {APP_HANDLE_HOVER_DARK};
+    background: {BRAND_GOLD};
 }}
 
 QScrollArea {{
@@ -1260,7 +1266,7 @@ QScrollBar::handle:vertical {{
 }}
 
 QScrollBar::handle:vertical:hover {{
-    background-color: rgba(100, 100, 100, 200);
+    background-color: {BRAND_GOLD};
 }}
 
 QScrollBar::sub-page:vertical {{
@@ -1284,7 +1290,7 @@ QScrollBar::handle:horizontal {{
 }}
 
 QScrollBar::handle:horizontal:hover {{
-    background-color: rgba(100, 100, 100, 200);
+    background-color: {BRAND_GOLD};
 }}
 
 QScrollBar::sub-page:horizontal {{

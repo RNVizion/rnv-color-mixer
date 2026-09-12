@@ -1,3 +1,8 @@
+# RNV-GOLD-HOVER, 2026-09-12 -- every hover on the main surface takes the
+# mode's gold: BRAND_GOLD in dark and image, BRAND_DARK_GOLD in light. The
+# extras were always allowed it; this extends the same treatment to the
+# surface, which already used it on the mixer's combo box. Two ramp steps
+# lost their last consumer on the way and are retired.
 # RNV-FLEET-FLOOR, 2026-09-11 -- tests/test_fleet_floor.py holds this
 # application to the fleet's Python floor (3.13, declared and run), the
 # PyQt6 major-version ceiling, and the dev tooling every repository must
