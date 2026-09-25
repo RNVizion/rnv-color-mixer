@@ -1,3 +1,8 @@
+# RNV-DERIVE-ALPHA, 2026-09-25 -- every colour this application writes
+# at an alpha is DERIVED: rgba() inside the three stylesheet templates,
+# #aarrggbb everywhere else, both from a named base and a declared byte.
+# The image scrollbar handle left #505050 for grey(4), APP_CHROME_DARK, at
+# 150 -- RNV-COLLAPSE-505050, by ruling. tests/test_derived_values.py.
 # RNV-GOLD-HOVER, 2026-09-12 -- every hover on the main surface takes the
 # mode's gold: BRAND_GOLD in dark and image, BRAND_DARK_GOLD in light. The
 # extras were always allowed it; this extends the same treatment to the

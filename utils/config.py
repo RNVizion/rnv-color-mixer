@@ -132,6 +132,53 @@ def lighten(hex_color: str, step: int) -> str:
         max(0, min(255, c + step)) for c in (r, g, b))
 
 
+def _hex6(hex_color: str) -> str:
+    """The six hex digits of a colour, or ValueError. Shared by the two
+    helpers below so they refuse exactly the same inputs."""
+    h = hex_color.lstrip("#")
+    if len(h) != 6 or any(c not in "0123456789abcdefABCDEF" for c in h):
+        raise ValueError(f"{hex_color!r} is not a six-digit hex colour")
+    return h
+
+
+def _alpha_byte(alpha: int) -> int:
+    """An alpha as the 0-255 byte, or an error. A fraction is refused, not
+    scaled: Qt TRUNCATES a fractional alpha in a stylesheet -- 0.7 is 178, not
+    179 -- and a helper that rounded would move a pixel inside a respelling."""
+    if isinstance(alpha, bool) or not isinstance(alpha, int):
+        raise TypeError(f"alpha {alpha!r} is not an int byte")
+    if not 0 <= alpha <= 255:
+        raise ValueError(f"alpha {alpha} is outside 0-255")
+    return alpha
+
+
+def translucent(hex_color: str, alpha: int) -> str:
+    """A colour at an alpha, as Qt's eight-digit #aarrggbb -- ALPHA FIRST.
+
+    A value computed from another value is computed in code; a written-down
+    derivative is orphaned the moment its source moves, and nothing says so.
+    #aarrggbb is the one spelling valid in a stylesheet AND in QColor(), which
+    reads rgba() as INVALID and paints it opaque black. Lower case, as the
+    register writes hex; rnv-icon-builder's helper of the same name agrees.
+    """
+    return "#%02x%s" % (_alpha_byte(alpha), _hex6(hex_color).lower())
+
+
+def translucent_rgba(hex_color: str, alpha: int) -> str:
+    """The same derivation spelled rgba(r, g, b, a) -- FOR THE STYLESHEET
+    TEMPLATES ONLY, where a value can never reach QColor().
+
+    Two reasons it exists here. The locked suite asserts "rgba(" is in
+    IMAGE_STYLESHEET, and the lock stands. And tests/test_snapshots.py compares
+    the rendered sheets byte for byte, so the templates keep the spelling they
+    had and the snapshots move only where a pixel was ruled to.
+    tests/test_derived_values.py fails if it is used anywhere else.
+    """
+    h = _hex6(hex_color)
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({r}, {g}, {b}, {_alpha_byte(alpha)})"
+
+
 BRAND_GOLD: Final[str] = "#d2bc93"                       # registered
 BRAND_DARK_GOLD: Final[str] = "#8c7337"             # registered
 
@@ -336,7 +383,10 @@ flips instead -- TRUE_BLACK on dark, WHITE on light."""
 
 APP_CHROME_DARK: Final[str] = "#444444"
 """grey(4). The structural grey of a control in dark and image: the slider
-groove, and the border and separator of a menu.
+groove, and the border and separator of a menu -- and, from 2026-09-25, the
+image-mode scrollbar handle at SCROLLBAR_HANDLE_ALPHA. That handle was
+#505050, which RNV-COLLAPSE-505050 ruled onto grey(4) -- GREY_44 in the
+other applications -- and it is resting chrome, not a pressed button.
 
 SPLIT, NOT RENAMED. APP_BTN_PRESSED is the same hex and stays exactly as it
 is. That one is a button in its PRESSED state; this one is a resting trough
@@ -397,6 +447,50 @@ NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
 }
 
 
+# ==================== COMPOSITE ALPHAS ====================
+# A composite is a named colour AT AN ALPHA. The colour half is a name, so a
+# register move reaches it; the alpha half is one of these, so the same move
+# carries every alpha form of the colour. Each byte is the one its literal
+# already carried -- the dark handle's measured, since it was written as 0.7.
+#
+# SEVERAL BYTES REPEAT UNDER DIFFERENT NAMES, ON PURPOSE. Identical numbers
+# doing unrelated jobs stay separate, or retuning one silently retunes the rest.
+
+SCROLLBAR_HANDLE_ALPHA_DARK: Final[int] = 0xB2
+"""178. The dark main-surface scrollbar handle (APP_BORDER_DARK). Written
+rgba(51, 51, 51, 0.7) until 2026-09-25. 0.7 * 255 is 178.5, and Qt's
+stylesheet parser gives 178 -- MEASURED on three grounds, not computed."""
+
+SCROLLBAR_HANDLE_ALPHA: Final[int] = 0x96
+"""150. The image-mode scrollbar handle (APP_CHROME_DARK), the byte all five
+applications use. Its colour was #505050 until 2026-09-25."""
+
+SCROLLBAR_BG_ALPHA: Final[int] = 0x64
+"""100. The image-mode scrollbar groove (APP_BORDER_DARK)."""
+
+SCROLL_AREA_BORDER_ALPHA: Final[int] = 0x64
+"""100. The image-mode scroll area's edge (APP_BORDER_DARK)."""
+
+IMAGE_FIELD_ALPHA: Final[int] = 0xAB
+"""171. The image-mode line edit's ground (TRUE_BLACK)."""
+
+STATUS_BAR_ALPHA: Final[int] = 0xC8
+"""200. The image-mode status bar (APP_SURFACE_DARK)."""
+
+IMAGE_CHECKBOX_ALPHA: Final[int] = 0x64
+"""100. The image-mode checkbox indicator's ground (TRUE_BLACK)."""
+
+COMBO_ALPHA: Final[int] = 0xBF
+"""191. The image-mode combo box and its drop-down list (APP_SURFACE_DARK)."""
+
+CHECKBOX_BG_ALPHA_DARK: Final[int] = 0xE6
+"""230. checkbox_bg in the dark and image palettes (APP_SURFACE_DARK). Nothing
+reads that key today; derived all the same, so it cannot fall behind."""
+
+CHECKBOX_BG_ALPHA_LIGHT: Final[int] = 0xC8
+"""200. checkbox_bg in the light palette (WHITE). Unread, like its dark twin."""
+
+
 class ThemeManager:
     """Manages application themes with Dark Mode, Light Mode, and Image Mode"""
     
@@ -420,7 +514,7 @@ class ThemeManager:
         'dialog_btn_bg': APP_SURFACE_DARK,
         'dialog_btn_hover_bg': APP_BORDER_DARK,
         'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
-        'checkbox_bg': 'rgba(26, 26, 26, 230)',
+        'checkbox_bg': translucent(APP_SURFACE_DARK, CHECKBOX_BG_ALPHA_DARK),
         'checkbox_border': APP_BORDER_DARK,
         'canvas_bg': APP_CANVAS_DARK,
         'scroll_area_bg': TRUE_BLACK,
@@ -485,7 +579,7 @@ class ThemeManager:
         'dialog_btn_bg': WHITE,
         'dialog_btn_hover_bg': APP_BTN_HOVER_INVERSE,
         'dialog_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
-        'checkbox_bg': 'rgba(255, 255, 255, 200)',
+        'checkbox_bg': translucent(WHITE, CHECKBOX_BG_ALPHA_LIGHT),
         'checkbox_border': 'gray',
         'canvas_bg': WHITE,
         'scroll_area_bg': WHITE,
@@ -555,7 +649,7 @@ class ThemeManager:
         'dialog_btn_bg': APP_SURFACE_DARK,
         'dialog_btn_hover_bg': APP_BORDER_DARK,
         'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
-        'checkbox_bg': 'rgba(26, 26, 26, 230)',
+        'checkbox_bg': translucent(APP_SURFACE_DARK, CHECKBOX_BG_ALPHA_DARK),
         'checkbox_border': APP_BORDER_DARK,
         'canvas_bg': APP_CANVAS_DARK,
         'scroll_area_bg': TRUE_BLACK,
@@ -807,7 +901,7 @@ QScrollBar:vertical {{
 }}
 
 QScrollBar::handle:vertical {{
-    background-color: rgba(51, 51, 51, 0.7);
+    background-color: {translucent_rgba(APP_BORDER_DARK, SCROLLBAR_HANDLE_ALPHA_DARK)};
     min-height: 20px;
     border-radius: 7px;
 }}
@@ -831,7 +925,7 @@ QScrollBar:horizontal {{
 }}
 
 QScrollBar::handle:horizontal {{
-    background-color: rgba(51, 51, 51, 0.7);
+    background-color: {translucent_rgba(APP_BORDER_DARK, SCROLLBAR_HANDLE_ALPHA_DARK)};
     min-width: 20px;
     border-radius: 7px;
 }}
@@ -1193,7 +1287,7 @@ QPushButton:pressed {{
 }}
 
 QLineEdit {{
-    background-color: rgba(0, 0, 0, 171);
+    background-color: {translucent_rgba(TRUE_BLACK, IMAGE_FIELD_ALPHA)};
     color: {APP_TEXT_DARK};
     border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
@@ -1237,7 +1331,7 @@ QSlider::handle:horizontal:hover {{
 
 QScrollArea {{
     background-color: transparent;
-    border: 1px solid rgba(51, 51, 51, 100);
+    border: 1px solid {translucent_rgba(APP_BORDER_DARK, SCROLL_AREA_BORDER_ALPHA)};
     font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
 }}
 
@@ -1254,13 +1348,13 @@ QScrollArea::corner {{
 }}
 
 QScrollBar:vertical {{
-    background-color: rgba(51, 51, 51, 100);
+    background-color: {translucent_rgba(APP_BORDER_DARK, SCROLLBAR_BG_ALPHA)};
     width: 15px;
     border: none;
 }}
 
 QScrollBar::handle:vertical {{
-    background-color: rgba(80, 80, 80, 150);
+    background-color: {translucent_rgba(APP_CHROME_DARK, SCROLLBAR_HANDLE_ALPHA)};
     min-height: 20px;
     border-radius: 7px;
 }}
@@ -1278,13 +1372,13 @@ QScrollBar::add-page:vertical {{
 }}
 
 QScrollBar:horizontal {{
-    background-color: rgba(51, 51, 51, 100);
+    background-color: {translucent_rgba(APP_BORDER_DARK, SCROLLBAR_BG_ALPHA)};
     height: 15px;
     border: none;
 }}
 
 QScrollBar::handle:horizontal {{
-    background-color: rgba(80, 80, 80, 150);
+    background-color: {translucent_rgba(APP_CHROME_DARK, SCROLLBAR_HANDLE_ALPHA)};
     min-width: 20px;
     border-radius: 7px;
 }}
@@ -1307,7 +1401,7 @@ QScrollBar::add-line, QScrollBar::sub-line {{
 }}
 
 QStatusBar {{
-    background-color: rgba(26, 26, 26, 200);
+    background-color: {translucent_rgba(APP_SURFACE_DARK, STATUS_BAR_ALPHA)};
     color: {APP_TEXT_DARK};
     border-top: 1px solid {APP_BORDER_DARK};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
@@ -1331,7 +1425,7 @@ QCheckBox {{
 QCheckBox::indicator {{
     width: 13px;
     height: 13px;
-    background-color: rgba(0, 0, 0, 100);
+    background-color: {translucent_rgba(TRUE_BLACK, IMAGE_CHECKBOX_ALPHA)};
     border: 1px solid {APP_CONTROL_DIM};
 }}
 
@@ -1353,7 +1447,7 @@ QSplitter::handle:vertical {{
 }}
 
 QComboBox {{
-    background-color: rgba(26, 26, 26, 191);
+    background-color: {translucent_rgba(APP_SURFACE_DARK, COMBO_ALPHA)};
     color: {APP_TEXT_DARK};
     border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
@@ -1367,7 +1461,7 @@ QComboBox:hover {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: rgba(26, 26, 26, 191);
+    background-color: {translucent_rgba(APP_SURFACE_DARK, COMBO_ALPHA)};
     color: {APP_TEXT_DARK};
     selection-background-color: {BRAND_GOLD};
     font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
