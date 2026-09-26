@@ -490,6 +490,16 @@ reads that key today; derived all the same, so it cannot fall behind."""
 CHECKBOX_BG_ALPHA_LIGHT: Final[int] = 0xC8
 """200. checkbox_bg in the light palette (WHITE). Unread, like its dark twin."""
 
+SCREEN_OVERLAY_ALPHA: Final[int] = 0x32
+"""50. The screen picker's dim over the whole screen (TRUE_BLACK)."""
+
+SCREEN_GRID_ALPHA: Final[int] = 0x32
+"""50. The screen picker's magnifier grid lines (BRAND_GOLD). The same byte
+as the dim, for an unrelated job, so it keeps its own name."""
+
+SCREEN_INFO_ALPHA: Final[int] = 0xB4
+"""180. The screen picker's colour readout panel (TRUE_BLACK)."""
+
 
 class ThemeManager:
     """Manages application themes with Dark Mode, Light Mode, and Image Mode"""

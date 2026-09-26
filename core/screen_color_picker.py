@@ -42,13 +42,17 @@ except ImportError:
 # MODULE-LEVEL CACHED OBJECTS (shared across all instances, never recreated)
 # =============================================================================
 
-# Colors - created once, used forever
-from utils.config import BRAND_GOLD, BRAND_GOLD_RGB
+# Colors - created once, used forever. Each translucent one is DERIVED: a
+# named colour at a named alpha (RNV-TUPLE-ROUND, 2026-09-26), so it
+# follows its base like every other composite in the application.
+from utils.config import (BRAND_GOLD, TRUE_BLACK, translucent,
+                          SCREEN_OVERLAY_ALPHA, SCREEN_GRID_ALPHA,
+                          SCREEN_INFO_ALPHA)
 
-_OVERLAY_COLOR = QColor(0, 0, 0, 50)
+_OVERLAY_COLOR = QColor(translucent(TRUE_BLACK, SCREEN_OVERLAY_ALPHA))
 _GOLD_BRAND = QColor(BRAND_GOLD)
-_GOLD_TRANSPARENT = QColor(*BRAND_GOLD_RGB, 50)
-_INFO_BG = QColor(0, 0, 0, 180)
+_GOLD_TRANSPARENT = QColor(translucent(BRAND_GOLD, SCREEN_GRID_ALPHA))
+_INFO_BG = QColor(translucent(TRUE_BLACK, SCREEN_INFO_ALPHA))
 
 # Pens - pre-created with correct settings
 _PEN_GOLD_2 = QPen(_GOLD_BRAND, 2)

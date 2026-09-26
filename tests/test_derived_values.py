@@ -394,3 +394,159 @@ def test_the_collapsed_value_is_gone_in_every_spelling():
     assert colours_in("rgba(80, 80, 80, 150)") == {"#505050"}, "the decoder is blind"
 
 # RNV-DERIVE-ALPHA
+
+
+# ------------------------------------------------- colours spelled in integers
+
+import importlib as _importlib
+
+#: Where the derived constants live, and where their bases and alphas live.
+TUPLE_HOME = 'core/screen_color_picker.py'
+TUPLE_HOME_MODULE = 'core.screen_color_picker'
+TUPLE_BASES_MODULE = 'utils.config'
+#: Each derived constant, by NAME: (helper, base, alpha or None). A register
+#: move passes straight through; a value re-made from something else fails.
+TUPLES_MADE_OF = {'_OVERLAY_COLOR': ('translucent', 'TRUE_BLACK', 'SCREEN_OVERLAY_ALPHA'), '_GOLD_TRANSPARENT': ('translucent', 'BRAND_GOLD', 'SCREEN_GRID_ALPHA'), '_INFO_BG': ('translucent', 'TRUE_BLACK', 'SCREEN_INFO_ALPHA')}
+#: The alpha bytes behind them, each the one its literal already carried.
+TUPLE_ALPHAS = {'SCREEN_OVERLAY_ALPHA': 50, 'SCREEN_GRID_ALPHA': 50, 'SCREEN_INFO_ALPHA': 180}
+#: Module- and class-level constants spelled in integers ON PURPOSE -- data a
+#: person starts from, not a brand element -- with the reason.
+INT_DATA = {'INITIAL_COLOR_TUPLE': 'the colour shown before anything is mixed -- data, like the hex and rgb() twins beside it'}
+TUPLE_FILES = 20
+#: The call each derived constant is wrapped in, if any.
+_WRAP = 'QColor'
+
+
+def _int_spelled(tree):
+    """(name, #rrggbb, alpha) for every module- or class-level constant whose
+    value spells a colour in integers: a tuple or list of three or four int
+    literals, or QColor/QPen/QBrush called with them. Locals inside functions
+    are state, not constants, and are not read."""
+    bodies = [tree.body] + [n.body for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
+    for body in bodies:
+        for statement in body:
+            if (not isinstance(statement, (ast.Assign, ast.AnnAssign))
+                    or statement.value is None):
+                continue
+            target = (statement.targets[0] if isinstance(statement, ast.Assign)
+                      else statement.target)
+            name, value = getattr(target, "id", None), statement.value
+            if isinstance(value, (ast.Tuple, ast.List)):
+                elts = value.elts
+            elif isinstance(value, ast.Call) and (
+                    getattr(value.func, "id", None) or getattr(value.func, "attr", None)
+                    ) in ("QColor", "fromRgb", "QPen", "QBrush"):
+                elts = value.args
+            else:
+                continue
+            if name is None or len(elts) not in (3, 4):
+                continue
+            ints = [e.value for e in elts
+                    if isinstance(e, ast.Constant) and type(e.value) is int]
+            if len(ints) != len(elts) or not all(0 <= i <= 255 for i in ints):
+                continue
+            yield (name, "#%02x%02x%02x" % tuple(ints[:3]),
+                   ints[3] if len(ints) == 4 else 255)
+
+
+def _tuple_trees():
+    """Application source: not tests, not a root test suite, not a delivery
+    script. BOM-aware."""
+    for path in sorted(ROOT.rglob("*.py")):
+        rel = path.relative_to(ROOT)
+        if any(p in {".git", "tests", "snapshots", "build", "dist", ".venv",
+                     "venv", "__pycache__"} for p in rel.parts):
+            continue
+        if len(rel.parts) == 1 and rel.name.startswith(("test_", "up")):
+            continue
+        text = path.read_bytes().decode("utf-8-sig", errors="replace")
+        if "RNV-DELIVERY-SCRIPT-DO-NOT-SWEEP" in text:
+            continue
+        yield rel, ast.parse(text)
+
+
+def _rgb_of(hex_color):
+    h = hex_color.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _as_rgba(value):
+    """A tuple as it is; a QColor as its channels."""
+    if hasattr(value, "alpha") and callable(value.alpha):
+        return (value.red(), value.green(), value.blue(), value.alpha())
+    return tuple(value)
+
+
+def test_the_integer_sweep_reads_both_notations():
+    """Guard the guard: a tuple and a QColor at module or class level are
+    read; a local inside a function is not."""
+    probe = ast.parse("A = (0, 0, 0, 50)\n"
+                      "class K:\n    B = QColor(68, 68, 68)\n"
+                      "def f():\n    c = (0, 0, 0)\n")
+    assert sorted(_int_spelled(probe)) == [("A", "#000000", 50), ("B", "#444444", 255)]
+
+
+def test_every_tuple_constant_is_derived_by_name():
+    """RNV-TUPLE-ROUND, 2026-09-26. A colour spelled in integers is a colour
+    every string sweep in the fleet was blind to, and #505050 sat in two of
+    them for three weeks after it was ruled away. Each constant here is now
+    its helper called on a named base and a named alpha, and it evaluates to
+    exactly that pair -- held BY NAME, so a register move passes through."""
+    tree = ast.parse((ROOT / TUPLE_HOME).read_text(encoding="utf-8-sig"))
+    values = {}
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
+            t = node.targets[0] if isinstance(node, ast.Assign) else node.target
+            if getattr(t, "id", None):
+                values[t.id] = node.value
+    home = _importlib.import_module(TUPLE_HOME_MODULE)
+    bases = _importlib.import_module(TUPLE_BASES_MODULE)
+    assert TUPLES_MADE_OF, "nothing to check"
+    for name, (helper, base, alpha) in TUPLES_MADE_OF.items():
+        call = values.get(name)
+        assert call is not None, f"{name} is gone from {TUPLE_HOME}"
+        if _WRAP:
+            assert (isinstance(call, ast.Call)
+                    and getattr(call.func, "id", None) == _WRAP
+                    and len(call.args) == 1), (
+                f"{name} is not {_WRAP}(...): {ast.unparse(call)}")
+            call = call.args[0]
+        want_names = [base] + ([alpha] if alpha else [])
+        assert (isinstance(call, ast.Call) and getattr(call.func, "id", None) == helper
+                and [getattr(a, "id", None) for a in call.args] == want_names
+                and not call.keywords), (
+            f"{name} is {ast.unparse(call)}, not {helper}({', '.join(want_names)})")
+        live = _as_rgba(getattr(home, name))
+        want = _rgb_of(getattr(bases, base)) + ((TUPLE_ALPHAS[alpha],) if alpha else ())
+        if len(live) == 4 and len(want) == 3:
+            want += (255,)
+        assert live == want, f"{name} is {live}; made of {want_names} it is {want}"
+
+
+def test_the_tuple_alphas_are_the_declared_bytes():
+    bases = _importlib.import_module(TUPLE_BASES_MODULE)
+    for name, byte in TUPLE_ALPHAS.items():
+        value = getattr(bases, name)
+        assert type(value) is int and value == byte, (
+            f"{name} is {value!r}, declared {byte:#x}")
+
+
+def test_no_named_colour_is_spelled_in_integers():
+    """The completeness half. Every module- or class-level constant in the
+    application that spells a NAMED colour in integers. Alpha 0 draws no
+    colour; a base no constant names has no row to follow; and INT_DATA is
+    data a person starts from, each with its reason."""
+    bases = _importlib.import_module(TUPLE_BASES_MODULE)
+    named = {v.lower() for n, v in vars(bases).items()
+             if n.isupper() and isinstance(v, str)
+             and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
+    strays, files = [], 0
+    for rel, tree in _tuple_trees():
+        files += 1
+        for name, rgb, alpha in _int_spelled(tree):
+            if name in INT_DATA or alpha == 0 or rgb not in named:
+                continue
+            strays.append(f"{rel}: {name} = {rgb} at alpha {alpha}")
+    assert files >= TUPLE_FILES, f"only {files} files swept -- the walk has gone blind"
+    assert not strays, ("named colours still spelled in integers, where no "
+                        "register move reaches them:\n  " + "\n  ".join(strays))
