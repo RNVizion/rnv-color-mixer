@@ -186,12 +186,42 @@ def _section_header_style(accent: str) -> str:
 
 
 def _style_harmony_description(panel) -> None:
+    """The description in the accent ink, on a wash of the same ink.
+
+    The wash is DERIVED, translucent(accent, HARMONY_DESCRIPTION_ALPHA).
+    Until 2026-09-26 it was rgba(r, g, b, 0.1) from channels sliced out of
+    the hex by hand -- the one derived value in the fleet that did not go
+    through a helper. Qt makes 0.1 the byte 25, so the pixels are the same.
+    """
     accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_ink"]
-    r, g, b = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
+    wash = config.translucent(accent, config.HARMONY_DESCRIPTION_ALPHA)
     panel.harmony_description.setStyleSheet(
         f"color: {accent}; font-size: {config.FONT_SIZES['small']}px; "
-        f"padding: 8px; background-color: rgba({r}, {g}, {b}, 0.1); "
+        f"padding: 8px; background-color: {wash}; "
         f"border-radius: 4px;")
+
+
+def _style_key_badge(panel, badge) -> None:
+    """A shortcut key badge on the Quick Actions tab -- accent plate, accent
+    text -- registered for re-theming, as the tips and headers are.
+
+    RNV-CHART-RULINGS, 2026-09-26 (ruling 3). The nine badges were styled
+    once, while the tab was built. That is before set_theme() has run, so
+    always from the dark palette, and set_theme() never reached them: light
+    mode showed dark's gold plate. set_theme() now restyles every one.
+    """
+    badges = panel.__dict__.setdefault("_themed_key_badges", [])
+    if badge not in badges:
+        badges.append(badge)
+    t = _theme_colors(bool(getattr(panel, "_is_dark", True)))
+    badge.setStyleSheet(f"""
+                background-color: {t['accent']};
+                color: {t['accent_text']};
+                padding: 3px 8px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: {config.FONT_SIZES['small']}px;
+            """)
 
 
 class PackageDPanel(QDialog):
@@ -731,15 +761,7 @@ class PackageDPanel(QDialog):
             shortcut_layout.setContentsMargins(0, 2, 0, 2)
             
             key_label = QLabel(shortcut)
-            _t_k = _theme_colors(getattr(self, '_is_dark', True))
-            key_label.setStyleSheet(f"""
-                background-color: {_t_k['accent']};
-                color: {_t_k['accent_text']};
-                padding: 3px 8px;
-                border-radius: 3px;
-                font-weight: bold;
-                font-size: {config.FONT_SIZES['small']}px;
-            """)
+            _style_key_badge(self, key_label)
             key_label.setFixedWidth(150)
             shortcut_layout.addWidget(key_label)
             
@@ -2509,6 +2531,11 @@ class PackageDPanel(QDialog):
         for _hdr in getattr(self, '_themed_headers', []):
             try:
                 _hdr.setStyleSheet(_section_header_style(accent_ink))
+            except RuntimeError:
+                pass
+        for _badge in getattr(self, '_themed_key_badges', []):
+            try:
+                _style_key_badge(self, _badge)
             except RuntimeError:
                 pass
         for attr in ('_shortcuts_label', '_export_label', '_palette_label', '_picker_label'):

@@ -128,9 +128,9 @@ class AboutDialog(QDialog):
         name_label.setStyleSheet("font-size: 24px; font-weight: bold; border: none; background: transparent;")
         text_layout.addWidget(name_label)
         
-        _t = config.ThemeManager.DARK_THEME if self._is_dark else config.ThemeManager.LIGHT_THEME
         version_label = QLabel(f"Version {app_info['version']}")
-        version_label.setStyleSheet(f"font-size: 14px; color: {_t['accent_ink']}; border: none; background: transparent;")
+        self._version_label = version_label
+        self._style_version_label()
         text_layout.addWidget(version_label)
         
         desc_label = QLabel(app_info['description'])
@@ -351,8 +351,48 @@ enthusiasts create precise color combinations.</p>
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        _t = config.ThemeManager.DARK_THEME if self._is_dark else config.ThemeManager.LIGHT_THEME
-        credits_text = f"""
+        credits_label = QLabel(self._credits_html())
+        self._credits_label = credits_label
+        credits_label.setWordWrap(True)
+        credits_label.setTextFormat(Qt.TextFormat.RichText)
+        credits_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
+        scroll = QScrollArea()
+        scroll.setWidget(credits_label)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        layout.addWidget(scroll)
+        
+        return tab
+    
+    def _get_app_info(self) -> dict:
+        """Get application information from config or defaults."""
+        if config and hasattr(config, 'get_app_info'):
+            return config.get_app_info()
+        
+        # Fallback when config module is unavailable
+        return {
+            "name": "RNV Color Mixer",
+            "version": "Unknown",
+            "description": "Professional Color Mixing Application",
+            "author": "RNV Development",
+            "framework": "PyQt6"
+        }
+    
+    def _palette(self) -> dict:
+        """The palette the dialog is drawn in -- the choice _apply_theme() makes."""
+        return config.ThemeManager.DARK_THEME if self._is_dark else config.ThemeManager.LIGHT_THEME
+
+    def _style_version_label(self) -> None:
+        _t = self._palette()
+        self._version_label.setStyleSheet(f"font-size: 14px; color: {_t['accent_ink']}; border: none; background: transparent;")
+
+    def _credits_html(self) -> str:
+        """The Credits tab's text. Its footer is in the palette's accent ink,
+        so _apply_theme() sets the text again when the palette changes."""
+        _t = self._palette()
+        return f"""
 <h3>Credits & Acknowledgments</h3>
 
 <h4>Development</h4>
@@ -390,35 +430,7 @@ Bringing real-world paint mixing to the digital palette<br>
 © 2026 RNV Development. All rights reserved.
 </p>
 """
-        
-        credits_label = QLabel(credits_text)
-        credits_label.setWordWrap(True)
-        credits_label.setTextFormat(Qt.TextFormat.RichText)
-        credits_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
-        scroll = QScrollArea()
-        scroll.setWidget(credits_label)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        layout.addWidget(scroll)
-        
-        return tab
-    
-    def _get_app_info(self) -> dict:
-        """Get application information from config or defaults."""
-        if config and hasattr(config, 'get_app_info'):
-            return config.get_app_info()
-        
-        # Fallback when config module is unavailable
-        return {
-            "name": "RNV Color Mixer",
-            "version": "Unknown",
-            "description": "Professional Color Mixing Application",
-            "author": "RNV Development",
-            "framework": "PyQt6"
-        }
-    
+
     def set_theme(self, is_dark: bool) -> None:
         """Set the dialog theme (dark or light)."""
         self._is_dark = is_dark
@@ -584,6 +596,16 @@ Bringing real-world paint mixing to the digital palette<br>
                     color: {_l['accent_text']};
                 }}
             """)
+
+        # RNV-CHART-RULINGS, 2026-09-26 (ruling 3). The dialog's two gold
+        # texts carry their colour inline, so the sheet above cannot reach
+        # them. Each was written once, with the palette of the moment --
+        # always dark, since the app passes its ui_handler where the flag
+        # belongs -- and nothing wrote it again: light mode showed dark's gold.
+        if getattr(self, '_version_label', None) is not None:
+            self._style_version_label()
+        if getattr(self, '_credits_label', None) is not None:
+            self._credits_label.setText(self._credits_html())
     
     def cleanup(self) -> None:
         """

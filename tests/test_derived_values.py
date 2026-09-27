@@ -5,8 +5,11 @@ tests/test_neutral_ramp.py holds that -- and eleven rgba() literals stayed
 behind, because a hex sweep cannot see them. rgba(26, 26, 26, 191) IS
 APP_SURFACE_DARK at alpha 191; written out, a move of APP_SURFACE_DARK would
 have reached every opaque use and none of these. Each is now
-translucent_rgba(BASE, ALPHA) inside the template, and the palettes' three
-checkbox grounds are translucent(BASE, ALPHA).
+translucent_rgba(BASE, ALPHA) inside the template. The palettes' three
+checkbox grounds were translucent(BASE, ALPHA) too, until a render proved
+nothing read them and they were removed -- RNV-CHART-RULINGS, 2026-09-26,
+which also moved the control panel's hand-sliced harmony wash onto
+translucent(). Both are held at the end of this file.
 
 WHY TWO SPELLINGS, AND WHERE EACH IS ALLOWED. rgba() is valid in a stylesheet
 and INVALID in QColor(), which reads it as opaque black. So rgba() is allowed
@@ -47,8 +50,7 @@ ALPHAS = {
     "STATUS_BAR_ALPHA": 0xC8,
     "IMAGE_CHECKBOX_ALPHA": 0x64,
     "COMBO_ALPHA": 0xBF,
-    "CHECKBOX_BG_ALPHA_DARK": 0xE6,
-    "CHECKBOX_BG_ALPHA_LIGHT": 0xC8,
+    "HARMONY_DESCRIPTION_ALPHA": 0x19,
 }
 
 #: What each template's derived values are MADE OF, by NAME: (base, alpha).
@@ -65,11 +67,9 @@ MADE_OF = {
            ("TRUE_BLACK", "IMAGE_CHECKBOX_ALPHA")]
         + [("APP_SURFACE_DARK", "COMBO_ALPHA")] * 2),
 }
-PALETTE_MADE_OF = {
-    "DARK_THEME": ("APP_SURFACE_DARK", "CHECKBOX_BG_ALPHA_DARK"),
-    "LIGHT_THEME": ("WHITE", "CHECKBOX_BG_ALPHA_LIGHT"),
-    "IMAGE_THEME": ("APP_SURFACE_DARK", "CHECKBOX_BG_ALPHA_DARK"),
-}
+#: The palettes hold no derived value now. Their only ones were the three
+#: checkbox_bg grounds, which nothing read; see REMOVED_KEYS below.
+PALETTE_MADE_OF: dict[str, tuple[str, str]] = {}
 
 #: Diagnostic, and so outside the brand by rule: the debug overlay must read on
 #: any window whatever the theme.
@@ -234,7 +234,9 @@ def test_the_derivation_sweep_is_looking():
     derived = [k.value for p in palettes.values() for k, v in zip(p.keys, p.values)
                if isinstance(v, ast.Call)
                and getattr(v.func, "id", None) in HELPERS]
-    assert derived == ["checkbox_bg"] * 3, derived
+    # The three checkbox_bg grounds were the palettes' only derived values,
+    # and nothing read them. Removed 2026-09-26 (RNV-CHART-RULINGS).
+    assert derived == [], derived
 
 
 # ----------------------------------------------------------- the derivations
@@ -289,21 +291,16 @@ def test_every_template_value_decomposes_to_what_it_is_made_of():
 
 
 def test_nothing_moved_that_was_not_ruled():
-    """Held BY NAME: each template call's (base, alpha) names, and each
-    palette entry's, are what this round made them. A value re-made from
-    another constant fails here even when the sheet still agrees with its
-    own source. The byte-for-byte before-and-after is tests/test_snapshots.py,
-    which compares all three rendered sheets whole."""
+    """Held BY NAME: each template call's (base, alpha) names are what this
+    round made them. A value re-made from another constant fails here even
+    when the sheet still agrees with its own source. The byte-for-byte
+    before-and-after is tests/test_snapshots.py, which compares all three
+    rendered sheets whole. The palettes carried three derived entries
+    until 2026-09-26; the test that holds them removed is below."""
     for template, made_of in MADE_OF.items():
         names = sorted(_names(c) for c in _template_calls()[template])
         assert names == sorted(made_of), f"{template}: {names}"
-    for palette, (base, alpha) in PALETTE_MADE_OF.items():
-        node = _palette_nodes()[palette]
-        entry = next(v for k, v in zip(node.keys, node.values)
-                     if isinstance(k, ast.Constant) and k.value == "checkbox_bg")
-        assert _names(entry) == (base, alpha), palette
-        live = getattr(C.ThemeManager, palette)["checkbox_bg"]
-        assert decompose(live) == (getattr(C, base).lower(), getattr(C, alpha))
+    assert not PALETTE_MADE_OF, "a palette entry is derived again: hold it here"
 
 
 def test_the_image_scrollbar_handle_is_grey_44_at_150():
@@ -550,3 +547,81 @@ def test_no_named_colour_is_spelled_in_integers():
     assert files >= TUPLE_FILES, f"only {files} files swept -- the walk has gone blind"
     assert not strays, ("named colours still spelled in integers, where no "
                         "register move reaches them:\n  " + "\n  ".join(strays))
+
+
+# RNV-CHART-RULINGS
+# ------------------------------------------ what nothing read, and the wash
+
+#: Palette keys nothing read, proven by render and removed: rulings 2 and 5
+#: of 2026-09-26.
+REMOVED_KEYS = ("checkbox_bg", "checkbox_border", "label_bg", "label_border")
+#: The two alphas that existed only for checkbox_bg.
+REMOVED_ALPHAS = ("CHECKBOX_BG_ALPHA_DARK", "CHECKBOX_BG_ALPHA_LIGHT")
+
+
+def test_the_unread_palette_keys_stay_removed():
+    """RNV-CHART-RULINGS, rulings 2 and 5. Four keys in all three palettes
+    painted nothing: checkbox_bg, derived at 0xE6 and 0xC8, and
+    checkbox_border, label_bg and label_border -- the last three spelled in
+    LIGHT_THEME with the CSS names gray, white and black, which a hex census
+    cannot see. A render set all twelve entries to #ff00ff. No pixel changed
+    in 105 captures of the main window, the control panel and the About
+    dialog in all three modes, and no text changed in 1,020 stylesheet and
+    palette entries, while a control that moved DARK's canvas_bg changed 1
+    capture and 10 entries. So they went, with the two alphas that existed
+    only for checkbox_bg.
+
+    Gone from every palette and named nowhere in the application. A key
+    brought back is a colour on no element, and has to be decided rather
+    than inherited."""
+    for palette in PALETTES:
+        back = [k for k in REMOVED_KEYS if k in getattr(C.ThemeManager, palette)]
+        assert not back, f"{palette} declares {back} again"
+    for name in REMOVED_ALPHAS:
+        assert not hasattr(C, name), f"utils.config declares {name} again"
+    sources = list(_sources())
+    assert any(rel.as_posix() == "utils/config.py" for rel, _ in sources), (
+        "the sweep cannot see the palettes, so it proves nothing")
+    named = [f"{rel}:{node.lineno}  {node.value}" for rel, tree in sources
+             for node in ast.walk(tree)
+             if isinstance(node, ast.Constant) and isinstance(node.value, str)
+             and node.value in REMOVED_KEYS]
+    named += [f"{rel}:{node.lineno}  {node.id}" for rel, tree in sources
+              for node in ast.walk(tree)
+              if isinstance(node, ast.Name) and node.id in REMOVED_ALPHAS]
+    assert not named, "named again:\n  " + "\n  ".join(named)
+
+
+def test_the_harmony_description_derives_its_wash(qapp):
+    """RNV-CHART-RULINGS, ruling 4. The control panel's harmony description
+    sits on a wash of its own accent ink. It was rgba(r, g, b, 0.1) from
+    channels sliced out of the hex by hand, the one derived value in the
+    fleet that did not go through a helper. Now it is translucent(accent,
+    HARMONY_DESCRIPTION_ALPHA), and 0x19 is the byte Qt makes of 0.1:
+    measured on five grounds under both inks, and the panel renders pixel for
+    pixel as it did.
+
+    Held twice: in the source, the helper by name and no rgba() built by hand
+    left in the function; and in the sheet the function actually sets, in
+    both palettes, the wash taken apart to (accent_ink, 0x19)."""
+    from types import SimpleNamespace
+
+    from PyQt6.QtWidgets import QLabel
+
+    from core import package_d_panel as panel_module
+    tree = ast.parse((ROOT / "core" / "package_d_panel.py").read_text(encoding="utf-8-sig"))
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == "_style_harmony_description")
+    body = fn.body[1:] if ast.get_docstring(fn) else fn.body
+    code = "\n".join(ast.unparse(s) for s in body)
+    calls = [ast.unparse(c) for s in body for c in ast.walk(s)
+             if isinstance(c, ast.Call) and getattr(c.func, "attr", None) == "translucent"]
+    assert calls == ["config.translucent(accent, config.HARMONY_DESCRIPTION_ALPHA)"], calls
+    assert "rgba(" not in code and "[1:3]" not in code, "the wash is built by hand again"
+    for is_dark, palette in ((True, "DARK_THEME"), (False, "LIGHT_THEME")):
+        panel = SimpleNamespace(_is_dark=is_dark, harmony_description=QLabel())
+        panel_module._style_harmony_description(panel)
+        sheet = panel.harmony_description.styleSheet()
+        wash = re.search(r"background-color:\s*([^;]+);", sheet).group(1).strip()
+        ink = getattr(C.ThemeManager, palette)["accent_ink"].lower()
+        assert decompose(wash) == (ink, C.HARMONY_DESCRIPTION_ALPHA), (palette, sheet)

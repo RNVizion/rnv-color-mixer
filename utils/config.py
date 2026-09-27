@@ -483,12 +483,12 @@ IMAGE_CHECKBOX_ALPHA: Final[int] = 0x64
 COMBO_ALPHA: Final[int] = 0xBF
 """191. The image-mode combo box and its drop-down list (APP_SURFACE_DARK)."""
 
-CHECKBOX_BG_ALPHA_DARK: Final[int] = 0xE6
-"""230. checkbox_bg in the dark and image palettes (APP_SURFACE_DARK). Nothing
-reads that key today; derived all the same, so it cannot fall behind."""
-
-CHECKBOX_BG_ALPHA_LIGHT: Final[int] = 0xC8
-"""200. checkbox_bg in the light palette (WHITE). Unread, like its dark twin."""
+HARMONY_DESCRIPTION_ALPHA: Final[int] = 0x19
+"""25. The control panel's harmony description: a wash of its own accent ink
+(accent_ink -- BRAND_GOLD in dark and image, BRAND_DARK_GOLD_DEEP in light).
+Written rgba(r, g, b, 0.1) from channels sliced by hand until 2026-09-26.
+0.1 * 255 is 25.5, and Qt's stylesheet parser gives 25 -- MEASURED on five
+grounds under both inks, not computed. The same pixels."""
 
 SCREEN_OVERLAY_ALPHA: Final[int] = 0x32
 """50. The screen picker's dim over the whole screen (TRUE_BLACK)."""
@@ -524,16 +524,12 @@ class ThemeManager:
         'dialog_btn_bg': APP_SURFACE_DARK,
         'dialog_btn_hover_bg': APP_BORDER_DARK,
         'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
-        'checkbox_bg': translucent(APP_SURFACE_DARK, CHECKBOX_BG_ALPHA_DARK),
-        'checkbox_border': APP_BORDER_DARK,
         'canvas_bg': APP_CANVAS_DARK,
         'scroll_area_bg': TRUE_BLACK,
         'input_bg': APP_SURFACE_DARK,
         'input_text': APP_TEXT_DARK,
         'slot_border': APP_TEXT_DARK,
         'slot_border_width': 2,
-        'label_bg': APP_SURFACE_DARK,
-        'label_border': APP_BORDER_DARK,
         'tooltip_bg': APP_CARD_DARK,
         'tooltip_border': BRAND_GOLD,
         'text_disabled': APP_CONTROL_DIM,
@@ -589,16 +585,12 @@ class ThemeManager:
         'dialog_btn_bg': WHITE,
         'dialog_btn_hover_bg': APP_BTN_HOVER_INVERSE,
         'dialog_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
-        'checkbox_bg': translucent(WHITE, CHECKBOX_BG_ALPHA_LIGHT),
-        'checkbox_border': 'gray',
         'canvas_bg': WHITE,
         'scroll_area_bg': WHITE,
         'input_bg': WHITE,
         'input_text': TRUE_BLACK,
         'slot_border': TRUE_BLACK,
         'slot_border_width': 1,
-        'label_bg': 'white',
-        'label_border': 'black',
         'tooltip_bg': WHITE,
         'tooltip_border': BRAND_DARK_GOLD,
         'text_disabled': APP_DIM_LIGHT,
@@ -659,16 +651,12 @@ class ThemeManager:
         'dialog_btn_bg': APP_SURFACE_DARK,
         'dialog_btn_hover_bg': APP_BORDER_DARK,
         'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
-        'checkbox_bg': translucent(APP_SURFACE_DARK, CHECKBOX_BG_ALPHA_DARK),
-        'checkbox_border': APP_BORDER_DARK,
         'canvas_bg': APP_CANVAS_DARK,
         'scroll_area_bg': TRUE_BLACK,
         'input_bg': APP_SURFACE_DARK,
         'input_text': APP_TEXT_DARK,
         'slot_border': APP_TEXT_DARK,
         'slot_border_width': 2,
-        'label_bg': APP_SURFACE_DARK,
-        'label_border': APP_BORDER_DARK,
         'tooltip_bg': APP_CARD_DARK,
         'tooltip_border': BRAND_GOLD,
         'text_disabled': APP_CONTROL_DIM,

@@ -221,8 +221,14 @@ class ColorSlot(QWidget, SignalMixin):
         """Update swatch with professional styling."""
         hex_color = ColorMath.rgb_to_hex(self.color)
         
-        # Get border styling based on theme
-        theme = config.ThemeManager().get_current_theme()
+        # The theme set_theme() last gave this slot. Before it has run -- the
+        # swatch is first painted from __init__ -- a fresh ThemeManager
+        # answers, and a fresh ThemeManager is always in dark mode.
+        #
+        # RNV-CHART-RULINGS, 2026-09-26 (ruling 3). This asked ONLY the fresh
+        # ThemeManager, so every swatch kept dark's border and dark's gold
+        # hover in light mode, however often set_theme() ran.
+        theme = getattr(self, '_theme', None) or config.ThemeManager().get_current_theme()
         if theme:
             border_width = theme.get('slot_border_width', 2)
             border_color = theme.get('slot_border', config.ThemeManager.DARK_THEME['slot_border'])
@@ -529,6 +535,9 @@ class ColorSlot(QWidget, SignalMixin):
             theme_manager = config.ThemeManager()
             theme_manager.current_theme = 'dark' if is_dark else 'light'
             theme = theme_manager.get_current_theme()
+        # Kept for _update_swatch_display(), which a colour change calls
+        # without a theme.
+        self._theme = theme
         
         if theme:
             # Use transparent background for color slots in Image Mode

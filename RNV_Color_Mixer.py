@@ -926,6 +926,13 @@ class ColorMixerApp(QMainWindow):
             for slot in self.slots:
                 if hasattr(slot, 'set_theme'):
                     slot.set_theme(is_dark, self.ui_handler)
+
+            # The preview's border is the mode's border_color, and only
+            # _update_preview() writes it. RNV-CHART-RULINGS, 2026-09-26
+            # (ruling 3): until this, a mode switch left the previous mode's
+            # border on the preview until the next colour was mixed.
+            if getattr(self, 'preview_label', None) is not None:
+                self._update_preview(self.current_mixed_color)
         
         ErrorHandler.safe_execute(apply_theme, "applying theme to components", print)
 
