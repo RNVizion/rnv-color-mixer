@@ -350,6 +350,15 @@ MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 APP_HANDLE_LIGHT: Final[str] = "#666666"
 """Slider handle at rest, light."""
 
+APP_HINT_LIGHT: Final[str] = "#666666"
+"""grey(6). Hint and muted text in light -- the step the other four apps
+use for muted text in light, as APP_HINT_DARK is in dark.
+
+SPLIT, NOT RENAMED, 2026-09-27 (RNV-MUTED-DESCRIPTIONS). LIGHT text_hint read
+APP_HANDLE_LIGHT, the same hex doing another job. When the control panel's
+ten descriptions joined the fine-tune hint on this key, text would have
+moved every time the slider handle did."""
+
 APP_HANDLE_EDGE_LIGHT: Final[str] = "#888888"
 """The emphasised edge of a light handle: the slider handle's border.
 
@@ -437,6 +446,7 @@ NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
     "APP_ITEM_HOVER_LIGHT": "step",
     "APP_HANDLE_LIGHT": "step",
     "APP_HANDLE_EDGE_LIGHT": "step",
+    "APP_HINT_LIGHT": "step",
     "APP_CONTROL_DIM": "step",
     "APP_BTN_PRESSED": "step",
     "APP_BTN_HOVER_INVERSE": "alias",
@@ -610,7 +620,7 @@ class ThemeManager:
         # it sits on the QFrame that section builds -- panel_secondary, not
         # panel_bg. #888888 read 3.5407:1 there, below AA for text this
         # size. #666666 clears 4.5 on every light ground in this app.
-        'text_hint': APP_HANDLE_LIGHT,
+        'text_hint': APP_HINT_LIGHT,
         'menu_disabled': APP_HANDLE_EDGE_LIGHT,
         # One key for the slider groove. Before this pass three files painted
         # it from three different keys -- panel_bg, hover_color and input_bg --

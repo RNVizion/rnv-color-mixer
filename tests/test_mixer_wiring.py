@@ -42,7 +42,10 @@ SPLITS = {
     '#444444': {'APP_BTN_PRESSED': 'the pressed plate of the basic button',
                 'APP_CHROME_DARK': 'the dark control trough and menu edge'},
     '#666666': {'APP_HANDLE_LIGHT': 'the light slider handle at rest',
-                'APP_MENU_DIM_DARK': 'the disabled menu label in dark and image'},
+                'APP_MENU_DIM_DARK': 'the disabled menu label in dark and image',
+                # RNV-MUTED-DESCRIPTIONS, 2026-09-27: hint and muted text,
+                # which had borrowed the handle's name.
+                'APP_HINT_LIGHT': 'hint and muted text in light'},
     '#eeeeee': {'APP_HANDLE_HOVER_DARK': 'a dark ink-grid step, app-owned',
                 'APP_ITEM_HOVER_LIGHT': 'the light register plate APP["hover-light"]'},
     # RNV-GOLD-HOVER, 2026-09-12. The light handle edge held a step no other

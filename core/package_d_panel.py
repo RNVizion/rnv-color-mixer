@@ -180,6 +180,23 @@ def _style_tip(panel, widget, tail: str) -> None:
     widget.setStyleSheet(f"color: {accent}; " + tail)
 
 
+def _style_description(panel, widget, tail: str) -> None:
+    """Paint a description in the muted text, and register it for
+    re-theming, as the tips are.
+
+    RNV-MUTED-DESCRIPTIONS, 2026-09-27 (ruling 1). These ten were
+    `color: gray` -- #808080 in every mode, under the 4.5 floor on this
+    panel's light ground. text_hint is #888888 in dark and image and
+    #666666 in light: the muted text all five applications already paint.
+    """
+    descriptions = panel.__dict__.setdefault("_themed_descriptions", [])
+    entry = (widget, tail)
+    if entry not in descriptions:
+        descriptions.append(entry)
+    muted = _theme_colors(bool(getattr(panel, "_is_dark", True)))["text_hint"]
+    widget.setStyleSheet(f"color: {muted}; " + tail)
+
+
 def _section_header_style(accent: str) -> str:
     return (f"font-weight: bold; font-size: {config.FONT_SIZES['medium']}px; "
             f"color: {accent}; padding-top: 10px; padding-bottom: 5px;")
@@ -409,7 +426,7 @@ class PackageDPanel(QDialog):
         
         # Description
         desc = QLabel("Click any color to load it into an empty slot")
-        desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px;")
+        _style_description(self, desc, f"font-size: {config.FONT_SIZES['small']}px;")
         layout.addWidget(desc)
         
         # History list
@@ -454,7 +471,7 @@ class PackageDPanel(QDialog):
         layout.addWidget(title)
         
         desc = QLabel("Click a preset to load it into your color slots")
-        desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px;")
+        _style_description(self, desc, f"font-size: {config.FONT_SIZES['small']}px;")
         layout.addWidget(desc)
         
         # Category filter
@@ -535,7 +552,7 @@ class PackageDPanel(QDialog):
         
         # Description
         desc = QLabel("Generate professional color schemes based on color theory")
-        desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px;")
+        _style_description(self, desc, f"font-size: {config.FONT_SIZES['small']}px;")
         layout.addWidget(desc)
         
         # Base color selection
@@ -633,7 +650,7 @@ class PackageDPanel(QDialog):
         
         # Description
         desc = QLabel("Save and restore your complete mixing sessions")
-        desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px;")
+        _style_description(self, desc, f"font-size: {config.FONT_SIZES['small']}px;")
         layout.addWidget(desc)
         
         layout.addSpacing(10)
@@ -725,7 +742,7 @@ class PackageDPanel(QDialog):
         
         # Description
         desc = QLabel("Fast productivity tools and keyboard shortcuts")
-        desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px;")
+        _style_description(self, desc, f"font-size: {config.FONT_SIZES['small']}px;")
         desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(desc)
         
@@ -790,7 +807,7 @@ class PackageDPanel(QDialog):
         layout.addWidget(export_label)
         
         export_desc = QLabel("Instantly export your current mixed color")
-        export_desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px; margin-bottom: 6px;")
+        _style_description(self, export_desc, f"font-size: {config.FONT_SIZES['small']}px; margin-bottom: 6px;")
         export_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(export_desc)
         
@@ -811,7 +828,7 @@ class PackageDPanel(QDialog):
         layout.addWidget(palette_label)
         
         palette_desc = QLabel("Generate color palettes based on your current mixed color")
-        palette_desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px; margin-bottom: 6px;")
+        _style_description(self, palette_desc, f"font-size: {config.FONT_SIZES['small']}px; margin-bottom: 6px;")
         palette_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(palette_desc)
         
@@ -841,7 +858,7 @@ class PackageDPanel(QDialog):
         layout.addWidget(picker_label)
         
         picker_desc = QLabel("Pick any color from anywhere on your screen with magnified preview")
-        picker_desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px; margin-bottom: 6px;")
+        _style_description(self, picker_desc, f"font-size: {config.FONT_SIZES['small']}px; margin-bottom: 6px;")
         picker_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(picker_desc)
         
@@ -935,7 +952,7 @@ class PackageDPanel(QDialog):
         
         # Description
         desc = QLabel("Customize your Color Mixer experience")
-        desc.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px;")
+        _style_description(self, desc, f"font-size: {config.FONT_SIZES['small']}px;")
         main_layout.addWidget(desc)
         
         # Scroll area for settings
@@ -1080,7 +1097,7 @@ class PackageDPanel(QDialog):
         
         # Algorithm description label (updates based on selection)
         self.algo_desc_label = QLabel("Standard digital color mixing using weighted RGB averaging.")
-        self.algo_desc_label.setStyleSheet(f"color: gray; font-size: {config.FONT_SIZES['small']}px; margin-left: 5px;")
+        _style_description(self, self.algo_desc_label, f"font-size: {config.FONT_SIZES['small']}px; margin-left: 5px;")
         self.algo_desc_label.setWordWrap(True)
         self.mixing_algo_combo.currentIndexChanged.connect(self._update_algo_description)
         layout.addWidget(self.algo_desc_label)
@@ -2536,6 +2553,11 @@ class PackageDPanel(QDialog):
         for _badge in getattr(self, '_themed_key_badges', []):
             try:
                 _style_key_badge(self, _badge)
+            except RuntimeError:
+                pass
+        for _desc, _desc_tail in getattr(self, '_themed_descriptions', []):
+            try:
+                _desc.setStyleSheet(f"color: {t['text_hint']}; " + _desc_tail)
             except RuntimeError:
                 pass
         for attr in ('_shortcuts_label', '_export_label', '_palette_label', '_picker_label'):

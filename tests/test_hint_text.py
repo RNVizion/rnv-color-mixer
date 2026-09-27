@@ -1,11 +1,21 @@
 """
-The fine-tune hint label, measured against the ground it actually sits on.
+The muted text, measured against the grounds it actually sits on.
 
-`text_hint` has exactly one consumer: core/color_fine_tune.py, a 10px QLabel
-under each slider. It is added into the QFrame built by
+`text_hint` has two consumers. The fine-tune hint in core/color_fine_tune.py
+is a 10px QLabel under each slider, added into the QFrame built by
 `_create_sliders_section`, so its ground is `panel_secondary` -- NOT
 `panel_bg`, which paints the QDialog behind that frame. Measuring against the
-dialog would have said light was fine when it was not.
+dialog would have said light was fine when it was not. The control panel's
+ten descriptions in core/package_d_panel.py sit on its tab pages, measured
+in the running app at #000000 in dark, #1a1a1a in image and #f5f5f5 in
+light. `panel_bg` is #1a1a1a in dark -- the lighter, so the harder, ground
+for a light ink -- and #f5f5f5 in light, so holding the hint on `panel_bg`
+below covers them.
+
+RNV-MUTED-DESCRIPTIONS, 2026-09-27 (ruling 1): the descriptions were
+`color: gray`, #808080 in every mode, until they joined this key -- the
+muted text all five applications paint, #888888 in dark and image and
+#666666 in light.
 
 Light was #888888 on #ffffff = 3.5407:1 for 10px text. It is now #666666,
 which clears 4.5 on every light ground in this app.
@@ -60,12 +70,12 @@ def contrast(a: str, b: str) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
-def test_the_hint_key_still_has_exactly_one_consumer():
+def test_the_hint_key_has_exactly_its_two_consumers():
     """Guard the guard, and guard the docstring with it.
 
-    Every figure here assumes the label is the one in color_fine_tune. A second
-    consumer on a different ground would make this file measure the wrong pair
-    while still passing.
+    Every figure here assumes the two consumers above and their two grounds.
+    A third consumer on a different ground would make this file measure the
+    wrong pair while still passing.
     """
     root = pathlib.Path(__file__).resolve().parent.parent
     sites = []
@@ -81,10 +91,10 @@ def test_the_hint_key_still_has_exactly_one_consumer():
             continue
         if "text_hint" in path.read_text(encoding="utf-8", errors="replace"):
             sites.append(path.relative_to(root).as_posix())
-    assert sites == ["core/color_fine_tune.py"], (
+    assert sorted(sites) == ["core/color_fine_tune.py", "core/package_d_panel.py"], (
         f"text_hint is read in {sites}. The grounds in this file were derived "
-        f"from color_fine_tune alone; re-derive them before trusting these "
-        f"figures.")
+        f"from color_fine_tune and the control panel; re-derive them before "
+        f"trusting these figures.")
 
 
 @pytest.mark.parametrize("theme", sorted(THEMES))
@@ -121,3 +131,63 @@ def test_light_is_the_one_that_was_fixed():
         "the light hint is back to #888888, which reads 3.5407:1 on this "
         "app's white frame")
     assert contrast(light["text_hint"], light["panel_secondary"]) >= TEXT_FLOOR
+
+
+# RNV-MUTED-DESCRIPTIONS
+# -------------------------------------------------- the descriptions (ruling 1)
+
+def test_the_muted_values_are_the_ones_the_fleet_already_uses():
+    """Ruling 1 was conditional: two values are fine if every app splits it by
+    mode, and only with values already in use. Both halves, held here."""
+    assert THEMES["DARK"]["text_hint"] == THEMES["IMAGE"]["text_hint"] == "#888888"
+    assert THEMES["LIGHT"]["text_hint"] == "#666666"
+
+
+def test_the_light_hint_has_its_own_name():
+    """Not the slider handle's: APP_HANDLE_LIGHT holds the same hex for
+    another job, and wired through it, text would move with the handle."""
+    import ast
+    import pathlib
+    from utils import config
+    src = pathlib.Path(config.__file__).read_text(encoding="utf-8-sig")
+    cls = next(n for n in ast.parse(src).body
+               if isinstance(n, ast.ClassDef) and n.name == "ThemeManager")
+    light = next(n.value for n in cls.body
+                 if isinstance(n, (ast.Assign, ast.AnnAssign))
+                 and getattr(n.targets[0] if isinstance(n, ast.Assign) else n.target,
+                             "id", None) == "LIGHT_THEME")
+    value = next(v for k, v in zip(light.keys, light.values)
+                 if isinstance(k, ast.Constant) and k.value == "text_hint")
+    assert isinstance(value, ast.Name) and value.id == "APP_HINT_LIGHT", ast.unparse(value)
+    assert config.APP_HINT_LIGHT == config.APP_HANDLE_LIGHT == "#666666"
+
+
+def test_no_label_is_written_in_a_css_grey():
+    """The literal the ruling retired, anywhere the application EVALUATES a
+    string. Docstrings and comments may still name it; code may not."""
+    import ast
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parent.parent
+    css_grey = re.compile(r"color\s*:\s*(gray|grey)\b", re.I)
+    found, files = [], 0
+    for path in sorted(root.rglob("*.py")):
+        rel = path.relative_to(root)
+        if any(p in {"tests", ".git", "__pycache__", "build", "dist", ".venv", "snapshots"}
+               for p in rel.parts):
+            continue
+        if len(rel.parts) == 1 and rel.name.startswith(("test_", "up")):
+            continue
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
+        if "RNV-DELIVERY-SCRIPT-DO-NOT-SWEEP" in text:
+            continue
+        files += 1
+        tree = ast.parse(text)
+        docs = {id(st.value) for node in ast.walk(tree)
+                for st in (node.body if isinstance(getattr(node, "body", None), list) else [])
+                if isinstance(st, ast.Expr) and isinstance(st.value, ast.Constant)}
+        found += [f"{rel}:{node.lineno}" for node in ast.walk(tree)
+                  if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                  and id(node) not in docs and css_grey.search(node.value)]
+    assert files >= 20, f"only {files} files swept -- the walk has gone blind"
+    assert not found, "CSS grey still written as a colour:\n  " + "\n  ".join(found)

@@ -139,3 +139,23 @@ def test_the_about_dialog_gold_follows_every_mode(app_window):
             about.close()
     finally:
         about.close()
+
+
+def test_the_panel_descriptions_follow_every_mode(app_window):
+    """RNV-MUTED-DESCRIPTIONS, ruling 1 of 2026-09-27. The control panel's ten
+    descriptions were `color: gray` in every mode. They draw in text_hint now
+    -- #888888 in dark and image, #666666 in light -- and like the badges they
+    are built before the panel knows its mode, so set_theme() redraws them."""
+    app_window.open_package_d_panel()
+    panel = app_window._package_d_panel
+    descriptions = [w for w, _tail in getattr(panel, "_themed_descriptions", [])]
+    assert len(descriptions) == 10, len(descriptions)
+    try:
+        for mode in _cycle(app_window):
+            ink = _dialog_palette(mode)["text_hint"]
+            for widget in descriptions:
+                sheet = widget.styleSheet()
+                assert sheet.startswith(f"color: {ink}; "), (mode, widget.text()[:40], sheet)
+                assert "gray" not in sheet and "grey" not in sheet, sheet
+    finally:
+        panel.close()
