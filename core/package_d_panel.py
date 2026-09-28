@@ -2846,3 +2846,30 @@ class PackageDPanel(QDialog):
         palette.setColor(QPalette.ColorRole.Window,          QColor(t2['panel_bg']))
         palette.setColor(QPalette.ColorRole.WindowText,      QColor(t2['text_color']))
         self.setPalette(palette)
+
+        # RNV-THEME-BOX 2026-09-27: the app calls this on every switch, with
+        # the panel open or hidden.
+        self._sync_theme_box()
+
+    def _sync_theme_box(self) -> None:
+        """Set the Default Theme box to the mode the app is in.
+
+        RNV-THEME-BOX 2026-09-27. The box was set when the panel was built
+        and never again, and the panel is kept -- closed, it hides, and the
+        same panel is shown again. So after a switch made with the panel
+        open, or while it was closed, the box still named the old mode, and
+        Save wrote the box's mode to the settings file: the next launch
+        opened in it. set_theme() calls this, and the app calls set_theme()
+        on every switch, with the panel open or hidden, so a panel shown
+        again already names the mode. It reads the mode where
+        _load_settings_into_ui() does: from the app's theme manager, not
+        from the settings file, which the theme button does not write.
+        """
+        handler = getattr(self.parent(), 'ui_handler', None)
+        combo = getattr(self, 'theme_combo', None)
+        if handler is None or combo is None:
+            return
+        index = {"dark": 0, "light": 1, "image": 2, "auto": 3}.get(
+            handler.theme_manager.current_theme)
+        if index is not None:
+            combo.setCurrentIndex(index)
