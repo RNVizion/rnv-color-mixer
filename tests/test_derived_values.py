@@ -625,3 +625,127 @@ def test_the_harmony_description_derives_its_wash(qapp):
         wash = re.search(r"background-color:\s*([^;]+);", sheet).group(1).strip()
         ink = getattr(C.ThemeManager, palette)["accent_ink"].lower()
         assert decompose(wash) == (ink, C.HARMONY_DESCRIPTION_ALPHA), (palette, sheet)
+
+
+
+# ------------------------------------------------ eight-digit hex, lower case
+# RNV-LOWER-EIGHT-GUARD, 2026-09-29: the test the transformer, the picker and
+# the palette manager gained on 2026-09-25, added here by ruling ("Add the
+# same test"). This application already wrote lower case, so nothing else
+# moves; the register's Notation section (rev 42) says each app's guard holds
+# its eight-digit values to lower case, and until now this one did not.
+#
+# The same two halves, with one difference in where the built values are
+# found. The other apps hold theirs at module level, in palettes and
+# constants. This one holds none there: every eight-digit value is
+# translucent(...) at the place it is used. So each call is evaluated where
+# it stands, and the helper is held to lower case for any spelling of any
+# named colour.
+
+#: Found when this was written; below a floor, the sweep has gone blind.
+LOWER8_FLOOR = 5
+LOWER8_FILES = 32
+LOWER8_NAMED = 21
+#: translucent() calls whose base is not a name the test can look up. Each is
+#: read from what it sets instead; a new one fails the test until it is.
+LOWER8_READ_WHERE_SET = {("core/package_d_panel.py", "_style_harmony_description")}
+
+
+def _lower8_calls():
+    """(rel, enclosing function, call, module name) for every translucent()
+    call in the application, in the order the source holds them."""
+    for rel, tree in _sources():
+        name = ".".join(rel.with_suffix("").parts)
+        owners = {}
+        for fn in ast.walk(tree):
+            if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for node in ast.walk(fn):
+                    owners.setdefault(id(node), fn.name)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and (
+                    getattr(node.func, "id", None) == "translucent"
+                    or getattr(node.func, "attr", None) == "translucent"):
+                yield rel, owners.get(id(node)), node, name
+
+
+def _lower8_values():
+    """(where, value) for every eight-digit hex string the application
+    builds: each translucent() call evaluated in its own module, and each
+    call in LOWER8_READ_WHERE_SET read from the sheet it sets, in both
+    palettes. The third item is the calls neither could read."""
+    import importlib
+    from types import SimpleNamespace
+
+    from PyQt6.QtWidgets import QLabel
+
+    def look_up(module, node):
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, ast.Name):
+            return getattr(module, node.id)
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            return getattr(getattr(module, node.value.id), node.attr)
+        raise AttributeError(ast.unparse(node))
+
+    built, unread = [], set()
+    for rel, owner, call, name in _lower8_calls():
+        module = importlib.import_module(name)
+        try:
+            helper = look_up(module, call.func)
+            args = [look_up(module, a) for a in call.args]
+        except AttributeError:
+            unread.add((rel.as_posix(), owner))
+            continue
+        built.append((f"{rel}:{call.lineno}  {ast.unparse(call)}", helper(*args)))
+    from core import package_d_panel
+    for is_dark in (True, False):
+        panel = SimpleNamespace(_is_dark=is_dark, harmony_description=QLabel())
+        package_d_panel._style_harmony_description(panel)
+        sheet = panel.harmony_description.styleSheet()
+        wash = re.search(r"background-color:\s*([^;]+);", sheet).group(1).strip()
+        built.append((f"the harmony wash, {'dark' if is_dark else 'light'}", wash))
+    return built, unread
+
+
+def test_eight_digit_hex_is_lower_case(qapp):
+    """RNV-LOWER-EIGHT, 2026-09-25. The register writes hex in lower case --
+    Notation, ruled 2026-08-15, Brand Book decision #19 -- and on 2026-09-25
+    Chris ruled that eight digits are hex too: #ed1a1a1a, never #ED1A1A1A.
+    Qt reads either case. This application's helper wrote lower case from
+    the start; this holds it there.
+
+    Both halves: every eight-digit value the application BUILDS -- each
+    translucent() call where it stands, and the helper itself for every
+    named colour in either case -- and every eight-digit literal it WRITES
+    in code. Docstrings are prose, and a sentence that names an upper-case
+    value as history keeps its case."""
+    built, unread = _lower8_values()
+    assert unread == LOWER8_READ_WHERE_SET, (
+        f"translucent() calls this test cannot read: {sorted(unread - LOWER8_READ_WHERE_SET)}; "
+        f"read each where it is set, as the harmony wash is")
+    assert len(built) >= LOWER8_FLOOR, (
+        f"only {len(built)} eight-digit values found; the sweep has gone blind")
+    upper = [f"{where} = {value}" for where, value in built
+             if not re.fullmatch(r"#[0-9a-f]{8}", value)]
+    named = sorted({v for v in vars(C).values()
+                    if isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)})
+    assert len(named) >= LOWER8_NAMED, f"only {len(named)} named colours found; the sweep has gone blind"
+    for base in named:
+        for spelling in (base.lower(), base.upper(), base[1:].upper()):
+            for alpha in (0, 0x19, 0xED, 0xFF):
+                value = C.translucent(spelling, alpha)
+                if value != "#%02x%s" % (alpha, base[1:].lower()):
+                    upper.append(f"translucent({spelling!r}, {alpha:#04x}) = {value}")
+    written, files = [], 0
+    for rel, tree in _sources():
+        files += 1
+        bare = _bare_strings(tree)
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and id(node) not in bare):
+                for hex8 in re.findall(r"#[0-9a-fA-F]{8}\b", node.value):
+                    if hex8 != hex8.lower():
+                        written.append(f"{rel}:{node.lineno}  {hex8}")
+    assert files >= LOWER8_FILES, f"only {files} files swept"
+    assert not upper, "built in upper case:\n  " + "\n  ".join(upper)
+    assert not written, "written in upper case:\n  " + "\n  ".join(written)
