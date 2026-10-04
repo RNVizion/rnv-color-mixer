@@ -11,8 +11,10 @@ the panel was built and never again. Measured with the app's own buttons:
   * the panel's Save writes the box's mode to the settings file.
 
 So a switch with the panel open, then Save, filed the old mode, and the next
-launch opened in it. The theme button does not write the mode itself, so the
-panel's Save is the one thing that does.
+launch opened in it. When this was written the theme button did not write
+the mode itself, so the panel's Save was the one thing that did; since
+RNV-THEME-SAVE (2026-09-30) the button files it too, and
+test_theme_button_saves.py holds that.
 
 Each test drives the app the way a person does: the theme button, the
 panel's opener, the panel's Close and Save.

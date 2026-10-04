@@ -27,8 +27,11 @@ RETIRED = {
     "#bfb145": "the magnifier grid pen; neither brand gold, invisible as a tuple",
 }
 
+# RNV-NAMED-AND-USED, 2026-10-04: the pressed fill is dialog_btn_pressed_bg,
+# the key the control panel presses to. Two main-window keys stood here that
+# no sheet read; they went from the palettes.
 GOLD_KEYS = ("accent", "accent_hover", "accent_ink", "tooltip_border",
-             "scrollbar_hover", "main_btn_pressed_bg", "main_btn_pressed_border")
+             "scrollbar_hover", "dialog_btn_pressed_bg")
 
 
 def _luminance(value: str) -> float:
@@ -142,7 +145,7 @@ def test_the_gold_key_list_still_matches_the_palette(name):
 
 def test_pressed_returns_to_the_accent_in_every_mode():
     for name, palette in PALETTES.items():
-        assert palette["main_btn_pressed_bg"] == palette["accent"], name
+        assert palette["dialog_btn_pressed_bg"] == palette["accent"], name
 
 
 def test_hover_moves_away_from_the_ground():

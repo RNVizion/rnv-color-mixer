@@ -19,6 +19,7 @@ _HEX_DATA_LINE = re.compile(
 )
 import xml.etree.ElementTree as ET
 from core.color_math import ColorMath
+from utils import config
 
 # Import logger
 try:
@@ -384,7 +385,9 @@ class PaletteFormats:
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             f.write(f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">\n')
             f.write('  <title>Color Mixer Palette</title>\n')
-            f.write('  <rect width="100%" height="100%" fill="#ffffff"/>\n')
+            # RNV-NAMED-AND-USED (2026-10-04): paper, edge and the two inks by
+            # name. They were #ffffff, #000000, #ffffff and #000000.
+            f.write(f'  <rect width="100%" height="100%" fill="{config.SVG_EXPORT_BG}"/>\n')
             
             for i, (color, weight) in enumerate(colors):
                 row, col = divmod(i, cols)
@@ -393,12 +396,12 @@ class PaletteFormats:
                 hex_color = ColorMath.rgb_to_hex(color)
                 
                 f.write(f'  <rect x="{x}" y="{y}" width="{swatch_size}" height="{swatch_size}" ')
-                f.write(f'fill="{hex_color}" stroke="#000000" stroke-width="1"/>\n')
+                f.write(f'fill="{hex_color}" stroke="{config.SVG_EXPORT_STROKE}" stroke-width="1"/>\n')
                 
                 text_x = x + swatch_size // 2
                 text_y = y + swatch_size // 2
                 brightness = sum(color) / 3
-                text_color = "#ffffff" if brightness < 128 else "#000000"
+                text_color = config.WHITE if brightness < 128 else config.TRUE_BLACK
                 
                 f.write(f'  <text x="{text_x}" y="{text_y}" ')
                 f.write(f'text-anchor="middle" dominant-baseline="central" ')

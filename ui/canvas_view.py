@@ -257,13 +257,16 @@ class ImageDisplayLabel(QLabel):
                         overlay_color = QColor(theme['accent'])
                         border_color = QColor(theme['accent'])
                         corner_color = QColor(theme['accent'])
-                        text_color = QColor(255, 255, 255)
+                        # RNV-NAMED-AND-USED (2026-10-04): the labels this
+                        # view paints took QColor() built from numbers; each
+                        # is the same colour, by its name in config.
+                        text_color = QColor(config.WHITE)
                     else:
                         _accent = theme['accent'] if theme else config.ThemeManager.DARK_THEME['accent']
                         overlay_color = QColor(_accent)
                         border_color = QColor(_accent)
                         corner_color = QColor(_accent)
-                        text_color = QColor(0, 0, 0)
+                        text_color = QColor(config.TRUE_BLACK)
                     
                     # Draw semi-transparent overlay
                     painter.fillRect(self.selection_rect, overlay_color)
@@ -298,7 +301,8 @@ class ImageDisplayLabel(QLabel):
                         bg_rect = text_rect.adjusted(-4, -2, 4, 2)
                         
                         if theme and theme['name'] == 'Dark':
-                            painter.fillRect(bg_rect, QColor(0, 0, 0, 180))
+                            painter.fillRect(bg_rect, QColor(config.translucent(
+                                config.TRUE_BLACK, config.CANVAS_LABEL_ALPHA)))
                         else:
                             painter.fillRect(bg_rect, QColor(200, 200, 200, 180))
                         
@@ -351,11 +355,11 @@ class ImageDisplayLabel(QLabel):
             
             # Background
             if theme and theme['name'] == 'Dark':
-                bg_color = QColor(0, 0, 0, 200)
-                border_color = QColor(230, 230, 230)
+                bg_color = QColor(config.translucent(config.TRUE_BLACK, config.CANVAS_PREVIEW_ALPHA))
+                border_color = QColor(config.CANVAS_PREVIEW_EDGE_DARK)
             else:
-                bg_color = QColor(255, 255, 255, 200)
-                border_color = QColor(0, 0, 0)
+                bg_color = QColor(config.translucent(config.WHITE, config.CANVAS_PREVIEW_ALPHA))
+                border_color = QColor(config.TRUE_BLACK)
             
             painter.fillRect(preview_rect, bg_color)
             
@@ -382,11 +386,11 @@ class ImageDisplayLabel(QLabel):
             
             # Text shadow
             if theme and theme['name'] == 'Dark':
-                shadow_pen = QPen(QColor(255, 255, 255), 1)
-                text_color = QColor(0, 0, 0)
+                shadow_pen = QPen(QColor(config.WHITE), 1)
+                text_color = QColor(config.TRUE_BLACK)
             else:
-                shadow_pen = QPen(QColor(0, 0, 0), 1)
-                text_color = QColor(255, 255, 255)
+                shadow_pen = QPen(QColor(config.TRUE_BLACK), 1)
+                text_color = QColor(config.WHITE)
             
             painter.setPen(shadow_pen)
             for dx in [-1, 0, 1]:

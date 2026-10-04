@@ -31,12 +31,15 @@ except ImportError:
 
 # Import SignalMixin for signal connection tracking
 from utils.signal_manager import SignalMixin
+# RNV-NAMED-AND-USED (2026-10-04): an overlay's tint, text and edge are
+# named in config.DEBUG_OVERLAY_COLORS. They were written out in this file.
+from utils import config
 
 
 class DebugOverlay(QLabel, SignalMixin):
     """Semi-transparent overlay showing dimension information as a child widget."""
     
-    def __init__(self, parent: QWidget | None = None, label_text: str = "Debug", color: str = "rgba(255, 100, 100, 200)") -> None:
+    def __init__(self, parent: QWidget | None = None, label_text: str = "Debug", color: str = config.DEBUG_OVERLAY_COLORS['default']) -> None:
         super().__init__(parent)
         
         # Initialize signal tracking
@@ -49,9 +52,9 @@ class DebugOverlay(QLabel, SignalMixin):
         self.setStyleSheet(f"""
             QLabel {{
                 background-color: {self.bg_color};
-                color: white;
+                color: {config.DEBUG_OVERLAY_COLORS['text']};
                 padding: 8px 12px;
-                border: 2px solid rgba(255, 255, 255, 230);
+                border: 2px solid {config.DEBUG_OVERLAY_COLORS['edge']};
                 border-radius: 6px;
                 font-weight: bold;
                 font-size: 13px;
@@ -122,7 +125,7 @@ class DebugOverlay(QLabel, SignalMixin):
 class DebugOverlayDetailed(QLabel, SignalMixin):
     """Debug overlay with additional information."""
     
-    def __init__(self, parent: QWidget | None = None, label_text: str = "Debug", color: str = "rgba(255, 100, 100, 200)") -> None:
+    def __init__(self, parent: QWidget | None = None, label_text: str = "Debug", color: str = config.DEBUG_OVERLAY_COLORS['default']) -> None:
         super().__init__(parent)
         
         # Initialize signal tracking
@@ -135,9 +138,9 @@ class DebugOverlayDetailed(QLabel, SignalMixin):
         self.setStyleSheet(f"""
             QLabel {{
                 background-color: {self.bg_color};
-                color: white;
+                color: {config.DEBUG_OVERLAY_COLORS['text']};
                 padding: 10px 14px;
-                border: 2px solid rgba(255, 255, 255, 230);
+                border: 2px solid {config.DEBUG_OVERLAY_COLORS['edge']};
                 border-radius: 6px;
                 font-weight: bold;
                 font-size: 12px;

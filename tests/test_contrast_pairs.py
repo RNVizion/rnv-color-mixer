@@ -249,14 +249,16 @@ def test_dialog_button_pressed_fills_with_the_ACCENT_not_the_derivative():
     on the derivative reads 5.5547 against the accent's 4.5429, so a swap
     improves the contrast number while breaking the scheme.
     """
+    # RNV-NAMED-AND-USED, 2026-10-04: read from dialog_btn_pressed_bg, the key
+    # a dialog fills from. This read a main-window key that no sheet used.
     light = config.ThemeManager.LIGHT_THEME
-    assert light["main_btn_pressed_bg"] == light["accent"] == config.BRAND_DARK_GOLD
+    assert light["dialog_btn_pressed_bg"] == light["accent"] == config.BRAND_DARK_GOLD
     assert light["accent_ink"] == config.BRAND_DARK_GOLD_DEEP
     assert light["accent_ink"] != light["accent"], (
         "light must spend its derivative on TEXT and keep the accent as the fill")
     for name in ("DARK", "IMAGE"):
         palette = getattr(config.ThemeManager, name + "_THEME")
-        assert palette["main_btn_pressed_bg"] == palette["accent"] == config.BRAND_GOLD
+        assert palette["dialog_btn_pressed_bg"] == palette["accent"] == config.BRAND_GOLD
 
 
 def test_four_gold_values_in_the_whole_app():

@@ -23,31 +23,41 @@ ROOT = Path(__file__).resolve().parent.parent
 
 OLD = ("button_bg", "button_text", "button_hover_bg", "button_pressed_bg",
        "button_pressed_text", "button_pressed_border")
-NEW = tuple("main_" + n.replace("button_", "btn_") for n in OLD)
-DIALOG = ("dialog_btn_bg", "dialog_btn_hover_bg", "dialog_btn_pressed_bg")
+#: RNV-NAMED-AND-USED, 2026-10-04: the families as the application reads
+#: them. The rename carried six names across. The main window reads four;
+#: the other two went with the ruling that a palette holds what is used. A
+#: dialog key one mode alone reads is in that mode's palette alone: the
+#: About dialog's tabs hover to dialog_btn_hover_bg in dark, a light dialog's
+#: button rests on dialog_btn_bg, and the control panel presses to
+#: dialog_btn_pressed_bg in every mode. Image mode is the dark palette under
+#: its own name.
+NEW = ("main_btn_bg", "main_btn_text", "main_btn_hover_bg",
+       "main_btn_pressed_text")
+DIALOG = {
+    "dark": ("dialog_btn_hover_bg", "dialog_btn_pressed_bg"),
+    "light": ("dialog_btn_bg", "dialog_btn_pressed_bg"),
+    "image": ("dialog_btn_hover_bg", "dialog_btn_pressed_bg"),
+}
 
 PINNED_MAIN = {
     "dark": {"main_btn_bg": "#1a1a1a", "main_btn_text": "#dddddd",
-             "main_btn_hover_bg": "#333333", "main_btn_pressed_bg": "#d2bc93",
-             "main_btn_pressed_text": "#000000",
-             "main_btn_pressed_border": "#d2bc93"},
+             "main_btn_hover_bg": "#333333",
+             "main_btn_pressed_text": "#000000"},
     "light": {"main_btn_bg": "#ffffff", "main_btn_text": "#000000",
-              "main_btn_hover_bg": "#333333", "main_btn_pressed_bg": "#8c7337",
-              "main_btn_pressed_text": "#ffffff",
-              "main_btn_pressed_border": "#8c7337"},
+              "main_btn_hover_bg": "#333333",
+              "main_btn_pressed_text": "#ffffff"},
     "image": {"main_btn_bg": "#1a1a1a", "main_btn_text": "#dddddd",
-              "main_btn_hover_bg": "#333333", "main_btn_pressed_bg": "#d2bc93",
-              "main_btn_pressed_text": "#000000",
-              "main_btn_pressed_border": "#d2bc93"},
+              "main_btn_hover_bg": "#333333",
+              "main_btn_pressed_text": "#000000"},
 }
 
 #: What the three dialogs painted before the rename, key for key.
 PINNED_DIALOG = {
-    "dark": {"dialog_btn_bg": "#1a1a1a", "dialog_btn_hover_bg": "#333333",
+    "dark": {"dialog_btn_hover_bg": "#333333",
              "dialog_btn_pressed_bg": "#d2bc93"},
-    "light": {"dialog_btn_bg": "#ffffff", "dialog_btn_hover_bg": "#333333",
+    "light": {"dialog_btn_bg": "#ffffff",
               "dialog_btn_pressed_bg": "#8c7337"},
-    "image": {"dialog_btn_bg": "#1a1a1a", "dialog_btn_hover_bg": "#333333",
+    "image": {"dialog_btn_hover_bg": "#333333",
               "dialog_btn_pressed_bg": "#d2bc93"},
 }
 
@@ -128,7 +138,7 @@ def test_no_application_file_is_exempt_from_the_sweep():
 
 def test_all_three_palettes_carry_both_families():
     for mode, palette in _palettes().items():
-        missing = [n for n in NEW + DIALOG if n not in palette]
+        missing = [n for n in NEW + DIALOG[mode] if n not in palette]
         assert not missing, f"{mode} palette missing {missing}"
 
 

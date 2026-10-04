@@ -33,6 +33,9 @@ from utils import config as C
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'utils/config.py'
 PALETTES = ['DARK_THEME', 'LIGHT_THEME', 'IMAGE_THEME']
+#: RNV-NAMED-AND-USED, 2026-10-04: a palette written as another one spread
+#: under its own name -> the palette it spreads.
+SPREADS = {'IMAGE_THEME': 'DARK_THEME'}
 HEX = re.compile(r"#[0-9a-fA-F]{3,8}$")
 
 #: hex -> the two constants that share it, and the role each one plays. A
@@ -46,8 +49,9 @@ SPLITS = {
                 # RNV-MUTED-DESCRIPTIONS, 2026-09-27: hint and muted text,
                 # which had borrowed the handle's name.
                 'APP_HINT_LIGHT': 'hint and muted text in light'},
-    '#eeeeee': {'APP_HANDLE_HOVER_DARK': 'a dark ink-grid step, app-owned',
-                'APP_ITEM_HOVER_LIGHT': 'the light register plate APP["hover-light"]'},
+    # RNV-NAMED-AND-USED, 2026-10-04: #eeeeee was declared here as a split, the
+    # light register plate and a dark slider handle's hover. Nothing painted the
+    # handle's name, so it went, and the plate's hex has one name again.
     # RNV-GOLD-HOVER, 2026-09-12. The light handle edge held a step no other
     # application used and nothing else in this one, and it lost its scrollbar
     # role to the gold. It now takes the step this file already calls hint and
@@ -97,6 +101,21 @@ def _entries(d):
         yield ast.literal_eval(k), v
 
 
+def _spread(d):
+    """The names a dict node spreads: the `**OTHER` expansions _entries skips."""
+    return [ast.unparse(v) for k, v in zip(d.keys, d.values) if k is None]
+
+
+def _keys(palette):
+    """The keys a palette holds: its own entries, and those of any palette it
+    spreads."""
+    d = _palette_dicts()[palette]
+    keys = {k for k, _ in _entries(d)}
+    for other in _spread(d):
+        keys |= _keys(other)
+    return keys
+
+
 # ------------------------------------------------------------- guard the guard
 
 def test_this_guard_can_see_the_palettes():
@@ -108,6 +127,15 @@ def test_this_guard_can_see_the_palettes():
         f'palettes not found as dict literals inside ThemeManager: '
         f'{set(PALETTES) - set(found)}')
     for name, d in found.items():
+        if name in SPREADS:
+            # RNV-NAMED-AND-USED, 2026-10-04: a palette that is another under
+            # its own name writes almost nothing, and is swept through the one
+            # it spreads. What it must do is spread that one and no other.
+            assert _spread(d) == [SPREADS[name]], (
+                f'{name} spreads {_spread(d)}, not {SPREADS[name]} alone')
+            continue
+        assert not _spread(d), (
+            f'{name} spreads {_spread(d)}; the sweep below reads literals')
         assert len(list(_entries(d))) > 20, (
             f'{name} has {len(list(_entries(d)))} entries; the sweep below '
             f'would pass on almost nothing')
@@ -202,8 +230,7 @@ def test_no_undeclared_second_name_for_one_colour():
 @pytest.mark.parametrize('key', ['slider_groove', 'menu_edge', 'main_btn_hover_text'])
 def test_the_keys_this_pass_added_exist_in_every_mode(key):
     for palette in PALETTES:
-        keys = {k for k, _ in _entries(_palette_dicts()[palette])}
-        assert key in keys, f'{palette} has no {key!r}'
+        assert key in _keys(palette), f'{palette} has no {key!r}'
 
 
 def test_the_slider_groove_is_read_from_one_key_everywhere():
@@ -254,7 +281,10 @@ def test_the_light_button_hover_uses_the_alias_that_exists_for_it():
     wrote the value out by hand instead. Assigned from APP_BORDER_DARK rather
     than repeating #333333, so the two cannot drift apart."""
     d = dict(_entries(_palette_dicts()['LIGHT_THEME']))
-    for key in ('main_btn_hover_bg', 'dialog_btn_hover_bg'):
+    # RNV-NAMED-AND-USED, 2026-10-04: the main button's hover alone. The light
+    # palette held a dialog hover at the same alias and no light sheet read it:
+    # a light dialog's button hovers to panel_hover.
+    for key in ('main_btn_hover_bg',):
         v = d[key]
         assert isinstance(v, ast.Name) and v.id == 'APP_BTN_HOVER_INVERSE', (
             f'LIGHT {key} does not read APP_BTN_HOVER_INVERSE')

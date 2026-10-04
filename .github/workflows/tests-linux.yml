@@ -65,12 +65,15 @@ jobs:
         # rename edited four quoted keys in the locked file. The
         # digest below is that file's, and tests/test_locked_file_
         # digest.py now checks it in the suite as well as here.
+        # RNV-NAMED-AND-USED 2026-10-04: re-baselined. Ruled: the
+        # same-keys test may change so that a palette holds no value
+        # its mode never reads. One test moved; the digest is its file's.
         run: |
           python -c "
           import hashlib
           with open('test_rnv_color_mixer.py', 'rb') as f:
               digest = hashlib.sha256(f.read()).hexdigest()
-          expected = '0827b02dbaa946087da83a27b391065aaa6114cfe43a78c958f6b0a502b0eddd'
+          expected = 'e00c2424a8c64affdaf67547e59c633e7958427ad26f0186253ae599fb992edb'
           if digest != expected:
               print(f'LOCKED FILE INTEGRITY VIOLATION')
               print(f'  expected: {expected}')

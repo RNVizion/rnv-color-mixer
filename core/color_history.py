@@ -7,6 +7,7 @@ import json
 import os
 from datetime import datetime
 from core.color_math import ColorMath
+from utils import config
 
 # Import logger
 try:
@@ -332,11 +333,13 @@ class ColorHistory:
                 f.write("<html>\n<head>\n")
                 f.write("<title>Color Mixer - Color History</title>\n")
                 f.write("<style>\n")
-                f.write("body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }\n")
-                f.write(".color { display: flex; align-items: center; margin: 10px 0; padding: 10px; background: white; border-radius: 5px; }\n")
-                f.write(".swatch { width: 60px; height: 40px; border: 2px solid #333; margin-right: 15px; border-radius: 3px; }\n")
+                # RNV-NAMED-AND-USED (2026-10-04): the page's four colours, by
+                # name. They were #f5f5f5, white, #333 and #333; the same colours.
+                f.write(f"body {{ font-family: Arial, sans-serif; padding: 20px; background: {config.HISTORY_EXPORT_PAGE_BG}; }}\n")
+                f.write(f".color {{ display: flex; align-items: center; margin: 10px 0; padding: 10px; background: {config.HISTORY_EXPORT_CARD_BG}; border-radius: 5px; }}\n")
+                f.write(f".swatch {{ width: 60px; height: 40px; border: 2px solid {config.HISTORY_EXPORT_INK}; margin-right: 15px; border-radius: 3px; }}\n")
                 f.write(".info { flex: 1; }\n")
-                f.write("h1 { color: #333; }\n")
+                f.write(f"h1 {{ color: {config.HISTORY_EXPORT_INK}; }}\n")
                 f.write("</style>\n")
                 f.write("</head>\n<body>\n")
                 

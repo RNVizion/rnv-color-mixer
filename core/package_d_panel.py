@@ -382,10 +382,10 @@ class PackageDPanel(QDialog):
     def _create_debug_overlays(self) -> None:
         """Create debug overlays for Package D Panel."""
         # Panel overlay - TOP-RIGHT (green)
-        self.debug_overlay_panel = DebugOverlay(self, "Package D Panel", "rgba(80, 255, 80, 220)")
+        self.debug_overlay_panel = DebugOverlay(self, "Package D Panel", config.DEBUG_OVERLAY_COLORS['panel'])
         
         # Tabs overlay - TOP-LEFT (orange) - custom position
-        self.debug_overlay_tabs = DebugOverlay(self.tabs, "Tabs Widget", "rgba(255, 200, 80, 220)")
+        self.debug_overlay_tabs = DebugOverlay(self.tabs, "Tabs Widget", config.DEBUG_OVERLAY_COLORS['tabs'])
         
         # Override position_overlay for tabs overlay to place in TOP-LEFT
         def position_tabs_overlay() -> None:

@@ -1587,13 +1587,19 @@ class TestConfigExtended(unittest.TestCase):
         for t in [self.tm.DARK_THEME,self.tm.LIGHT_THEME,self.tm.IMAGE_THEME]:
             v=t["menu_disabled"]; self.assertTrue(v.startswith("#"),f"Bad menu_disabled: {v}")
 
-    # ── All three themes must have identical key sets ─────────────────────────
+    # ── The themes hold the same keys, bar the two a single mode reads ────────
     def test_all_themes_same_keys(self):
         dk=set(self.tm.DARK_THEME.keys())
         lk=set(self.tm.LIGHT_THEME.keys())
         ik=set(self.tm.IMAGE_THEME.keys())
-        self.assertEqual(dk,lk,
-            f"DARK vs LIGHT key mismatch: {dk.symmetric_difference(lk)}")
+        # RNV-NAMED-AND-USED 2026-10-04: a key only one mode reads is in that
+        # mode's palette alone; its other half was a value nothing showed.
+        # Dark's dialogs alone read dialog_btn_hover_bg and light's alone read
+        # dialog_btn_bg, each from its own palette by name.
+        self.assertEqual(dk-lk,{"dialog_btn_hover_bg"},
+            f"keys only DARK holds: {dk-lk}")
+        self.assertEqual(lk-dk,{"dialog_btn_bg"},
+            f"keys only LIGHT holds: {lk-dk}")
         self.assertEqual(dk,ik,
             f"DARK vs IMAGE key mismatch: {dk.symmetric_difference(ik)}")
 

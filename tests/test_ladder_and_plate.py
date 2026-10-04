@@ -1,5 +1,4 @@
-"""Three neutrals reclassified from app-owned to mirrored, and one deliberate
-coincidence that must not join them.
+"""Three neutrals reclassified from app-owned to mirrored.
 
 WHAT THIS PASS DID. This app already NAMED these values -- the 2026-08-29 pass
 did that. What it could not do was classify them, because the register had not
@@ -15,12 +14,12 @@ specified" because APP["border"] #333333 is not #3a3a3a, treating the border as
 a missing rung. It is not a rung: #333333 is grey(3) on the INK grid, which
 governs inks and EDGES. Two families compared to each other.
 
-THE COINCIDENCE. APP_HANDLE_HOVER_DARK is also #eeeeee. It is the dark slider
-handle when hovered -- grey(14) on the ink grid, one step above APP_TEXT_DARK
-at grey(13), doing an ink job in a dark palette. APP["hover-light"] is a LIGHT
-SURFACE. grey(14) is reachable from both families, which is the sort of
-coincidence a published grid makes possible, and it must be named rather than
-noticed.
+THE COINCIDENCE THAT WENT. Until RNV-NAMED-AND-USED, 2026-10-04, a second
+name held #eeeeee here: the dark slider handle's hover, grey(14) on the ink
+grid, kept apart from APP["hover-light"] by a table and three tests in this
+file. No sheet painted that name -- a hovered handle takes the accent -- so
+it went, and the plate's hex has one name again. With nothing left to keep
+apart, the table and its tests went with it.
 """
 from __future__ import annotations
 
@@ -53,24 +52,6 @@ NEW = {
 PALETTES = {'DARK_THEME': ThemeManager.DARK_THEME,
             'LIGHT_THEME': ThemeManager.LIGHT_THEME,
             'IMAGE_THEME': ThemeManager.IMAGE_THEME}
-
-#: App-owned values that DELIBERATELY share a hex with a register entry.
-#: Sharing a VALUE is not playing the same ROLE, and a value check cannot tell
-#: the difference -- so the intentional ones are named here, with what they
-#: share and why they must NOT follow if the register moves.
-#:
-#: name -> (register key, why it is not the same role)
-COINCIDENT = {
-    'APP_HANDLE_HOVER_DARK': (
-        'hover-light',
-        'Both are #eeeeee. The register entry is a LIGHT SURFACE -- the '
-        'interaction plate a light-mode control hovers to. This is the DARK '
-        'slider handle when hovered: an ink-grid step, grey(14), one above '
-        'APP_TEXT_DARK at grey(13), drawn on a dark ground. Different mode, '
-        'different family, different job. grey(14) is simply reachable from '
-        'both. If APP["hover-light"] moves off grey(14) this must NOT follow '
-        'it, which is why it is named here rather than mirrored.'),
-}
 
 #: The value the plate is NOT, and the reason the distinction is worth a test.
 FLOOR = '#e8e8e8'
@@ -115,7 +96,7 @@ def _entry(node: ast.Dict, key: str):
 def test_everything_this_file_reads_still_exists():
     """Renaming a constant must fail loudly here rather than let the rest of
     this file pass quietly over nothing."""
-    for name in list(NEW) + list(COINCIDENT):
+    for name in NEW:
         assert hasattr(config, name), f'utils.config has no {name}'
     for dict_name, live in PALETTES.items():
         assert live, f'{dict_name} is empty'
@@ -222,48 +203,3 @@ def test_the_light_panel_hover_names_the_plate():
         f'LIGHT_THEME["panel_hover"] is '
         f'{ast.unparse(value) if value else "missing"}, not the plate constant')
     assert ThemeManager.LIGHT_THEME['panel_hover'] == config.APP_ITEM_HOVER_LIGHT
-
-
-# -------------------------------------------------------------- the coincidence
-
-def test_every_coincidence_still_coincides():
-    """A named coincidence that no longer shares a value is a dead exemption,
-    and a dead exemption is a licence waiting for a defect: it would let a
-    genuinely misclassified value hide behind it."""
-    brand = pytest.importorskip('engine.brand', reason='rnv-brand not importable')
-    stale = []
-    for name, (key, _why) in COINCIDENT.items():
-        mine = getattr(config, name).lower()
-        theirs = brand.APP.get(key)
-        if theirs is None:
-            stale.append(f'{name}: the register no longer holds APP[{key!r}]')
-        elif mine != theirs.lower():
-            stale.append(f'{name} = {mine} no longer matches APP[{key!r}] {theirs}')
-    assert not stale, (
-        'COINCIDENT entries that no longer describe reality:\n  '
-        + '\n  '.join(stale)
-        + '\n\nDelete the entry or correct it -- do not leave it standing.')
-
-
-def test_no_coincidence_is_also_mirrored():
-    """Guard the guard. The exemption is only for app-owned values; a name in
-    both tables would quietly exempt a mirrored value from its own mirror."""
-    for name in COINCIDENT:
-        assert name not in NEW, f'{name} is both mirrored and exempt from the mirror'
-    mirror = pathlib.Path(__file__).with_name('test_app_mirror.py')
-    source = mirror.read_text(encoding='utf-8')
-    for name in COINCIDENT:
-        assert f"'{name}':" not in source, (
-            f'{name} is a named coincidence and is also pinned in '
-            f'test_app_mirror.py. It cannot be both.')
-
-
-def test_the_coincidence_is_in_the_other_mode():
-    """What actually separates the two: one is a light surface, the other a
-    dark ink. If the handle hover ever appears in a light palette, the reason
-    it is exempt has gone."""
-    for dict_name in ('LIGHT_THEME',):
-        for key, value in PALETTES[dict_name].items():
-            assert value != config.APP_HANDLE_HOVER_DARK or \
-                value == config.APP_ITEM_HOVER_LIGHT, (
-                    f'{dict_name}[{key!r}] carries the dark handle hover')

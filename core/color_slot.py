@@ -66,13 +66,15 @@ class ColorSlot(QWidget, SignalMixin):
         
         self.index = index
         self.on_change = on_change_callback
-        self.color = (200, 200, 200)
+        # RNV-NAMED-AND-USED (2026-10-04): config.DEFAULT_COLOR is this
+        # colour's name. Nothing read it; it was written out here five times.
+        self.color = config.DEFAULT_COLOR
         self._weight = 0
         self.is_dark = True
         self.is_image_mode = False  # Track if in image mode
         
         # Color history for undo/redo (stores up to 33 entries)
-        self._color_history = [(200, 200, 200)]  # Initial color
+        self._color_history = [config.DEFAULT_COLOR]  # Initial color
         self._history_index = 0  # Current position in history
         self._skip_history = False  # Flag to skip adding to history during undo/redo
         
@@ -496,12 +498,12 @@ class ColorSlot(QWidget, SignalMixin):
 
     def clear(self) -> None:
         """Clear the color slot and reset history."""
-        self.color = (200, 200, 200)
+        self.color = config.DEFAULT_COLOR
         self._weight = 0
         self.weight_slider.setValue(0)
         
         # Reset history
-        self._color_history = [(200, 200, 200)]
+        self._color_history = [config.DEFAULT_COLOR]
         self._history_index = 0
         
         self._update_display()
@@ -863,7 +865,7 @@ class ColorSlot(QWidget, SignalMixin):
     
     def _reset_color(self) -> None:
         """Reset the color to default gray."""
-        self.set_color((200, 200, 200))
+        self.set_color(config.DEFAULT_COLOR)
         if logger:
             logger.info("Color reset to default")
     

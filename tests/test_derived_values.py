@@ -643,9 +643,12 @@ def test_the_harmony_description_derives_its_wash(qapp):
 # named colour.
 
 #: Found when this was written; below a floor, the sweep has gone blind.
-LOWER8_FLOOR = 5
+#: RNV-NAMED-AND-USED, 2026-10-04: three of the canvas's plates are built
+#: by translucent() now, and three colours the code spelled out have names
+#: with a value of their own.
+LOWER8_FLOOR = 8
 LOWER8_FILES = 32
-LOWER8_NAMED = 21
+LOWER8_NAMED = 24
 #: translucent() calls whose base is not a name the test can look up. Each is
 #: read from what it sets instead; a new one fails the test until it is.
 LOWER8_READ_WHERE_SET = {("core/package_d_panel.py", "_style_harmony_description")}

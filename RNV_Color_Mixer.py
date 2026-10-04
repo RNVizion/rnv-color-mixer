@@ -571,7 +571,7 @@ class ColorMixerApp(QMainWindow):
             slots_data = []
             for slot in self.slots:
                 slot_info = {
-                    'color': list(slot.get_color()) if slot.get_color() else [200, 200, 200],
+                    'color': list(slot.get_color()) if slot.get_color() else list(config.DEFAULT_COLOR),
                     'weight': slot.get_weight(),
                     'label': getattr(slot, 'label_text', f"Color {len(slots_data)+1}")
                 }
@@ -616,7 +616,7 @@ class ColorMixerApp(QMainWindow):
             slots_data = session_data.get('slots', [])
             for i, slot_info in enumerate(slots_data):
                 if i < len(self.slots):
-                    color = tuple(slot_info.get('color', [200, 200, 200]))
+                    color = tuple(slot_info.get('color', config.DEFAULT_COLOR))
                     weight = slot_info.get('weight', 0)
                     self.slots[i].set_color(color)
                     self.slots[i].set_weight(weight)
@@ -868,6 +868,16 @@ class ColorMixerApp(QMainWindow):
                 is_dark = self.ui_handler.is_dark_mode() or self.ui_handler.is_image_mode()
                 self._package_d_panel.set_theme(is_dark)
                 logger.debug(f"Theme applied to Package D panel (dark={is_dark})")
+            
+            # RNV-THEME-SAVE 2026-09-30: file the mode this press set, as the
+            # picker's and the transformer's theme buttons do. Until now only
+            # the control panel's Save wrote it, so a switch made here was
+            # lost at the next launch. The same key Save writes, and the
+            # same file; a saved Auto gives way to the mode the app is in.
+            if self.settings_manager:
+                self.settings_manager.set("preferences.theme",
+                                          self.ui_handler.theme_manager.current_theme)
+                self.settings_manager.save_settings()
         
         ErrorHandler.safe_execute(cycle_theme, "cycling theme", print)
 
@@ -1144,7 +1154,9 @@ class ColorMixerApp(QMainWindow):
             logger.error("Error creating canvas view", error=e)
             placeholder = QLabel("Canvas view failed to initialize")
             placeholder.setMinimumSize(400, 200)
-            placeholder.setStyleSheet("background-color: #ffcccc; border: 2px solid red;")
+            # RNV-NAMED-AND-USED (2026-10-04): was #ffcccc and the CSS name red.
+            placeholder.setStyleSheet(
+                f"background-color: {config.CANVAS_FAILED_BG}; border: 2px solid {config.CANVAS_FAILED_EDGE};")
             parent_layout.addWidget(placeholder, 3)
 
     def _build_status_bar(self) -> None:
@@ -1747,7 +1759,7 @@ class ColorMixerApp(QMainWindow):
             # Restore slot data
             for slot_data in slots_data:
                 index = slot_data.get('index', 0)
-                color = tuple(slot_data.get('color', [200, 200, 200]))
+                color = tuple(slot_data.get('color', config.DEFAULT_COLOR))
                 weight = slot_data.get('weight', 0)
                 
                 if index < len(self.slots):
@@ -1756,7 +1768,7 @@ class ColorMixerApp(QMainWindow):
             
             # Clear any extra slots (if session had fewer slots)
             for i in range(len(slots_data), len(self.slots)):
-                self.slots[i].set_color((200, 200, 200))
+                self.slots[i].set_color(config.DEFAULT_COLOR)
                 self.slots[i].set_weight(0)
             
             # Restore settings (optional)
@@ -2407,7 +2419,7 @@ class ColorMixerApp(QMainWindow):
                 self.current_mixed_color = config.INITIAL_COLOR_TUPLE
                 self.current_hex = config.INITIAL_COLOR_HEX
                 self.current_rgb = config.INITIAL_COLOR_RGB
-                self._update_preview((0, 0, 0))
+                self._update_preview(config.INITIAL_COLOR_TUPLE)
                 if self.canvas_view:
                     self.canvas_view.hide_preview()
                 return
@@ -2463,7 +2475,7 @@ class ColorMixerApp(QMainWindow):
         """Update preview safely with RGB/HSV values based on settings."""
         def update() -> None:
             if not color:
-                color_to_use = (0, 0, 0)
+                color_to_use = config.INITIAL_COLOR_TUPLE
             else:
                 color_to_use = color
             
@@ -2656,7 +2668,8 @@ class ColorMixerApp(QMainWindow):
                 
             center_x, center_y = config.SWATCH_OUTPUT_SIZE[0] // 2, config.SWATCH_OUTPUT_SIZE[1] // 2
             brightness = sum(color_rgb) / 3
-            text_color = "white" if brightness < 128 else "black"
+            # RNV-NAMED-AND-USED (2026-10-04): were the CSS names white and black.
+            text_color = config.WHITE if brightness < 128 else config.TRUE_BLACK
             
             draw.text((center_x, center_y), self.current_hex, fill=text_color, anchor="mm", font=font)
             
@@ -2722,7 +2735,7 @@ class ColorMixerApp(QMainWindow):
                 
             from PIL import Image, ImageDraw
             
-            img = Image.new("RGB", (800, 600), "white")
+            img = Image.new("RGB", (800, 600), config.SVG_EXPORT_BG)
             draw = ImageDraw.Draw(img)
             
             x, y = 50, 50

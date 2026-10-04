@@ -57,6 +57,16 @@ INITIAL_COLOR_RGB   = "rgb(0,0,0)"
 DEBUG_OVERLAY_COLORS = {
     'app_window':  'rgba(255, 80, 80, 220)',
     'slots_panel': 'rgba(80, 80, 255, 220)',
+    # RNV-NAMED-AND-USED (2026-10-04): the control panel's two, and the
+    # tint an overlay takes when it is given none. Each was written out
+    # where it is used; the same values.
+    'panel':       'rgba(80, 255, 80, 220)',
+    'tabs':        'rgba(255, 200, 80, 220)',
+    'default':     'rgba(255, 100, 100, 200)',
+    # and what every overlay writes and edges itself in, whatever its tint.
+    # The text was the CSS name `white`, which is this value.
+    'text':        '#ffffff',
+    'edge':        'rgba(255, 255, 255, 230)',
 }
 
 # UI settings
@@ -191,8 +201,9 @@ BRAND_DARK_GOLD_HOVER: Final[str] = BRAND_DARK_GOLD_DEEP
 BRAND_DARK_GOLD_PRESSED: Final[str] = BRAND_DARK_GOLD
 BRAND_GOLD_PRESSED: Final[str] = BRAND_GOLD
 
-BRAND_GOLD_RGB: Final[tuple[int, int, int]] = _to_rgb(BRAND_GOLD)
-BRAND_DARK_GOLD_RGB: Final[tuple[int, int, int]] = _to_rgb(BRAND_DARK_GOLD)
+# RNV-NAMED-AND-USED (2026-10-04): the two golds as integer triples stood
+# here, and nothing in the application read either. A name is kept for
+# what uses it; _to_rgb() above still derives a triple when one is needed.
 
 # Declarative provenance, read by tests/test_brand_mirror.py. A classification
 # that lives only in a test drifts from the thing it classifies.
@@ -247,21 +258,10 @@ APP_TEXT_DARK: Final[str] = "#dddddd"
 """Primary text in dark and image. Also the slider handle, which takes the
 brightest step in the ramp rather than a colour of its own."""
 
-APP_HANDLE_HOVER_DARK: Final[str] = "#eeeeee"
-"""Slider handle when hovered, dark and image. One step above the
-text: grey(14), where APP_TEXT_DARK is grey(13), on the published
-ink grid. Held #f0f0f0 until 2026-08-28, when the gap to #e0e0e0 was
-0x10 -- the surface ladder step, not the grid step -- and the
-sentence was true by accident.
-
-APP-OWNED, AND IT SHARES A HEX WITH APP_ITEM_HOVER_LIGHT. Both are #eeeeee and
-they are not the same thing: that one is APP["hover-light"], a LIGHT surface
-the register owns; this is a DARK handle, an ink-grid step doing an ink job.
-grey(14) is reachable from both families, which is exactly the sort of
-coincidence the ink grid makes possible and the reason it has to be named
-rather than noticed. If the register moves the light plate, this must NOT
-follow. tests/test_ladder_and_plate.py asserts the coincidence in both
-directions."""
+# RNV-NAMED-AND-USED (2026-10-04): a name for the dark slider handle's hover,
+# grey(14), stood here. No sheet painted it: every slider's hovered handle
+# takes the accent. It went, and with it the one coincidence it made, a
+# second name on APP_ITEM_HOVER_LIGHT's #eeeeee.
 
 APP_CANVAS_DARK: Final[str] = "#0a0a0a"
 """engine/brand.py APP["canvas"]. The ground BELOW the panel in dark and image:
@@ -401,8 +401,8 @@ SPLIT, NOT RENAMED. APP_BTN_PRESSED is the same hex and stays exactly as it
 is. That one is a button in its PRESSED state; this one is a resting trough
 and a resting edge. Wiring a groove through the pressed name would claim an
 interaction state for a piece of chrome on the strength of a shared byte --
-the same reasoning this file already gives for APP_HANDLE_HOVER_DARK sharing
-grey(14) with APP_ITEM_HOVER_LIGHT."""
+the same reasoning this file gives for APP_MENU_DIM_DARK sharing grey(6)
+with APP_HANDLE_LIGHT."""
 
 APP_CHROME_LIGHT: Final[str] = "#e0e0e0"
 """The same job in light: the slider groove. Darker than the #f5f5f5 panel, so
@@ -436,7 +436,6 @@ NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
     "APP_SURFACE_DARK": "step",
     "APP_BORDER_DARK": "step",
     "APP_TEXT_DARK": "step",
-    "APP_HANDLE_HOVER_DARK": "step",
     "APP_CANVAS_DARK": "step",
     "APP_CARD_DARK": "step",
     "APP_PANEL_HOVER_DARK": "step",
@@ -510,6 +509,52 @@ as the dim, for an unrelated job, so it keeps its own name."""
 SCREEN_INFO_ALPHA: Final[int] = 0xB4
 """180. The screen picker's colour readout panel (TRUE_BLACK)."""
 
+CANVAS_LABEL_ALPHA: Final[int] = 0xB4
+"""180. The plate behind a dragged selection's size, on the canvas."""
+
+CANVAS_PREVIEW_ALPHA: Final[int] = 0xC8
+"""200. The plate behind the canvas's colour preview."""
+
+
+# ==================== COLOURS THE CODE SPELLED OUT ====================
+#
+# RNV-NAMED-AND-USED (2026-10-04). Ruled: "As long as a color exist in the
+# app it should be named and used no hardcoded or pointless literals should
+# exist". Each of these was written out where it is used -- a hex in a
+# stylesheet, a CSS name, QColor() built from numbers -- so no palette
+# reached it and no sweep moved it. They are named here at the value they
+# had: NO PIXEL MOVES. One whose value is a colour this file already names
+# is LINKED to that name and moves with it; one with a value of its own
+# holds it, and is this application's alone.
+
+CANVAS_FAILED_BG: Final[str] = "#ffcccc"
+"""The placeholder shown where the canvas failed to start. App-owned."""
+
+CANVAS_FAILED_EDGE: Final[str] = "#ff0000"
+"""Its border. Was the CSS name `red`, which is this value. App-owned."""
+
+HISTORY_EXPORT_PAGE_BG: Final[str] = APP_WINDOW_LIGHT
+"""The exported history page's ground. Was #f5f5f5: linked."""
+
+HISTORY_EXPORT_CARD_BG: Final[str] = WHITE
+"""Each colour's card on that page. Was the CSS name `white`: linked."""
+
+HISTORY_EXPORT_INK: Final[str] = APP_BORDER_DARK
+"""The page's heading and the edge of each swatch. Was #333, twice, which
+is this value in three digits: linked."""
+
+SVG_EXPORT_BG: Final[str] = WHITE
+"""Paper for an exported palette: the SVG file and the image sheet. The
+name rnv-color-picker and rnv-color-palette-manager give the same job.
+Was #ffffff in one and the CSS name `white` in the other: linked."""
+
+SVG_EXPORT_STROKE: Final[str] = TRUE_BLACK
+"""The edge of a swatch in the exported SVG. Was #000000: linked."""
+
+CANVAS_PREVIEW_EDGE_DARK: Final[str] = "#e6e6e6"
+"""The edge of the canvas's colour preview in dark. Was QColor(230, 230,
+230). In light the edge is TRUE_BLACK. App-owned."""
+
 
 class ThemeManager:
     """Manages application themes with Dark Mode, Light Mode, and Image Mode"""
@@ -523,15 +568,17 @@ class ThemeManager:
         'main_btn_bg': APP_SURFACE_DARK,
         'main_btn_text': APP_TEXT_DARK,
         'main_btn_hover_bg': APP_BORDER_DARK,
-        'main_btn_pressed_bg': BRAND_GOLD_PRESSED,
         'main_btn_pressed_text': TRUE_BLACK,
-        'main_btn_pressed_border': BRAND_GOLD,
-        # The plate, hover and pressed a DIALOG button takes. Added
+        # The hover and pressed a DIALOG button takes. Added
         # 2026-09-01, holding what the three dialogs already painted.
         # Before this they read the main family, which is how a gold
         # pressed plate that only a QDialog ever used came to look
         # like the main window's.
-        'dialog_btn_bg': APP_SURFACE_DARK,
+        # RNV-NAMED-AND-USED (2026-10-04): the hover is read in dark
+        # alone -- the About dialog's tabs, from this palette by name
+        # -- so this palette alone holds it. dialog_btn_bg, which only
+        # light reads, is in LIGHT_THEME alone: a dark dialog's button
+        # takes panel_secondary.
         'dialog_btn_hover_bg': APP_BORDER_DARK,
         'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
         'canvas_bg': APP_CANVAS_DARK,
@@ -584,16 +631,17 @@ class ThemeManager:
         'main_btn_bg': WHITE,
         'main_btn_text': TRUE_BLACK,
         'main_btn_hover_bg': APP_BTN_HOVER_INVERSE,
-        'main_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
         'main_btn_pressed_text': WHITE,
-        'main_btn_pressed_border': BRAND_DARK_GOLD,
-        # The plate, hover and pressed a DIALOG button takes. Added
+        # The plate and pressed a DIALOG button takes. Added
         # 2026-09-01, holding what the three dialogs already painted.
         # Before this they read the main family, which is how a gold
         # pressed plate that only a QDialog ever used came to look
         # like the main window's.
+        # RNV-NAMED-AND-USED (2026-10-04): the plate is read in light
+        # alone, from this palette by name, so this palette alone
+        # holds it. dialog_btn_hover_bg, which only dark reads, is in
+        # DARK_THEME alone.
         'dialog_btn_bg': WHITE,
-        'dialog_btn_hover_bg': APP_BTN_HOVER_INVERSE,
         'dialog_btn_pressed_bg': BRAND_DARK_GOLD_PRESSED,
         'canvas_bg': WHITE,
         'scroll_area_bg': WHITE,
@@ -640,67 +688,15 @@ class ThemeManager:
         'main_btn_hover_text': TRUE_BLACK,
     }
     
-    # NEW: Image Theme - Copy of Dark Theme for Image Mode
-    IMAGE_THEME = {
-        'name': 'Image',
-        'window_bg': TRUE_BLACK,
-        'text_color': APP_TEXT_DARK,
-        'border_color': APP_BORDER_DARK,
-        'hover_color': APP_CHROME_DARK,
-        'main_btn_bg': APP_SURFACE_DARK,
-        'main_btn_text': APP_TEXT_DARK,
-        'main_btn_hover_bg': APP_BORDER_DARK,
-        'main_btn_pressed_bg': BRAND_GOLD_PRESSED,
-        'main_btn_pressed_text': TRUE_BLACK,
-        'main_btn_pressed_border': BRAND_GOLD,
-        # The plate, hover and pressed a DIALOG button takes. Added
-        # 2026-09-01, holding what the three dialogs already painted.
-        # Before this they read the main family, which is how a gold
-        # pressed plate that only a QDialog ever used came to look
-        # like the main window's.
-        'dialog_btn_bg': APP_SURFACE_DARK,
-        'dialog_btn_hover_bg': APP_BORDER_DARK,
-        'dialog_btn_pressed_bg': BRAND_GOLD_PRESSED,
-        'canvas_bg': APP_CANVAS_DARK,
-        'scroll_area_bg': TRUE_BLACK,
-        'input_bg': APP_SURFACE_DARK,
-        'input_text': APP_TEXT_DARK,
-        'slot_border': APP_TEXT_DARK,
-        'slot_border_width': 2,
-        'tooltip_bg': APP_CARD_DARK,
-        'tooltip_border': BRAND_GOLD,
-        'text_disabled': APP_CONTROL_DIM,
-        'accent': BRAND_GOLD,
-        'accent_ink': BRAND_GOLD,
-        'accent_hover': BRAND_GOLD_HOVER,
-        'accent_text': TRUE_BLACK,
-        'panel_bg': APP_SURFACE_DARK,
-        'panel_secondary': APP_CARD_DARK,
-        'panel_hover': APP_PANEL_HOVER_DARK,
-        'tab_selected_bg': APP_CANVAS_DARK,
-        'scrollbar_bg': APP_SURFACE_DARK,
-        'scrollbar_handle': APP_BORDER_DARK,
-        'scrollbar_hover': BRAND_GOLD,
-        'slider_handle': APP_TEXT_DARK,
-        'text_hint': APP_HINT_DARK,
-        'menu_disabled': APP_MENU_DIM_DARK,
-        # One key for the slider groove. Before this pass three files painted
-        # it from three different keys -- panel_bg, hover_color and input_bg --
-        # and in dark two of those resolved to the panel's own colour, so the
-        # groove did not exist. RNV-MIXER-WIRING (2026-09-06).
-        'slider_groove': APP_CHROME_DARK,
-        # The menu's border and separator. The dark and light branches of
-        # core/color_slot.py painted these from different keys -- hover_color
-        # and border_color -- so the same two parts had no shared name. Values
-        # unchanged; the difference between the modes is now a value, not a key.
-        'menu_edge': APP_CHROME_DARK,
-        # The label while the main button is hovered. RULED, not chosen: see
-        # claude/ruling-interaction-contrast.md -- the transient states of this
-        # button are exempt from the 4.5 floor and the label dims on purpose.
-        # It held the resting label by inheritance in one file and by an
-        # explicit line in another; this states it once, at the same value.
-        'main_btn_hover_text': APP_TEXT_DARK,
-    }
+    # Image Theme: the dark palette, under its own name.
+    # RNV-NAMED-AND-USED (2026-10-04): this was a written copy of
+    # DARK_THEME, the same forty keys at the same forty values bar the
+    # name. Image mode's dialogs never read it -- they draw from DARK_THEME
+    # by name -- so much of the copy was a second spelling of values nothing
+    # read. It is dark's values now, so nothing is written twice and a key
+    # image mode looks up is always there. A value image mode is ruled to
+    # draw differently goes after the spread.
+    IMAGE_THEME = {**DARK_THEME, 'name': 'Image'}
     
     # CACHE OPTIMIZATION: Maximum palette cache size (one per theme type)
     MAX_PALETTE_CACHE_SIZE = 5  # Safety limit (we only have 3 themes, but allow headroom)

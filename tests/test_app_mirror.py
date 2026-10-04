@@ -185,29 +185,30 @@ def test_the_resolved_ink_is_the_constant():
 
 
 def test_image_mode_carries_the_same_ink():
-    """IMAGE_THEME is a separate literal block here, not a spread of DARK, so
-    the move has to be made twice and asserted twice."""
+    """IMAGE_THEME is the dark palette under its own name -- `{**DARK_THEME,
+    'name': 'Image'}` since RNV-NAMED-AND-USED, 2026-10-04 -- so the ink
+    arrives through the spread and the move is made once. Asserted all the
+    same: the spread is of DARK_THEME, an ink written after it is still the
+    constant, and the palette the application reads resolves to it."""
     node = _dict_node('IMAGE_THEME')
+    spreads = [ast.unparse(v) for k, v in zip(node.keys, node.values) if k is None]
+    assert spreads == ['DARK_THEME'], (
+        f'IMAGE_THEME spreads {spreads}, not the dark palette alone')
     literals = []
     for key in INK_KEYS:
         value = _entry(node, key)
-        if not (isinstance(value, ast.Name) and value.id == 'APP_TEXT_DARK'):
-            literals.append(
-                f'{key} = {ast.unparse(value) if value is not None else "missing"}')
-    assert not literals, ('image ink still written as literals:\n  '
+        if value is not None and not (isinstance(value, ast.Name)
+                                      and value.id == 'APP_TEXT_DARK'):
+            literals.append(f'{key} = {ast.unparse(value)}')
+    assert not literals, ('image ink written over the spread as literals:\n  '
                           + '\n  '.join(literals))
     for key in INK_KEYS:
         assert IMAGE[key] == colors.APP_TEXT_DARK, f'IMAGE[{key!r}]'
 
 
-def test_the_handle_hover_is_still_one_step_above_the_text():
-    """APP_HANDLE_HOVER_DARK is documented as 'one step above the text'. That
-    sentence was true of #f0f0f0 above #e0e0e0 only by accident -- the gap was
-    0x10, not a grid step. Both are on the grid now and the relationship is
-    asserted rather than described."""
-    assert colors.APP_HANDLE_HOVER_DARK == grey(14) == '#eeeeee'
-    assert colors.APP_HANDLE_HOVER_DARK == grey(
-        (int(colors.APP_TEXT_DARK[1:3], 16) // GRID_STEP) + 1)
+# RNV-NAMED-AND-USED, 2026-10-04: a test stood here for a name one grid step
+# above the text, the dark slider handle's hover. No sheet painted that name:
+# a hovered handle takes the accent. The name went, and its test with it.
 
 
 def test_the_light_surface_did_not_follow_the_ink():
