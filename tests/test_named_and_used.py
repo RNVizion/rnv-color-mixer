@@ -85,17 +85,6 @@ DATA = {
         "the gaps between monitors in the captured desktop: part of the screenshot, not of the look",
     ("ui/canvas_view.py", "(0, 0, 0)"):
         "the canvas preview's colour before a pixel is hovered: where it starts",
-    ("utils/settings_manager.py", "[200, 200, 200]"):
-        "the stored default of a preference, default_slot_color: data in the settings file, not the look",
-    ("core/package_d_panel.py", "QColor(128, 128, 128)"):
-        "HELD, and not data. Set on the empty-history line's item and never drawn: the list's stylesheet "
-        "colours every item, and the sheet wins. Proven 2026-10-04 with a magenta control. A ruling is "
-        "asked: draw the line in the muted text, or drop the call",
-    ("ui/canvas_view.py", "QColor(200, 200, 200, 180)"):
-        "HELD, and not data. The light plate behind a dragged selection's size, never drawn: the view asks "
-        "a theme manager of its own, which always answers dark, so its light branch never runs. Proven "
-        "2026-10-04 with a magenta control. A ruling is asked: make the canvas follow the mode, or drop "
-        "the branch",
 }
 
 CSS_NAMES = frozenset("""aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue

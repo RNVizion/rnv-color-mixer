@@ -30,7 +30,6 @@ class SettingsManager:
             
             # Color Slot Defaults
             "default_slot_weight": 50,
-            "default_slot_color": [200, 200, 200],  # RGB
             "max_color_slots": 12,
             
             # History Settings

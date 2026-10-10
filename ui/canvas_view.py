@@ -91,6 +91,8 @@ class ImageDisplayLabel(QLabel):
         
         # Theme
         self.is_dark = True
+        # The theme set_theme() last gave this label: the one the app is in.
+        self._theme: dict | None = None
         
         # Drag threshold (pixels to move before it counts as drag)
         self.drag_threshold = 5
@@ -120,10 +122,50 @@ class ImageDisplayLabel(QLabel):
         except Exception as e:
             logger.error(f"Error setting preview size: {e}")
 
-    def set_theme(self, is_dark: bool) -> None:
+    def set_theme(self, is_dark: bool, theme: dict | None = None) -> None:
         """Set theme for preview colors."""
         self.is_dark = is_dark
+        self._theme = theme
         self.update()
+
+    def _canvas_theme(self) -> dict | None:
+        """
+        The theme the selection and the preview are drawn for.
+        
+        RNV-RULINGS-2026-10-05, item 3. paintEvent() asked a ThemeManager it
+        made itself, and a new one is always in dark mode: in light the
+        selection and the preview were drawn as in dark, however often
+        set_theme() ran. The slots had the same fault until 2026-09-26.
+        This is the theme set_theme() last gave the label. Before it has
+        run, a fresh ThemeManager answers, as it always did.
+        """
+        if not config:
+            return None
+        return self._theme or config.ThemeManager().get_current_theme()
+
+    @staticmethod
+    def _draws_dark(theme: dict | None) -> bool:
+        """
+        Whether a theme takes the dark look: dark does, and image does.
+        
+        The branches asked whether the theme was NAMED Dark, so image
+        mode, whose palette is the dark one under its own name, would have
+        taken light's black figures and grey plate. Only light draws light.
+        """
+        return bool(theme) and theme['name'] != 'Light'
+
+    @staticmethod
+    def _selection_fill(theme: dict | None) -> str:
+        """
+        A dragged selection's fill: the theme's accent at
+        CANVAS_SELECTION_ALPHA, so the area being selected shows through.
+        
+        RNV-RULINGS-2026-10-05, item 3. The fill was the accent itself, solid,
+        under a comment that said semi-transparent. With no theme to
+        ask, dark's accent, as the border and the corners take.
+        """
+        accent = theme['accent'] if theme else config.ThemeManager.DARK_THEME['accent']
+        return config.translucent(accent, config.CANVAS_SELECTION_ALPHA)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Handle mouse move - updated for drag selection"""
@@ -247,14 +289,14 @@ class ImageDisplayLabel(QLabel):
                 return
             
             try:
-                # Get theme colors
-                theme = config.ThemeManager().get_current_theme() if config else None
+                # Get theme colors: the theme the app is in, not a new manager's
+                theme = self._canvas_theme()
                 
                 # Draw selection rectangle if dragging
                 if self.is_dragging and self.selection_rect and not self.selection_rect.isEmpty():
                     # Determine colors based on theme
-                    if theme and theme['name'] == 'Dark':
-                        overlay_color = QColor(theme['accent'])
+                    if self._draws_dark(theme):
+                        overlay_color = QColor(self._selection_fill(theme))
                         border_color = QColor(theme['accent'])
                         corner_color = QColor(theme['accent'])
                         # RNV-NAMED-AND-USED (2026-10-04): the labels this
@@ -263,12 +305,13 @@ class ImageDisplayLabel(QLabel):
                         text_color = QColor(config.WHITE)
                     else:
                         _accent = theme['accent'] if theme else config.ThemeManager.DARK_THEME['accent']
-                        overlay_color = QColor(_accent)
+                        overlay_color = QColor(self._selection_fill(theme))
                         border_color = QColor(_accent)
                         corner_color = QColor(_accent)
                         text_color = QColor(config.TRUE_BLACK)
                     
-                    # Draw semi-transparent overlay
+                    # Draw semi-transparent overlay: the accent at
+                    # CANVAS_SELECTION_ALPHA, so the area selected shows through
                     painter.fillRect(self.selection_rect, overlay_color)
                     
                     # Draw selection border
@@ -300,11 +343,12 @@ class ImageDisplayLabel(QLabel):
                         text_rect = painter.boundingRect(rect, Qt.AlignmentFlag.AlignCenter, size_text)
                         bg_rect = text_rect.adjusted(-4, -2, 4, 2)
                         
-                        if theme and theme['name'] == 'Dark':
+                        if self._draws_dark(theme):
                             painter.fillRect(bg_rect, QColor(config.translucent(
                                 config.TRUE_BLACK, config.CANVAS_LABEL_ALPHA)))
                         else:
-                            painter.fillRect(bg_rect, QColor(200, 200, 200, 180))
+                            painter.fillRect(bg_rect, QColor(config.translucent(
+                                config.CANVAS_LABEL_PLATE_LIGHT, config.CANVAS_LABEL_ALPHA)))
                         
                         painter.setPen(text_color)
                         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, size_text)
@@ -354,7 +398,7 @@ class ImageDisplayLabel(QLabel):
             )
             
             # Background
-            if theme and theme['name'] == 'Dark':
+            if self._draws_dark(theme):
                 bg_color = QColor(config.translucent(config.TRUE_BLACK, config.CANVAS_PREVIEW_ALPHA))
                 border_color = QColor(config.CANVAS_PREVIEW_EDGE_DARK)
             else:
@@ -385,7 +429,7 @@ class ImageDisplayLabel(QLabel):
             text_rect = QRect(center_x - 60, text_y, 120, 25)
             
             # Text shadow
-            if theme and theme['name'] == 'Dark':
+            if self._draws_dark(theme):
                 shadow_pen = QPen(QColor(config.WHITE), 1)
                 text_color = QColor(config.TRUE_BLACK)
             else:
@@ -685,7 +729,15 @@ class CanvasView(QScrollArea, SignalMixin):
     def set_theme(self, is_dark: bool, ui_handler: "UIHandler | None" = None) -> None:
         """Set theme safely - dark background for dark/image modes, light for light mode"""
         try:
-            self.image_label.set_theme(is_dark)
+            # RNV-RULINGS-2026-10-05, item 3: the label is handed the theme the app
+            # is in, as each slot is. Without a handler, the one is_dark names.
+            if ui_handler and hasattr(ui_handler, 'theme_manager'):
+                label_theme = ui_handler.theme_manager.get_current_theme()
+            else:
+                theme_manager = config.ThemeManager()
+                theme_manager.current_theme = 'dark' if is_dark else 'light'
+                label_theme = theme_manager.get_current_theme()
+            self.image_label.set_theme(is_dark, label_theme)
             
             # Check if we're in Image Mode
             is_image_mode = False

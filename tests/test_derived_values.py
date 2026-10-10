@@ -408,7 +408,11 @@ TUPLES_MADE_OF = {'_OVERLAY_COLOR': ('translucent', 'TRUE_BLACK', 'SCREEN_OVERLA
 TUPLE_ALPHAS = {'SCREEN_OVERLAY_ALPHA': 50, 'SCREEN_GRID_ALPHA': 50, 'SCREEN_INFO_ALPHA': 180}
 #: Module- and class-level constants spelled in integers ON PURPOSE -- data a
 #: person starts from, not a brand element -- with the reason.
-INT_DATA = {'INITIAL_COLOR_TUPLE': 'the colour shown before anything is mixed -- data, like the hex and rgb() twins beside it'}
+INT_DATA = {'INITIAL_COLOR_TUPLE': 'the colour shown before anything is mixed -- data, like the hex and rgb() twins beside it',
+            # RNV-RULINGS-2026-10-05, item 3: the canvas label's light plate has a name now,
+            # CANVAS_LABEL_PLATE_LIGHT, and its value is this one's. They are two things: the
+            # plate is the look, and this is data.
+            'DEFAULT_COLOR': 'the colour a slot holds until one is set, and what a session file falls back to -- data a person starts from'}
 TUPLE_FILES = 20
 #: The call each derived constant is wrapped in, if any.
 _WRAP = 'QColor'
@@ -646,12 +650,15 @@ def test_the_harmony_description_derives_its_wash(qapp):
 #: RNV-NAMED-AND-USED, 2026-10-04: three of the canvas's plates are built
 #: by translucent() now, and three colours the code spelled out have names
 #: with a value of their own.
-LOWER8_FLOOR = 8
+#: RNV-RULINGS-2026-10-05, item 3: the canvas's light plate, and its selection
+#: fill for each palette and for no theme.
+LOWER8_FLOOR = 13
 LOWER8_FILES = 32
 LOWER8_NAMED = 24
 #: translucent() calls whose base is not a name the test can look up. Each is
 #: read from what it sets instead; a new one fails the test until it is.
-LOWER8_READ_WHERE_SET = {("core/package_d_panel.py", "_style_harmony_description")}
+LOWER8_READ_WHERE_SET = {("core/package_d_panel.py", "_style_harmony_description"),
+                         ("ui/canvas_view.py", "_selection_fill")}
 
 
 def _lower8_calls():
@@ -707,6 +714,14 @@ def _lower8_values():
         sheet = panel.harmony_description.styleSheet()
         wash = re.search(r"background-color:\s*([^;]+);", sheet).group(1).strip()
         built.append((f"the harmony wash, {'dark' if is_dark else 'light'}", wash))
+    # RNV-RULINGS-2026-10-05, item 3: the canvas's selection fill, whose base is the
+    # accent of the theme it is handed. Read from the method that builds it,
+    # for each palette and for no theme at all.
+    from ui.canvas_view import ImageDisplayLabel
+    for palette in PALETTES:
+        built.append((f"the canvas's selection fill, {palette}",
+                      ImageDisplayLabel._selection_fill(getattr(C.ThemeManager, palette))))
+    built.append(("the canvas's selection fill, no theme", ImageDisplayLabel._selection_fill(None)))
     return built, unread
 
 

@@ -12,6 +12,11 @@ on:
   pull_request:
     branches: [main, master]
 
+# RNV-RULINGS-2026-10-05, item 14. Each action below is at the first version
+# built for Node 24: checkout v5, setup-python v6 and upload-artifact v6.
+# GitHub took Node 20 off its runners on 2026-09-23, and ran the versions
+# before these on Node 24 with a warning. tests/test_workflow_actions.py
+# holds the floor.
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,10 +24,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
@@ -136,7 +141,7 @@ jobs:
 
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report-linux
           path: |

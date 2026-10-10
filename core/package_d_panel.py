@@ -1504,8 +1504,8 @@ class PackageDPanel(QDialog):
             if not entries:
                 # Show empty state
                 empty_item = QListWidgetItem("No color history yet. Mix some colors to get started!")
-                empty_item.setForeground(QColor(128, 128, 128))
                 self.history_list.addItem(empty_item)
+                self._colour_empty_history_line()
                 return
             
             # Import once outside loop for efficiency
@@ -1535,6 +1535,30 @@ class PackageDPanel(QDialog):
         finally:
             # Re-enable updates - triggers single repaint
             self.history_list.setUpdatesEnabled(True)
+        
+    def _colour_empty_history_line(self) -> None:
+        """
+        Draw the History tab's empty line in the muted text.
+        
+        RNV-RULINGS-2026-10-05, item 2. The line was given CSS gray, #808080, and
+        was never drawn in it: the list's sheet coloured every item, and a
+        sheet wins over an item's own colour. This list's item rule no
+        longer sets one (see _apply_list_view_styles), and the line takes
+        text_hint, the muted text the panel's descriptions take.
+        
+        The empty line is the one item here that holds no colour to load:
+        every entry, and every sample row, carries one in its data.
+        Called when the list is filled and when the theme is applied, so
+        a line made in one mode is not left in another's colour.
+        """
+        history_list = getattr(self, 'history_list', None)
+        if history_list is None:
+            return
+        muted = QColor(_theme_colors(getattr(self, '_is_dark', True))['text_hint'])
+        for row in range(history_list.count()):
+            item = history_list.item(row)
+            if item.data(Qt.ItemDataRole.UserRole) is None:
+                item.setForeground(muted)
         
     def _populate_history_placeholder(self) -> None:
         """
@@ -2720,7 +2744,14 @@ class PackageDPanel(QDialog):
         accent_text_col = t['accent_text']
         accent_ink_col = t['accent_ink']
 
-        list_ss = f"""
+        # RNV-RULINGS-2026-10-05, item 2. The item rule's own `color` is handed in:
+        # a sheet that colours every item wins over an item's own colour, and
+        # the History tab's empty line has one. That list takes the sheet
+        # without the line. An item there with no colour of its own takes the
+        # list's: QListWidget's `color` and the palette's Text, the same value.
+        # The other three lists take the sheet as it was.
+        def list_sheet(item_ink: str) -> str:
+            return f"""
                 QListWidget {{
                     background-color: {bg_col};
                     color: {text_col};
@@ -2729,8 +2760,7 @@ class PackageDPanel(QDialog):
                 }}
                 QListWidget::item {{
                     padding: 8px 10px;
-                    border-bottom: 1px solid {border_col};
-                    color: {text_col};
+                    border-bottom: 1px solid {border_col};{item_ink}
                 }}
                 QListWidget::item:hover {{
                     background-color: {hover_bg};
@@ -2743,6 +2773,8 @@ class PackageDPanel(QDialog):
                     color: {accent_text_col};
                 }}
             """
+        list_ss = list_sheet(f"\n                    color: {text_col};")
+        history_ss = list_sheet("")
         highlight      = QColor(accent_col)
         highlight_text = QColor(accent_text_col)
         base           = QColor(bg_col)
@@ -2757,7 +2789,8 @@ class PackageDPanel(QDialog):
         for widget in lists:
             if widget is None:
                 continue
-            widget.setStyleSheet(list_ss)
+            is_history = widget is getattr(self, 'history_list', None)
+            widget.setStyleSheet(history_ss if is_history else list_ss)
 
             # Set palette on each widget for all color groups — Qt reads
             # QPalette.Highlight for focused AND inactive selected items
@@ -2770,6 +2803,9 @@ class PackageDPanel(QDialog):
                 palette.setColor(group, QPalette.ColorRole.Base,            base)
                 palette.setColor(group, QPalette.ColorRole.Text,            text)
             widget.setPalette(palette)
+
+        # The empty line holds the muted text of the mode it was made in.
+        self._colour_empty_history_line()
 
     def _apply_combo_view_styles(self, is_dark: bool = True) -> None:
         """Apply brand hover/selection colors to all combo box dropdowns.

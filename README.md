@@ -7,7 +7,7 @@
 ![Version](https://img.shields.io/badge/version-3.3.3-orange)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
-![Tests](https://img.shields.io/badge/tests-886-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1100%2B-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-72%25-brightgreen)
 
 [![Tests (Linux)](https://img.shields.io/github/actions/workflow/status/RNVizion/rnv-color-mixer/tests-linux.yml?branch=main&label=Tests%20%28Linux%29&logo=linux)](https://github.com/RNVizion/rnv-color-mixer/actions/workflows/tests-linux.yml)
@@ -227,13 +227,13 @@ For a deeper module-by-module breakdown, see [`docs/INTERNALS.md`](docs/INTERNAL
 
 ## Testing
 
-The project carries 886 tests across two harnesses:
+The project carries over 1,100 tests across two harnesses:
 
 | Harness | Tests | Notes |
 |---|---|---|
-| `unittest` | 356 | Locked byte-integrity suite (`test_rnv_color_mixer.py`) |
-| `pytest` | 530 | Modern suite — pytest-qt for Qt threading, hypothesis property tests |
-| **Total** | **886** | **~72% local coverage**, branch coverage enabled |
+| `unittest` | over 300 | Locked byte-integrity suite (`test_rnv_color_mixer.py`) |
+| `pytest` | over 700 | Modern suite — pytest-qt for Qt threading, hypothesis property tests |
+| **Total** | **over 1,100** | **~72% local coverage**, branch coverage enabled |
 
 **Run the full suite:**
 
@@ -356,5 +356,5 @@ Built by [RNVizion](https://github.com/RNVizion)
 ---
 
 <p align="center">
-  Built with PyQt6 · 886 tests · ~72% local coverage · Cross-platform CI
+  Built with PyQt6 · over 1,100 tests · ~72% local coverage · Cross-platform CI
 </p>

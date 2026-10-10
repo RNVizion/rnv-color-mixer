@@ -515,6 +515,15 @@ CANVAS_LABEL_ALPHA: Final[int] = 0xB4
 CANVAS_PREVIEW_ALPHA: Final[int] = 0xC8
 """200. The plate behind the canvas's colour preview."""
 
+CANVAS_SELECTION_ALPHA: Final[int] = 0x32
+"""50. A dragged selection's fill on the canvas, over the mode's accent: gold
+the image shows through. The fill was solid from the first commit, under a
+comment that said semi-transparent, so the area being selected could not
+be seen. RNV-RULINGS-2026-10-05, item 3, ruled: "i think the comment meant see
+through gold". The byte is the one this application's other see-through
+gold has, the screen picker's grid (SCREEN_GRID_ALPHA); a different job, so
+its own name."""
+
 
 # ==================== COLOURS THE CODE SPELLED OUT ====================
 #
@@ -554,6 +563,14 @@ SVG_EXPORT_STROKE: Final[str] = TRUE_BLACK
 CANVAS_PREVIEW_EDGE_DARK: Final[str] = "#e6e6e6"
 """The edge of the canvas's colour preview in dark. Was QColor(230, 230,
 230). In light the edge is TRUE_BLACK. App-owned."""
+
+CANVAS_LABEL_PLATE_LIGHT: Final[str] = "#c8c8c8"
+"""The plate behind a dragged selection's size in light, at
+CANVAS_LABEL_ALPHA. Was QColor(200, 200, 200, 180), which was never drawn:
+the canvas asked a theme manager of its own for the mode, and a new one
+always answers dark. RNV-RULINGS-2026-10-05, item 3: the canvas follows the
+mode, so light draws it. In dark and image the plate is TRUE_BLACK.
+App-owned."""
 
 
 class ThemeManager:
