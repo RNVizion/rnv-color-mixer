@@ -14,10 +14,12 @@ own colour is drawn; an item that has none takes the list's, which is the
 colour the rule gave it. And the line holds `text_hint`, the muted text the
 panel's ten descriptions take: 4.91:1 in dark and image, 5.27:1 in light.
 
-THE OTHER THREE LISTS keep the sheet they had. Two more lines in this panel
-set a colour of their own, both in the Presets list, whose sheet colours
-every item as this one's did. They were found while this was built, and a
-ruling is asked on them.
+THE OTHER THREE LISTS kept the sheet they had. Two more lines in this panel
+set a colour of their own, both in the Presets list, whose sheet coloured
+every item as this one's did. RNV-RULINGS-2026-10-11, item 20, ruled B: that
+list's item rule sets no colour either, and both lines are drawn in the
+muted text (tests/test_empty_presets_lines_draw.py). The Sessions list and
+the harmony preview keep the sheet they had.
 
 WHAT THIS GUARD HOLDS.
 
@@ -30,8 +32,8 @@ WHAT THIS GUARD HOLDS.
    is the test the old line would have failed.
 3. It follows the mode: a switch made with the panel open, or while it was
    closed, leaves the line in the new mode's muted text.
-4. The History list's item rule sets no colour, and the other three lists'
-   rules still do.
+4. The History and Presets lists' item rules set no colour, and the other
+   two lists' rules still do.
 5. An entry holds no colour of its own, as filled and after each mode's
    theme has been applied over it.
 6. The muted text can be read on the list's ground: 4.5:1 or better.
@@ -193,6 +195,10 @@ def test_it_follows_a_switch_made_while_the_panel_was_closed(app_window):
             f"a switch to {mode} with the panel closed left the empty line in the old mode's colour"
 
 
+#: The lists whose item rule sets no colour: each holds a line with a colour of its own.
+BARE = ("history_list", "presets_list")
+
+
 def test_the_history_lists_item_rule_sets_no_colour_and_the_others_still_do(app_window):
     for mode in _every_mode(app_window):
         panel = _history_tab(app_window)
@@ -203,10 +209,10 @@ def test_the_history_lists_item_rule_sets_no_colour_and_the_others_still_do(app_
             assert len(rules) == 1, f"{mode}: {name} has {len(rules)} plain item rules"
             properties = {line.split(":")[0].strip(): line.split(":", 1)[1].strip()
                           for line in rules[0].split(";") if ":" in line}
-            if name == "history_list":
+            if name in BARE:
                 assert "color" not in properties, (
-                    f"{mode}: the History list's item rule sets a colour again. A sheet wins over an "
-                    f"item's own colour, so the empty line would stop being drawn in the muted text.")
+                    f"{mode}: {name}'s item rule sets a colour again. A sheet wins over an "
+                    f"item's own colour, so its empty line would stop being drawn in the muted text.")
             else:
                 assert properties.get("color") == text, \
                     f"{mode}: {name}'s item rule no longer colours its items {text}: {properties}"

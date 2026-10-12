@@ -1559,6 +1559,33 @@ class PackageDPanel(QDialog):
             item = history_list.item(row)
             if item.data(Qt.ItemDataRole.UserRole) is None:
                 item.setForeground(muted)
+    
+    def _colour_empty_presets_lines(self) -> None:
+        """
+        Draw the Presets list's empty lines in the muted text.
+        
+        RNV-RULINGS-2026-10-11, item 20, ruled B. Two lines stand in the
+        list when it has nothing to show: "No user presets yet", with User
+        Presets chosen and none saved, and the line a category shows when it
+        holds no preset. The first was given the gold text and the second
+        dark's disabled grey in every mode, and neither was drawn in it: the
+        list's sheet coloured every item, the fault the History tab's empty
+        line had (RNV-RULINGS-2026-10-05, item 2). This list's item rule no
+        longer sets a colour, and both lines take text_hint, as that line does.
+        
+        An empty line is the one item here that holds nothing in its data:
+        every preset, and every placeholder, carries one. Called when a line
+        is made and when the theme is applied, so a line made in one mode is
+        not left in another's colour.
+        """
+        presets_list = getattr(self, 'presets_list', None)
+        if presets_list is None:
+            return
+        muted = QColor(_theme_colors(getattr(self, '_is_dark', True))['text_hint'])
+        for row in range(presets_list.count()):
+            item = presets_list.item(row)
+            if item.data(Qt.ItemDataRole.UserRole) is None:
+                item.setForeground(muted)
         
     def _populate_history_placeholder(self) -> None:
         """
@@ -1635,8 +1662,8 @@ class PackageDPanel(QDialog):
                         "your first custom color palette!"
                     )
                     item.setFlags(Qt.ItemFlag.NoItemFlags)  # Not selectable
-                    item.setForeground(QColor(_theme_colors(getattr(self, '_is_dark', True))['accent_ink']))  # Gold text
                     self.presets_list.addItem(item)
+                    self._colour_empty_presets_lines()
                     self.delete_preset_btn.setEnabled(False)
                     
                     # Populate categories combo if empty
@@ -1659,8 +1686,8 @@ class PackageDPanel(QDialog):
                         "Select 'All' to see all available presets."
                     )
                     item.setFlags(Qt.ItemFlag.NoItemFlags)
-                    item.setForeground(QColor(_theme_colors(True).get('text_disabled', config.ThemeManager.DARK_THEME['text_disabled'])))
                     self.presets_list.addItem(item)
+                    self._colour_empty_presets_lines()
                     self.delete_preset_btn.setEnabled(False)
                     
                     if self.category_combo.count() == 0:
@@ -2749,7 +2776,8 @@ class PackageDPanel(QDialog):
         # the History tab's empty line has one. That list takes the sheet
         # without the line. An item there with no colour of its own takes the
         # list's: QListWidget's `color` and the palette's Text, the same value.
-        # The other three lists take the sheet as it was.
+        # RNV-RULINGS-2026-10-11, item 20: so does the Presets list, whose two
+        # empty lines have one too. The other two lists take the sheet as it was.
         def list_sheet(item_ink: str) -> str:
             return f"""
                 QListWidget {{
@@ -2774,7 +2802,7 @@ class PackageDPanel(QDialog):
                 }}
             """
         list_ss = list_sheet(f"\n                    color: {text_col};")
-        history_ss = list_sheet("")
+        bare_ss = list_sheet("")
         highlight      = QColor(accent_col)
         highlight_text = QColor(accent_text_col)
         base           = QColor(bg_col)
@@ -2789,8 +2817,8 @@ class PackageDPanel(QDialog):
         for widget in lists:
             if widget is None:
                 continue
-            is_history = widget is getattr(self, 'history_list', None)
-            widget.setStyleSheet(history_ss if is_history else list_ss)
+            bare = any(widget is getattr(self, name, None) for name in ('history_list', 'presets_list'))
+            widget.setStyleSheet(bare_ss if bare else list_ss)
 
             # Set palette on each widget for all color groups — Qt reads
             # QPalette.Highlight for focused AND inactive selected items
@@ -2804,8 +2832,9 @@ class PackageDPanel(QDialog):
                 palette.setColor(group, QPalette.ColorRole.Text,            text)
             widget.setPalette(palette)
 
-        # The empty line holds the muted text of the mode it was made in.
+        # The empty lines hold the muted text of the mode they were made in.
         self._colour_empty_history_line()
+        self._colour_empty_presets_lines()
 
     def _apply_combo_view_styles(self, is_dark: bool = True) -> None:
         """Apply brand hover/selection colors to all combo box dropdowns.

@@ -35,6 +35,10 @@ WHAT THIS GUARD HOLDS.
    figures on a dark plate in dark and image, dark figures on a light plate
    in light.
 5. Without a handler, the label takes the theme `is_dark` names.
+6. The crosshair does not follow the mode. RNV-RULINGS-2026-10-11, item 26,
+   ruled A: it is drawn over the image, which is the same in every mode, in
+   the dark gold, which shows on both white and black. Read back from the
+   pixels, in each mode.
 """
 from __future__ import annotations
 
@@ -216,6 +220,31 @@ def test_the_preview_is_drawn_for_the_mode(app_window):
         assert _near(plate, want), (
             f"{mode}: the preview's plate is {_rgb(plate)}, not {ink} at alpha "
             f"{config.CANVAS_PREVIEW_ALPHA} over the image, which is {want}")
+
+
+def test_the_crosshair_is_the_dark_gold_in_every_mode(app_window):
+    """RNV-RULINGS-2026-10-11, item 26. Not the mode's accent: the same gold
+    over the same image in each mode. Read back from the pixels, which are the
+    ones the crosshair always drew: two arms, ten pixels each way from the
+    centre and one pixel wide, each pixel of them the pen's colour, and the
+    image untouched all round them."""
+    want = QColor(config.BRAND_DARK_GOLD).name()
+    centre = (200, 150)
+    for mode in _every_mode(app_window):
+        label = _label(app_window)
+        label.show_preview = False
+        label.is_dragging, label.selection_rect = False, None
+        label.crosshair_pos = centre
+        image = label.grab().toImage().convertToFormat(QImage.Format.Format_ARGB32)
+        label.crosshair_pos = None
+        x, y = centre
+        arms = ({image.pixelColor(x + d, y).name() for d in range(-10, 11)}
+                | {image.pixelColor(x, y + d).name() for d in range(-10, 11)})
+        assert arms == {want}, f"{mode}: the crosshair is drawn in {sorted(arms)}, not the dark gold {want}"
+        off = [(dx, dy) for dx in range(-14, 15) for dy in range(-14, 15)
+               if not ((dy == 0 and abs(dx) <= 10) or (dx == 0 and abs(dy) <= 10))
+               and not _near(image.pixelColor(x + dx, y + dy), GROUND, 0)]
+        assert not off, f"{mode}: the crosshair is not the two arms it was: it paints off them, at {off[:6]}"
 
 
 def test_without_a_handler_the_label_takes_the_theme_is_dark_names(app_window):

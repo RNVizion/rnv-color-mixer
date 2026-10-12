@@ -144,8 +144,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: coverage-report-linux
+          # RNV-RULINGS-2026-10-11, item 22: .coverage went from this list. It is
+          # a hidden file, which upload-artifact leaves out; the two reports go.
           path: |
             htmlcov/
             coverage_report.txt
-            .coverage
           retention-days: 14

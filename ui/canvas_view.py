@@ -357,10 +357,12 @@ class ImageDisplayLabel(QLabel):
                 elif self.crosshair_pos and not self.is_dragging:
                     x, y = self.crosshair_pos
                     
-                    if theme and theme['name'] == 'Dark':
-                        pen = QPen(QColor(config.ThemeManager.LIGHT_THEME['accent']), 1)
-                    else:
-                        pen = QPen(QColor(config.ThemeManager.LIGHT_THEME['accent']), 1)
+                    # RNV-RULINGS-2026-10-11, item 26: the dark gold in every mode,
+                    # as it always was. The crosshair is drawn over the image, which
+                    # is the same in every mode, and this gold shows at both ends of
+                    # it: 4.17:1 on white, 3.83:1 on black. It was light's accent,
+                    # read in two branches that drew this same pen.
+                    pen = QPen(QColor(config.BRAND_DARK_GOLD), 1)
                     
                     painter.setPen(pen)
                     
