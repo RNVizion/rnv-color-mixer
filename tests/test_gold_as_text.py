@@ -1,5 +1,9 @@
 """Gold drawn as TEXT must clear the text floor on the ground it is drawn on.
 
+TEXT ON THE GOLD, the other way round, is held in tests/test_ink_on_the_golds.py:
+white on the dark gold, black on the bright gold. RNV-RULINGS-2026-10-13,
+item 32.
+
 WHY THIS EXISTS. The gold family has two members that look interchangeable and
 are not. BRAND_DARK_GOLD #8c7337 fills and bounds correctly on light surfaces
 and FAILS as text on them; BRAND_DARK_GOLD_DEEP #7e6529 is the derivative that
