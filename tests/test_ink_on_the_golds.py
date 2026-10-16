@@ -39,6 +39,8 @@ from PyQt6.QtCore import QEventLoop, QTimer
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox, QWidget
 
+from utils.config import BRAND_DARK_GOLD, BRAND_GOLD, TRUE_BLACK, WHITE
+
 @pytest.fixture
 def window(app_window):
     """The main window, its home kept apart (tests/conftest.py)."""
@@ -73,8 +75,14 @@ def _prepare(win) -> None:
 
 #: The ruled ink for text on each gold fill: white on the dark gold, black on
 #: the bright gold.
-GOLD_INK = {"#8c7337": "#ffffff", "#d2bc93": "#000000"}
-GOLD_NAME = {"#8c7337": "the dark gold", "#d2bc93": "the bright gold"}
+#:
+#: RNV-ACCENT-READ-2026-10-16. The golds and their inks are read from this
+#: app's own colour file, where they were written here as hex codes. A guard
+#: that names #8c7337 finds nothing once the brand's accent is another colour,
+#: and fails by finding nothing; read from the colour file, it holds the rule
+#: on whatever the accent is.
+GOLD_INK = {BRAND_DARK_GOLD.lower(): WHITE.lower(), BRAND_GOLD.lower(): TRUE_BLACK.lower()}
+GOLD_NAME = {BRAND_DARK_GOLD.lower(): "the dark gold", BRAND_GOLD.lower(): "the bright gold"}
 
 HEX = re.compile(r"#[0-9a-fA-F]{6}(?![0-9a-fA-F])")
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
@@ -256,19 +264,20 @@ def test_the_reader_is_looking(window, monkeypatch):
             f"{mode}: the reader finds {len(inked)} rules that put an ink on a gold, not {MIN_INKED.get(mode, 1)}")
         reached = {where for where, *_rest in fills} | {where for where, *_rest in palettes}
         assert set(OPENERS) <= reached, f"{mode}: no window was read from {sorted(set(OPENERS) - reached)}"
-    sample = ("/* a comment { } */ QPushButton:pressed { background-color: #8C7337; color: white; }\n"
-              "QLineEdit, QSpinBox { selection-background-color: #d2bc93; selection-color: #000; }\n"
-              "QSlider::handle:horizontal { background: #8c7337; }\n"
-              "QComboBox QAbstractItemView { selection-background-color: #d2bc93; }\n"
-              "QLabel { background-color: #8c73370a; color: #ffffff; }\n")
+    dark, bright = BRAND_DARK_GOLD.lower(), BRAND_GOLD.lower()
+    sample = (f"/* a comment {{ }} */ QPushButton:pressed {{ background-color: {dark.upper()}; color: white; }}\n"
+              f"QLineEdit, QSpinBox {{ selection-background-color: {bright}; selection-color: #000; }}\n"
+              f"QSlider::handle:horizontal {{ background: {dark}; }}\n"
+              f"QComboBox QAbstractItemView {{ selection-background-color: {bright}; }}\n"
+              f"QLabel {{ background-color: {dark}0a; color: #ffffff; }}\n")
     probe = QWidget()
     probe.setStyleSheet(sample)
     try:
         found = [f[2:] for f in _fills(probe, "sample") if f[1] == "QWidget"]
     finally:
         probe.deleteLater()
-    assert found == [("QPushButton:pressed", "fill", "#8c7337", "#ffffff"),
-                     ("QLineEdit, QSpinBox", "selection", "#d2bc93", "#000000"),
-                     ("QSlider::handle:horizontal", "fill", "#8c7337", None),
-                     ("QComboBox QAbstractItemView", "selection", "#d2bc93", None)], found
+    assert found == [("QPushButton:pressed", "fill", dark, "#ffffff"),
+                     ("QLineEdit, QSpinBox", "selection", bright, "#000000"),
+                     ("QSlider::handle:horizontal", "fill", dark, None),
+                     ("QComboBox QAbstractItemView", "selection", bright, None)], found
     assert TEXT_FREE.search("QSlider::handle:horizontal") and not TEXT_FREE.search("QPushButton:pressed")
