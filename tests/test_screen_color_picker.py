@@ -27,7 +27,7 @@ from PyQt6.QtCore import Qt, QPoint, QRect
 from PyQt6.QtGui import QPixmap, QColor
 
 from screen_color_picker import ScreenColorPicker
-from colour_values import EXAMPLE_ORANGE_UPPER, EXAMPLE_ZERO_PADDED_BLUE
+from color_values import EXAMPLE_ORANGE_UPPER, EXAMPLE_ZERO_PADDED_BLUE
 
 
 # ═══════════════════════════════════════════════════════════════════════════

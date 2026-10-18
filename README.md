@@ -6,7 +6,7 @@
 ![PyQt6](https://img.shields.io/badge/PyQt-6-41CD52)
 ![Version](https://img.shields.io/badge/version-3.3.3-orange)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgray)
 ![Tests](https://img.shields.io/badge/tests-1100%2B-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-72%25-brightgreen)
 
@@ -203,8 +203,8 @@ rnv-color-mixer/
 ├── .coveragerc              Coverage.py configuration
 ├── pyproject.toml           Project metadata & packaging config
 ├── requirements.txt         Runtime dependencies
-├── brand_map.json           Where each colour comes from: rnv-brand or the app
-├── COLORS.md                This app's colour chart, written by the sync
+├── brand_map.json           Where each color comes from: rnv-brand or the app
+├── COLORS.md                This app's color chart, written by the sync
 ├── tests/                   Test suite and its dependencies
 ├── py.typed                 PEP 561 type-hint marker
 ├── RNV_Color_Mixer.spec     PyInstaller build specification
@@ -213,7 +213,7 @@ rnv-color-mixer/
 ├── clean_python_cache.bat   Cache cleaner (Windows)
 ├── clean_python_cache.sh    Cache cleaner (macOS / Linux)
 ├── KNOWN_ISSUES.md          Documented platform-specific test skips
-├── tools/                   sync_colors.py: writes the colours in utils/config.py, and COLORS.md
+├── tools/                   sync_colors.py: writes the colors in utils/config.py, and COLORS.md
 ├── .github/workflows/       GitHub Actions CI (Linux + Windows), and the daily brand sync
 ├── tests/                   Suite 2 — pytest test files
 ├── snapshots/               Reference data for byte-locked tests

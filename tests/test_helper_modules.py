@@ -23,7 +23,7 @@ import pytest
 from pathlib import Path
 from PyQt6.QtGui import QPixmap, QColor
 
-from colour_values import DATA_CLIPBOARD_ORANGE, EXAMPLE_PURE_GREEN_UPPER, EXAMPLE_PURE_RED_UPPER
+from color_values import DATA_CLIPBOARD_ORANGE, EXAMPLE_PURE_GREEN_UPPER, EXAMPLE_PURE_RED_UPPER
 
 
 # ═══════════════════════════════════════════════════════════════════════════

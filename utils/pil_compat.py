@@ -19,7 +19,7 @@ So the call has to ask which Pillow it is running on. Asking once, here, is
 better than asking at each call site: there were five of them across three
 applications, and the next person to add a sixth will not know to ask.
 
-The two are behaviourally identical -- same length, same tuples, same palette
+The two are behaviorally identical -- same length, same tuples, same palette
 indices -- verified on RGB, RGBA, L and P in tests/test_pil_compat.py.
 """
 from __future__ import annotations

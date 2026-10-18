@@ -3,7 +3,7 @@ mixer's dark palettes, wired to the names the same pass created.
 
 WHY THIS APP NEEDED NAMING FIRST. The 2026-08-27 neutral rewire covered the
 three stylesheet templates. Seven other modules build their own QSS from
-ThemeManager's theme dicts, and four dark greys lived only there -- so they had
+ThemeManager's theme dicts, and four dark grays lived only there -- so they had
 never been named, and there was nothing to wire them to.
 
 NOTHING MOVED. The delivery script resolved every palette before and after and
@@ -26,12 +26,12 @@ PALETTES = {"DARK_THEME": DARK, "IMAGE_THEME": IMAGE}
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "utils" / "config.py"
 
-#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
-#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
+#: says. The values are held by tests/test_colors_in_sync.py, against the
 #: register at the pin; what this file holds is the name each one takes.
-BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colors"]
 
-#: RNV-COLOUR-SYNC, 2026-10-16: the register's values read from their
+#: RNV-COLOR-SYNC, 2026-10-16: the register's values read from their
 #: constants, where they were written out, so the sweep looks for what the
 #: register holds today. APP_HINT_DARK, the application's own, is read from
 #: its constant the same way since #52 A, 2026-10-17.
@@ -65,15 +65,15 @@ def test_the_names_this_file_reads_exist():
 
 
 def test_the_new_names_hold_the_values_they_were_created_for():
-    """RNV-COLOUR-SYNC, 2026-10-16: the three the register holds were held here
+    """RNV-COLOR-SYNC, 2026-10-16: the three the register holds were held here
     by their hex codes. brand_map.json takes each from its APP key now, and
-    tests/test_colours_in_sync.py holds the value. APP_HINT_DARK is the
+    tests/test_colors_in_sync.py holds the value. APP_HINT_DARK is the
     application's own and keeps its value."""
     assert BRAND_MAP["APP_CANVAS_DARK"] == "APP.canvas"
     assert BRAND_MAP["APP_CARD_DARK"] == "APP.card"
     assert BRAND_MAP["APP_PANEL_HOVER_DARK"] == "APP.panel-hover"
     # #52 A, 2026-10-17: by the map holding it as the application's own, where
-    # it was its hex code; tests/test_colours_in_sync.py holds the value.
+    # it was its hex code; tests/test_colors_in_sync.py holds the value.
     assert isinstance(BRAND_MAP["APP_HINT_DARK"], dict)
 
 
@@ -134,7 +134,7 @@ def test_menu_disabled_is_still_the_literal_that_proves_the_point():
         "reasoning above needs re-checking")
 
 
-def test_the_light_palette_names_its_own_greys():
+def test_the_light_palette_names_its_own_grays():
     """RNV-MIXER-WIRING (2026-09-06). This REPLACES
     test_the_light_palette_was_left_alone, which asserted the light palette
     referenced no substituted constant at all and said in its own docstring
@@ -148,7 +148,7 @@ def test_the_light_palette_names_its_own_greys():
     SUBSTITUTE.values(), which contains TRUE_BLACK, an anchor belonging to
     neither mode, so the only way to pass was to name nothing.
 
-    So the successor asserts the positive. The two greys the old test was
+    So the successor asserts the positive. The two grays the old test was
     holding back -- APP_TEXT_DIM_LIGHT and APP_CHROME_LIGHT -- now have names,
     and every name the light palette reads is a light one, an anchor, or the
     one dark name it borrows on purpose.
@@ -175,15 +175,15 @@ def test_the_light_palette_names_its_own_greys():
           "the reason, the way APP_BTN_HOVER_INVERSE is.")
 
 
-def test_the_two_held_back_greys_now_have_light_names():
+def test_the_two_held_back_grays_now_have_light_names():
     """The other half: the old test's subject, asserted as done rather than as
     forbidden. An allowlist that permits everything and a wiring that names
     nothing look identical from the outside, so this states what landed."""
-    # RNV-COLOUR-SYNC, 2026-10-16: APP_TEXT_DIM_LIGHT, the register's text-dim, was
-    # held here by its hex code; tests/test_colours_in_sync.py holds it.
+    # RNV-COLOR-SYNC, 2026-10-16: APP_TEXT_DIM_LIGHT, the register's text-dim, was
+    # held here by its hex code; tests/test_colors_in_sync.py holds it.
     # Named APP_DIM_LIGHT until 2026-10-17 (#51 A).
     # #52 A, 2026-10-17: by the map holding it as the application's own, where
-    # it was its hex code; tests/test_colours_in_sync.py holds the value.
+    # it was its hex code; tests/test_colors_in_sync.py holds the value.
     assert isinstance(BRAND_MAP["APP_CHROME_LIGHT"], dict)
     resolved = ThemeManager.LIGHT_THEME
     assert resolved["text_disabled"] == config.APP_TEXT_DIM_LIGHT

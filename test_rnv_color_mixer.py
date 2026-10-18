@@ -104,13 +104,13 @@ from utils.error_handler    import ErrorHandler
 from utils.file_utils       import FileUtils
 from utils import config
 
-# RNV-COLOUR-SYNC, #53 A and #55 B (2026-10-17): the colour values this suite
-# needs that are not the application's colours are named once, in
-# tests/colour_values.py. Loaded by path, as tests/test_colours_in_sync.py
+# RNV-COLOR-SYNC, #53 A and #55 B (2026-10-17): the color values this suite
+# needs that are not the application's colors are named once, in
+# tests/color_values.py. Loaded by path, as tests/test_colors_in_sync.py
 # loads it, so it is found however this file is run.
-_CV_PATH = next(p for p in (Path(_FLAT) / "tests" / "colour_values.py",
-                            Path(_FLAT) / "colour_values.py") if p.exists())
-_CV_SPEC = importlib.util.spec_from_file_location("colour_values_for_root_suite", _CV_PATH)
+_CV_PATH = next(p for p in (Path(_FLAT) / "tests" / "color_values.py",
+                            Path(_FLAT) / "color_values.py") if p.exists())
+_CV_SPEC = importlib.util.spec_from_file_location("color_values_for_root_suite", _CV_PATH)
 CV = importlib.util.module_from_spec(_CV_SPEC)
 _CV_SPEC.loader.exec_module(CV)
 
@@ -151,13 +151,13 @@ try:
 except Exception:
     async_save_json = async_load_json = None; _ASYNC_OK = False
 
-# ANSI colour helpers
+# ANSI color helpers
 _G="\033[92m"; _R="\033[91m"; _Y="\033[93m"; _C="\033[96m"; _B="\033[1m"; _X="\033[0m"
 
 # ── Global ColorHistory safety patch ─────────────────────────────────────────
 # ColorHistory.load() reads the real user history file and
 # save_async() spawns a FileWriterThread(QThread) on every add_color().
-# Neutralise both at the METHOD level so nothing can ever bypass the patch.
+# Neutralize both at the METHOD level so nothing can ever bypass the patch.
 _HIST_TMP  = tempfile.mkdtemp()
 _HIST_SAFE = os.path.join(_HIST_TMP, "test_history.json")
 

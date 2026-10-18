@@ -5,12 +5,12 @@ RNV-RULINGS-2026-10-11, item 20. Ruled 2026-10-11: "B".
 WHAT WAS THERE. Two lines stand in the Presets list when it has nothing to
 show. "No user presets yet", with User Presets chosen and none saved, was
 given the gold text; the line a category shows when it holds no preset was
-given dark's disabled grey, in every mode. Neither was drawn in it: the
-list's sheet coloured every item (`QListWidget::item { color: ... }`), and a
-sheet wins over an item's own colour. Both were drawn like a preset: APP_TEXT_DARK
+given dark's disabled gray, in every mode. Neither was drawn in it: the
+list's sheet colored every item (`QListWidget::item { color: ... }`), and a
+sheet wins over an item's own color. Both were drawn like a preset: APP_TEXT_DARK
 in dark and image, black in light. Rendered on 2026-10-05.
 
-WHAT IS THERE NOW. The list's item rule sets no colour, as the History
+WHAT IS THERE NOW. The list's item rule sets no color, as the History
 list's has not since 2026-10-05, and both lines hold text_hint, the muted
 text the History tab's empty line takes: APP_HINT_DARK in dark and image, APP_HINT_LIGHT
 in light.
@@ -20,15 +20,15 @@ WHAT THIS GUARD HOLDS.
 1. Each empty line holds the mode's muted text.
 2. It is DRAWN in it. Read back from the list's own pixels, as a
    comparison: the line as it is drawn, against the same line given the
-   list's text colour for a moment. How far its text stands from the row's
+   list's text color for a moment. How far its text stands from the row's
    ground in the one, against the other, is how far the two inks stand from
-   it. A sheet that coloured every item would draw the two alike.
+   it. A sheet that colored every item would draw the two alike.
 3. It follows the mode: a switch made with the panel open, or while it was
    closed, leaves each line in the new mode's muted text.
-4. A preset holds no colour of its own, as the list is filled and after
+4. A preset holds no color of its own, as the list is filled and after
    each mode's theme has been applied over it.
 
-That the list's item rule sets no colour is held with the History list's,
+That the list's item rule sets no color is held with the History list's,
 in tests/test_empty_history_line_draws.py. Each test drives the app the way
 a person does: the theme button, the panel's opener and the category box.
 """
@@ -136,7 +136,7 @@ def test_each_empty_line_holds_the_modes_muted_text(app_window, category, starts
 
 @pytest.mark.parametrize("category, starts", LINES, ids=("no user presets", "an empty category"))
 def test_each_empty_line_is_drawn_in_the_muted_text(app_window, category, starts):
-    """Read back from the pixels. Setting a colour on an item is not drawing it."""
+    """Read back from the pixels. Setting a color on an item is not drawing it."""
     for mode in _every_mode(app_window):
         panel = _presets_tab(app_window, category)
         palette = _palette(panel)
@@ -154,8 +154,8 @@ def test_each_empty_line_is_drawn_in_the_muted_text(app_window, category, starts
         got = drawn / control
         assert abs(got - want) < 0.12, (
             f"{mode}: {starts.strip()!r} stands {got:.2f} as far from the ground as it does in the list's text "
-            f"colour. In the muted text it stands {want:.2f} as far; at 1.00 the two are drawn alike, which is "
-            f"what a sheet that colours every item does")
+            f"color. In the muted text it stands {want:.2f} as far; at 1.00 the two are drawn alike, which is "
+            f"what a sheet that colors every item does")
         panel.close()
 
 
@@ -166,7 +166,7 @@ def test_each_follows_a_switch_made_with_the_panel_open(app_window, category, st
         mode = _switch(app_window)
         item = _empty_line(panel, starts)
         assert item.foreground().color().name() == QColor(_palette(panel)["text_hint"]).name(), \
-            f"a switch to {mode} left {starts.strip()!r} in the old mode's colour"
+            f"a switch to {mode} left {starts.strip()!r} in the old mode's color"
 
 
 @pytest.mark.parametrize("category, starts", LINES, ids=("no user presets", "an empty category"))
@@ -180,12 +180,12 @@ def test_each_follows_a_switch_made_while_the_panel_was_closed(app_window, categ
         QApplication.processEvents()
         item = _empty_line(panel, starts)
         assert item.foreground().color().name() == QColor(_palette(panel)["text_hint"]).name(), \
-            f"a switch to {mode} with the panel closed left {starts.strip()!r} in the old mode's colour"
+            f"a switch to {mode} with the panel closed left {starts.strip()!r} in the old mode's color"
 
 
-def test_a_preset_holds_no_colour_of_its_own(app_window):
+def test_a_preset_holds_no_color_of_its_own(app_window):
     """Not when the list is filled, and not when a theme is applied over it:
-    the pass that colours the empty lines runs then too, and has to leave
+    the pass that colors the empty lines runs then too, and has to leave
     every preset alone."""
     panel = _presets_tab(app_window, "All")
     lst = panel.presets_list
@@ -196,7 +196,7 @@ def test_a_preset_holds_no_colour_of_its_own(app_window):
             item = lst.item(row)
             assert item.data(Qt.ItemDataRole.UserRole) is not None
             assert item.data(Qt.ItemDataRole.ForegroundRole) is None, \
-                f"{item.text().splitlines()[0].strip()!r} was given a colour of its own {when}"
+                f"{item.text().splitlines()[0].strip()!r} was given a color of its own {when}"
     presets_hold_none("when the list was filled")
     for _ in range(3):
         mode = _switch(app_window)

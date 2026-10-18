@@ -13,7 +13,7 @@ lighter, so the harder, ground for a light ink -- and APP_WINDOW_LIGHT in
 light, so holding the hint on `panel_bg` below covers them.
 
 RNV-MUTED-DESCRIPTIONS, 2026-09-27 (ruling 1): the descriptions were
-`color: gray`, DATA_CSS_GREY in every mode, until they joined this key -- the
+`color: gray`, DATA_CSS_GRAY in every mode, until they joined this key -- the
 muted text all five applications paint, APP_HINT_DARK in dark and image and
 APP_HINT_LIGHT in light.
 
@@ -31,15 +31,15 @@ import pathlib
 
 import pytest
 
-from colour_values import RETIRED_LIGHT_HINT
+from color_values import RETIRED_LIGHT_HINT
 from utils import config
 from utils.config import ThemeManager
 
-#: RNV-COLOUR-SYNC, #52 A (2026-10-17). Where each colour comes from, as
-#: brand_map.json says. The values are held by tests/test_colours_in_sync.py,
+#: RNV-COLOR-SYNC, #52 A (2026-10-17). Where each color comes from, as
+#: brand_map.json says. The values are held by tests/test_colors_in_sync.py,
 #: against the map; what this file holds is the name each one takes.
 BRAND_MAP = json.loads((pathlib.Path(__file__).resolve().parents[1] / "brand_map.json")
-                       .read_text(encoding="utf-8"))["colours"]
+                       .read_text(encoding="utf-8"))["colors"]
 
 TEXT_FLOOR = 4.5
 
@@ -51,7 +51,7 @@ THEMES = {
 
 # The ground the label really renders on, and the ground behind it. Both are
 # checked, because a frame that stopped being painted would drop the label onto
-# the dialog and the figures would change without any colour moving.
+# the dialog and the figures would change without any color moving.
 GROUNDS = ("panel_secondary", "panel_bg")
 
 # (theme, ground key) -> why it may sit below the floor.
@@ -115,7 +115,7 @@ def test_the_hint_clears_aa_on_the_ground_it_sits_on(theme, ground):
         pytest.skip(ACCEPTED[(theme, ground)])
     ink, bg = palette["text_hint"], palette[ground]
     if not bg.startswith("#"):
-        pytest.skip(f"{theme} {ground} is {bg}, not a flat colour")
+        pytest.skip(f"{theme} {ground} is {bg}, not a flat color")
     ratio = contrast(ink, bg)
     assert ratio >= TEXT_FLOOR, (
         f"{theme}: hint {ink} on {ground} {bg} = {ratio:.4f}:1, below "
@@ -123,7 +123,7 @@ def test_the_hint_clears_aa_on_the_ground_it_sits_on(theme, ground):
 
 
 def test_the_accepted_entries_are_still_real():
-    """An exemption that no longer describes anything is a licence waiting for
+    """An exemption that no longer describes anything is a license waiting for
     a future defect. Each one must still be below the floor."""
     stale = []
     for (theme, ground), _why in ACCEPTED.items():
@@ -171,19 +171,19 @@ def test_the_light_hint_has_its_own_name():
     assert isinstance(value, ast.Name) and value.id == "APP_HINT_LIGHT", ast.unparse(value)
     assert config.APP_HINT_LIGHT == config.APP_HANDLE_LIGHT
     # #52 A, 2026-10-17: the value both hold is the application's own, by the
-    # map; tests/test_colours_in_sync.py holds it there.
+    # map; tests/test_colors_in_sync.py holds it there.
     assert isinstance(BRAND_MAP["APP_HINT_LIGHT"], dict)
     assert isinstance(BRAND_MAP["APP_HANDLE_LIGHT"], dict)
 
 
-def test_no_label_is_written_in_a_css_grey():
+def test_no_label_is_written_in_a_css_gray():
     """The literal the ruling retired, anywhere the application EVALUATES a
     string. Docstrings and comments may still name it; code may not."""
     import ast
     import pathlib
     import re
     root = pathlib.Path(__file__).resolve().parent.parent
-    css_grey = re.compile(r"color\s*:\s*(gray|grey)\b", re.I)
+    css_gray = re.compile(r"color\s*:\s*(gray|grey)\b", re.I)
     found, files = [], 0
     for path in sorted(root.rglob("*.py")):
         rel = path.relative_to(root)
@@ -202,6 +202,6 @@ def test_no_label_is_written_in_a_css_grey():
                 if isinstance(st, ast.Expr) and isinstance(st.value, ast.Constant)}
         found += [f"{rel}:{node.lineno}" for node in ast.walk(tree)
                   if isinstance(node, ast.Constant) and isinstance(node.value, str)
-                  and id(node) not in docs and css_grey.search(node.value)]
+                  and id(node) not in docs and css_gray.search(node.value)]
     assert files >= 20, f"only {files} files swept -- the walk has gone blind"
-    assert not found, "CSS grey still written as a colour:\n  " + "\n  ".join(found)
+    assert not found, "CSS gray still written as a color:\n  " + "\n  ".join(found)

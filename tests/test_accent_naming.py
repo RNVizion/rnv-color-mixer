@@ -1,7 +1,7 @@
 """The two accent role names -- and proof the retired ones are gone.
 
     accent_ink   the brand gold, used AS text
-    accent_text  the colour drawn ON the gold
+    accent_text  the color drawn ON the gold
 
 This matches rnv-text-transformer and rnv-color-palette-manager. The mixer
 previously called these accent_text and accent_on, which gave `accent_text`
@@ -90,7 +90,7 @@ def test_accent_ink_is_a_brand_gold(name):
 def test_accent_text_is_the_ink_drawn_on_gold(name):
     """accent_text is black or white -- never a gold. This is the assertion
     that fails loudly if the two names are ever swapped back."""
-    # RNV-COLOUR-SYNC, 2026-10-16: black and white by name, where they were
+    # RNV-COLOR-SYNC, 2026-10-16: black and white by name, where they were
     # written as their hex codes.
     inks = {config.TRUE_BLACK.lower(), config.WHITE.lower()}
     assert PALETTES[name]["accent_text"].lower() in inks, \
@@ -147,7 +147,7 @@ def test_that_sweep_is_actually_looking():
 
 def test_the_mention_exemption_is_not_dead():
     """An exemption list is asserted in BOTH directions. A dead exemption is
-    a licence waiting for a future defect."""
+    a license waiting for a future defect."""
     here = pathlib.Path(__file__)
     assert here.name in MENTION_ONLY
     text = here.read_text(encoding="utf-8")

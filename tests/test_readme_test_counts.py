@@ -12,7 +12,7 @@ No other document here states a total.
 WHAT IS THERE NOW. Every figure is a floor: "over N". N is the number of
 test functions the suites define, rounded down to the hundred. A test added
 leaves it true, so there is nothing to keep in step. pytest collects more
-than that number, because a parametrised function is written once and
+than that number, because a parametrized function is written once and
 collected once for each case.
 
 A DATED RECORD IS LEFT AS IT WAS. A section that records the counts at a
@@ -62,7 +62,7 @@ SENTENCE = re.compile(rf"(?P<n>{NUMBER})\s+(?:(?:unittest|pytest|passing|automat
 BADGE = re.compile(r"\btests-(?P<n>\d+)(?P<plus>%2B)?", re.I)
 OVER_BEFORE = re.compile(r"over\s+\**$", re.I)
 #: A table's cell holds a count of tests when its column is headed so, or
-#: when its row is labelled so ("Total tests"). A cell is its number alone.
+#: when its row is labeled so ("Total tests"). A cell is its number alone.
 SEPARATOR = re.compile(r"^\s*\|?(?:\s*:?-{2,}:?\s*\|)+\s*:?-*:?\s*$")
 COUNT_COLUMN = re.compile(r"\b(?:tests?|count)\b", re.I)
 TEST_ROW = re.compile(r"\btests?\b|unittest|pytest", re.I)
@@ -110,11 +110,11 @@ def _claims(text: str) -> list:
             add(match, bool(OVER_BEFORE.search(line[:match.start("n")])))
         if in_table and header is not None:
             cells = _cells(line)
-            labelled = bool(cells) and bool(TEST_ROW.search(cells[0][1]))
+            labeled = bool(cells) and bool(TEST_ROW.search(cells[0][1]))
             for column, (at, cell) in enumerate(cells):
                 match = CELL.match(cell)
                 headed = column < len(header) and bool(COUNT_COLUMN.search(header[column]))
-                if match and column and (headed or labelled):
+                if match and column and (headed or labeled):
                     add(_Shifted(match, at), bool(match.group("over")))
     return found
 

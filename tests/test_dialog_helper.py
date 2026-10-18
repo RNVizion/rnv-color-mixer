@@ -185,7 +185,7 @@ class TestAskYesNoCancel:
         ) == DialogResult.NO
 
     def test_cancel_returns_dialog_result_cancel(self, monkeypatch):
-        """Cancel button OR any unrecognised result falls through to
+        """Cancel button OR any unrecognized result falls through to
         the CANCEL branch."""
         _patch_exec(monkeypatch, QMessageBox.StandardButton.Cancel)
         assert DialogHelper.ask_yes_no_cancel(

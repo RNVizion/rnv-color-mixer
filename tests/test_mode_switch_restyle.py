@@ -1,12 +1,12 @@
 """RNV-CHART-RULINGS, ruling 3 of 2026-09-26: every widget follows a mode switch.
 
 WHAT THE CHART FOUND. Reading back every stylesheet and palette the app sets,
-mode by mode, found widgets in light mode carrying dark mode's colours:
+mode by mode, found widgets in light mode carrying dark mode's colors:
 
   * the preview's border               stale: only _update_preview() writes it,
                                        and a mode switch did not call it, so the
-                                       border waited for the next colour mixed;
-  * the colour slots' swatch borders,  always dark: _update_swatch_display()
+                                       border waited for the next color mixed;
+  * the color slots' swatch borders,  always dark: _update_swatch_display()
     and their gold hover and press     asked a FRESH ThemeManager, whose mode is
                                        always dark, however often set_theme() ran;
   * the control panel's nine shortcut  always dark: styled while the panel was
@@ -88,15 +88,15 @@ def test_the_slot_swatches_follow_every_mode(app_window):
             _assert_swatch(slot, theme, f"{mode}, slot {i}")
 
 
-def test_a_swatch_keeps_its_mode_through_a_colour_change_and_a_new_slot(app_window):
-    """A colour change repaints the swatch without being told the mode, and
+def test_a_swatch_keeps_its_mode_through_a_color_change_and_a_new_slot(app_window):
+    """A color change repaints the swatch without being told the mode, and
     a slot added in light mode is built there: both must stay in the mode."""
     for mode in _cycle(app_window):
         if mode == "light":
             break
     theme = app_window.ui_handler.get_current_theme_dict()
     app_window.slots[0].set_color((12, 120, 200))
-    _assert_swatch(app_window.slots[0], theme, "light, after a colour change")
+    _assert_swatch(app_window.slots[0], theme, "light, after a color change")
     app_window.add_color_slot()
     _assert_swatch(app_window.slots[-1], theme, "light, a slot added there")
 

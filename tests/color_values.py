@@ -1,18 +1,18 @@
-"""Every colour value the tests need that is not the application's colour.
+"""Every color value the tests need that is not the application's color.
 
-RNV-COLOUR-SYNC, #53 A (2026-10-17). The application's own colours and the
+RNV-COLOR-SYNC, #53 A (2026-10-17). The application's own colors and the
 brand's are named in utils/config.py, which brand_map.json names, and a test
-reads them from there. Every other colour value a test or the root suite
+reads them from there. Every other color value a test or the root suite
 writes is named here, once, with why: samples given to a helper (EXAMPLE_),
 what a user, a file or the clipboard supplies (DATA_), values the
 application no longer uses (RETIRED_), a value the brand publishes that this
 application does not draw (REGISTER_), and values written wrongly on purpose
-(INVALID_). tests/test_colour_values.py holds this file: no colour value is
+(INVALID_). tests/test_color_values.py holds this file: no color value is
 written anywhere else in tests/ or in test_rnv_color_mixer.py, and every name
 here says what kind it is, says why, and is used.
 
-Tests under tests/ import from here by name (`from colour_values import ...`);
-the root suite and tests/test_colours_in_sync.py load it by path.
+Tests under tests/ import from here by name (`from color_values import ...`);
+the root suite and tests/test_colors_in_sync.py load it by path.
 
 RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN
 This file names the retired golds on purpose (the RETIRED_ section), so the
@@ -22,7 +22,7 @@ retired-gold sweep in tests/test_brand_mirror.py skips it.
 # ------------------------------------------------------------------ examples
 
 EXAMPLE_BLACK = "#000000"
-"""Black as the colour maths and the readers spell it: what rgb_to_hex() makes
+"""Black as the color math and the readers spell it: what rgb_to_hex() makes
 of (0, 0, 0) and hex_to_rgb() reads back, what the integer sweep reports for
 (0, 0, 0, 50), and what the ink reader makes of EXAMPLE_BLACK_SHORT. A
 sample, not TRUE_BLACK: it must not follow a brand move."""
@@ -32,7 +32,7 @@ EXAMPLE_BLACK_SHORT = "#000"
 in tests/test_ink_on_the_golds.py; the reader must read it as EXAMPLE_BLACK."""
 
 EXAMPLE_WHITE = "#ffffff"
-"""White as the colour maths and the readers spell it: rgb_to_hex() of
+"""White as the color math and the readers spell it: rgb_to_hex() of
 (255, 255, 255), what the ink reader makes of the CSS word `white`, and the
 ink of a sample rule that reader is given. Also one of the grounds Qt's
 alpha byte for 0.7 was measured on. A sample, not WHITE."""
@@ -47,12 +47,12 @@ hold for (255, 0, 0)."""
 
 EXAMPLE_PURE_GREEN_UPPER = "#00FF00"
 """(0, 255, 0) in upper-case hex. Without its #, it is what a copied palette
-and an exported history page must hold for that colour, read in either
+and an exported history page must hold for that color, read in either
 case."""
 
 EXAMPLE_PURE_BLUE_DIGITS = "0000FF"
 """(0, 0, 255) as six hex digits with no #: one way an exported history text
-file may write that colour."""
+file may write that color."""
 
 EXAMPLE_TAN = "#d2bc93"
 """What rgb_to_hex() makes of (210, 188, 147), one of the bases the alpha
@@ -61,7 +61,7 @@ measured on. It is the bright gold's value today, but a
 sample: the channels beside it are written out, so it must not follow the
 brand."""
 
-EXAMPLE_DARK_GREY = "#444444"
+EXAMPLE_DARK_GRAY = "#444444"
 """A base the alpha helpers are tried on, and what the integer sweep reports
 for QColor(68, 68, 68). A sample, in lower case as the helpers write."""
 
@@ -84,8 +84,8 @@ EXAMPLE_NEAR_BLACK_AT_ED = "#ed1a1a1a"
 ruling of 2026-09-25 gave (RNV-LOWER-EIGHT)."""
 
 EXAMPLE_HAND_EDIT = "#123456"
-"""A value planted on one of the colour file's lines, as a hand edit the sync
-must put back (tests/test_colours_in_sync.py). Any colour the map does not
+"""A value planted on one of the color file's lines, as a hand edit the sync
+must put back (tests/test_colors_in_sync.py). Any color the map does not
 hold will do."""
 
 EXAMPLE_HAND_EDIT_FALLBACK = "#654321"
@@ -93,7 +93,7 @@ EXAMPLE_HAND_EDIT_FALLBACK = "#654321"
 
 EXAMPLE_MOVED_ACCENT = "#6f94bc"
 """Where a pretend brand move puts APP.accent, so the test can see that one
-line, and only that one, takes it (tests/test_colours_in_sync.py)."""
+line, and only that one, takes it (tests/test_colors_in_sync.py)."""
 
 EXAMPLE_MOVED_ACCENT_FALLBACK = "#456c91"
 """The pretend move to use when the brand's accent already is
@@ -109,19 +109,19 @@ EXAMPLE_WHITE_AT_230_RGBA = "rgba(255, 255, 255, 230)"
 
 EXAMPLE_CLEAR_RGBA = "rgba(0, 0, 0, 0)"
 """Clear written as rgba() at alpha 0, in the quiet probe of
-test_named_and_used: clear is not a colour, so the sweep must not report it."""
+test_named_and_used: clear is not a color, so the sweep must not report it."""
 
 EXAMPLE_ORANGE_UPPER = "#FF8040"
 """What the screen picker's readout writes for (255, 128, 64): upper case,
 as it formats. Without its #, it is what a slot copies to the clipboard for
-that colour, read in upper case."""
+that color, read in upper case."""
 
 EXAMPLE_ZERO_PADDED_BLUE = "#0500FA"
 """What the screen picker's readout writes for (5, 0, 250): each channel
 padded to two digits, upper case."""
 
 EXAMPLE_BROWN_DIGITS = "804020"
-"""(128, 64, 32) as six hex digits with no #: what a slot's colour data holds
+"""(128, 64, 32) as six hex digits with no #: what a slot's color data holds
 as its hex, read in lower case without the #."""
 
 EXAMPLE_PALE_BLUE_DIGITS = "abcdef"
@@ -129,7 +129,7 @@ EXAMPLE_PALE_BLUE_DIGITS = "abcdef"
 clipboard, read in lower case without the #."""
 
 EXAMPLE_MAGENTA = "#ff00ff"
-"""The control colour a render set the unread palette entries to
+"""The control color a render set the unread palette entries to
 (RNV-CHART-RULINGS, 2026-09-26): a value nothing else draws, so any pixel
 it reached would show."""
 
@@ -160,9 +160,9 @@ DATA_CSS_BLACK = "#000000"
 """What the CSS word `black` means where a stylesheet writes it. CSS's value,
 not TRUE_BLACK."""
 
-DATA_CSS_GREY = "#808080"
-"""What the CSS words `gray` and `grey` mean where a stylesheet writes them:
-the grey the History tab's empty line and the control panel's descriptions
+DATA_CSS_GRAY = "#808080"
+"""What the CSS words `gray` and `gray` mean where a stylesheet writes them:
+the gray the History tab's empty line and the control panel's descriptions
 were given before they took the muted text."""
 
 # ------------------------------------------------------------------- retired
@@ -193,12 +193,12 @@ RETIRED_OLD_DARK_GOLD_AT_BF_UPPER = "#BFB19145"
 """The same value in upper case, which the root suite checks for too."""
 
 RETIRED_IMAGE_SCROLLBAR_HANDLE = "#505050"
-"""The image scrollbar handle's old grey, ruled onto grey(4) on 2026-09-02
+"""The image scrollbar handle's old gray, ruled onto gray(4) on 2026-09-02
 and gone on 2026-09-25 (RNV-COLLAPSE-505050). It must not come back in any
 spelling."""
 
 RETIRED_IMAGE_SCROLLBAR_HANDLE_RGBA = "rgba(80, 80, 80, 150)"
-"""The same handle as the image stylesheet spelled it, given to the colour
+"""The same handle as the image stylesheet spelled it, given to the color
 decoder to prove the decoder still sees it."""
 
 RETIRED_DARK_SCROLLBAR_HANDLE_RGBA = "rgba(51, 51, 51, 0.7)"
@@ -210,13 +210,13 @@ RETIRED_LIGHT_HINT = "#888888"
 """The light hint's value until it failed 10px text on white (3.5407:1). The
 light hint no longer uses it; the value lives on in other roles, which is
 why the test that light is not back to it names it here and not from the
-colour file."""
+color file."""
 
 # ------------------------------------------------------------------ register
 
 REGISTER_GOLD_TEXT_GROUND_FLOOR = "#e8e8e8"
 """The register's floor for gold text: the darkest light ground the gold
-family still carries text on. A boundary the brand publishes, not a colour
+family still carries text on. A boundary the brand publishes, not a color
 this application draws."""
 
 # ------------------------------------------------------------------- invalid
@@ -230,7 +230,7 @@ INVALID_UPPER_EIGHT_DIGIT = "#ED1A1A1A"
 2026-09-25 refuses: eight digits are hex, and hex is written in lower case."""
 
 INVALID_FIVE_DIGIT = "#1a1a1"
-"""Five digits: no colour. The alpha helpers must refuse it."""
+"""Five digits: no color. The alpha helpers must refuse it."""
 
 INVALID_NOT_HEX = "#gggggg"
 """Six characters that are not hex. The alpha helpers must refuse it."""
@@ -245,7 +245,7 @@ INVALID_TWO_DIGIT = "#12"
 INVALID_SEVEN_DIGIT = "#1234567"
 """A hex entry typed one digit too long. The slot must not take it."""
 
-#: The brand's name for each REGISTER_ value; tests/test_colour_values.py
+#: The brand's name for each REGISTER_ value; tests/test_color_values.py
 #: holds each to the brand at the pinned commit.
 REGISTER_REFS = {
     "REGISTER_GOLD_TEXT_GROUND_FLOOR": "GOLD_TEXT_GROUND_FLOOR",

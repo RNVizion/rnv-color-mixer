@@ -132,7 +132,7 @@ class TestErrorHandler:
     # ever existed. Its docstring said "Some callers pass `default=`" -- a
     # factual claim, and a false one; nothing in the application passes it.
     # It was a specification for a feature nobody asked for, reported as a
-    # skip. The behaviour that DOES exist -- returning None when the call
+    # skip. The behavior that DOES exist -- returning None when the call
     # raises -- is asserted by the test immediately above. Deleted rather
     # than left skipping, because a permanent skip reads as coverage.
 

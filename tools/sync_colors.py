@@ -1,31 +1,31 @@
-"""Write this application's colours from the brand.   RNV-COLOUR-SYNC, 2026-10-16
+"""Write this application's colors from the brand.   RNV-COLOR-SYNC, 2026-10-16
 
-    python tools/sync_colors.py           write the colour file and COLORS.md
+    python tools/sync_colors.py           write the color file and COLORS.md
     python tools/sync_colors.py --check   write nothing; exit 1 if either is out of date
 
-brand_map.json, at the repository root, says where each colour in the colour
+brand_map.json, at the repository root, says where each color in the color
 file it names comes from: a name in rnv-brand, such as "APP.card", or a value
 this application owns, with the reason. This script writes the value on each
-of those lines, and COLORS.md, the chart of this application's colours.
+of those lines, and COLORS.md, the chart of this application's colors.
 
 THE BRAND IS READ AT THE PIN. A brand name's value comes from rnv-brand as
 installed, and only when that is the commit pinned in
 tests/requirements-dev.txt, so what is written is what this repository
 declares, never whatever happens to be installed. Moving to a newer brand is:
 change the pin, `pip install -r tests/requirements-dev.txt`, run this script,
-and read the diff of the colour file. It shows exactly what moved.
+and read the diff of the color file. It shows exactly what moved.
 .github/workflows/brand-sync.yml does that every day, and opens a pull
-request only when a colour this application uses has moved.
+request only when a color this application uses has moved.
 
 NOTHING READS THE BRAND WHILE THE APPLICATION RUNS. The values are written
-into the source and the build carries them. A derived colour, such as
-lighten(BRAND_GOLD, 13), stays code in the colour file and follows its base.
+into the source and the build carries them. A derived color, such as
+lighten(BRAND_GOLD, 13), stays code in the color file and follows its base.
 Image files are not touched.
 
 THE SAME FILE IN EVERY APPLICATION. What differs between them is in
-brand_map.json: the colour file, the palettes the chart reads, and the map.
+brand_map.json: the color file, the palettes the chart reads, and the map.
 
-tests/test_colours_in_sync.py runs the --check half of this on every run.
+tests/test_colors_in_sync.py runs the --check half of this on every run.
 """
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ PIN_RE = re.compile(
     r"^rnv-brand\s*@\s*git\+https://github\.com/RNVizion/rnv-brand"
     r"(?:\.git)?@(?P<ref>[0-9a-f]{40})\s*$", re.M)
 
-#: One colour constant on one line, `NAME = <value>` or `NAME: <type> = <value>`,
+#: One color constant on one line, `NAME = <value>` or `NAME: <type> = <value>`,
 #: with the marker this script writes at the end, or none before its first run.
 LINE_RE = (r"^(?P<head>{name}(?:\s*:[^=]+?)?\s*=\s*)(?P<value>.+?)"
            r"(?P<mark>  # (?:brand: \S+|app-owned))?$")
@@ -95,12 +95,12 @@ def write(path: Path, text: str, form: tuple[bool, bool] = (False, False)) -> No
 def load_map(root: Path = ROOT) -> dict[str, Any]:
     """brand_map.json, checked entry by entry before anything is written."""
     data = json.loads((root / "brand_map.json").read_text(encoding="utf-8"))
-    colours = data.get("colours")
-    if not isinstance(colours, dict) or not colours:
-        raise SyncError("brand_map.json has no colours")
-    if not isinstance(data.get("colour_file"), str):
-        raise SyncError("brand_map.json does not name its colour_file")
-    for name, entry in colours.items():
+    colors = data.get("colors")
+    if not isinstance(colors, dict) or not colors:
+        raise SyncError("brand_map.json has no colors")
+    if not isinstance(data.get("color_file"), str):
+        raise SyncError("brand_map.json does not name its color_file")
+    for name, entry in colors.items():
         if isinstance(entry, str):
             table, dot, key = entry.partition(".")
             if dot and (table not in TABLES or not key):
@@ -111,12 +111,12 @@ def load_map(root: Path = ROOT) -> dict[str, Any]:
                                 f"the register's constants")
         elif isinstance(entry, dict):
             if set(entry) != {"app", "why"}:
-                raise SyncError(f"{name}: an app-owned colour is "
+                raise SyncError(f"{name}: an app-owned color is "
                                 f'{{"app": <value>, "why": <reason>}}')
             if not isinstance(entry["why"], str) or not entry["why"].strip():
-                raise SyncError(f"{name}: an app-owned colour needs its reason")
-            if not is_colour(_as_python(entry["app"])):
-                raise SyncError(f"{name}: {entry['app']!r} is not a colour")
+                raise SyncError(f"{name}: an app-owned color needs its reason")
+            if not is_color(_as_python(entry["app"])):
+                raise SyncError(f"{name}: {entry['app']!r} is not a color")
         else:
             raise SyncError(f"{name}: an entry is a brand name or an app-owned object")
     return data
@@ -127,7 +127,7 @@ def _as_python(value: Any) -> Any:
     return tuple(value) if isinstance(value, list) else value
 
 
-def is_colour(value: Any) -> bool:
+def is_color(value: Any) -> bool:
     """A hex, an rgb()/rgba() string, or an (r, g, b[, a]) tuple of bytes."""
     if isinstance(value, str):
         return bool(_HEX_RE.fullmatch(value) or _RGBA_RE.fullmatch(value))
@@ -187,14 +187,14 @@ def brand_value(brand: Any, ref: str) -> str:
             raise SyncError(f"rnv-brand has no {ref}")
         value = getattr(brand, ref)
     if not (isinstance(value, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", value)):
-        raise SyncError(f"{ref} is {value!r}, not a six-digit hex colour")
+        raise SyncError(f"{ref} is {value!r}, not a six-digit hex color")
     return value.lower()
 
 
-# ----------------------------------------------------------- the colour file
+# ----------------------------------------------------------- the color file
 
 def spell(value: Any, like: str = '"') -> str:
-    """A value as the colour file writes it, in the quotes the line already uses."""
+    """A value as the color file writes it, in the quotes the line already uses."""
     if isinstance(value, str):
         if like.startswith("'") and "'" not in value:
             return f"'{value}'"
@@ -205,7 +205,7 @@ def spell(value: Any, like: str = '"') -> str:
 def resolve(mapping: dict[str, Any], brand: Any) -> dict[str, tuple[Any, str]]:
     """Each mapped name: (its value, the marker its line carries)."""
     out: dict[str, tuple[Any, str]] = {}
-    for name, entry in mapping["colours"].items():
+    for name, entry in mapping["colors"].items():
         if isinstance(entry, str):
             out[name] = (brand_value(brand, entry), f"brand: {entry}")
         else:
@@ -213,8 +213,8 @@ def resolve(mapping: dict[str, Any], brand: Any) -> dict[str, tuple[Any, str]]:
     return out
 
 
-def colour_constants(text: str) -> list[str]:
-    """Every module-level constant written as a colour literal."""
+def color_constants(text: str) -> list[str]:
+    """Every module-level constant written as a color literal."""
     names = []
     for node in ast.parse(text).body:
         if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
@@ -226,13 +226,13 @@ def colour_constants(text: str) -> list[str]:
             value = ast.literal_eval(node.value)
         except ValueError:
             continue
-        if is_colour(value):
+        if is_color(value):
             names.append(target.id)
     return names
 
 
 def rewrite(text: str, resolved: dict[str, tuple[Any, str]], where: str) -> str:
-    """The colour file with every mapped line written from the map."""
+    """The color file with every mapped line written from the map."""
     lines = text.split("\n")
     for name, (value, mark) in resolved.items():
         pattern = re.compile(LINE_RE.format(name=re.escape(name)))
@@ -251,15 +251,15 @@ def rewrite(text: str, resolved: dict[str, tuple[Any, str]], where: str) -> str:
         except (ValueError, SyntaxError):
             raise SyncError(
                 f"{where}: {name} is written as {match.group('value')!r}, which is "
-                f"code, not a value. A derived colour stays code; take {name} "
+                f"code, not a value. A derived color stays code; take {name} "
                 f"out of brand_map.json.") from None
         lines[hits[0]] = (f"{match.group('head')}{spell(value, match.group('value'))}"
                           f"  # {mark}")
     new = "\n".join(lines)
-    unmapped = [n for n in colour_constants(new) if n not in resolved]
+    unmapped = [n for n in color_constants(new) if n not in resolved]
     if unmapped:
         raise SyncError(
-            f"{where} writes colours brand_map.json does not hold: "
+            f"{where} writes colors brand_map.json does not hold: "
             f"{', '.join(unmapped)}. Add each, as a brand name or as app-owned "
             f"with its reason.")
     return new
@@ -276,7 +276,7 @@ def _cell(text: str) -> str:
 
 
 def _module_namespace(text: str, path: Path, root: Path) -> dict[str, Any]:
-    """The colour file's names, as it defines them from this text."""
+    """The color file's names, as it defines them from this text."""
     module = ".".join(path.relative_to(root).with_suffix("").parts)
     namespace: dict[str, Any] = {"__file__": str(path), "__name__": module}
     added = str(root) not in sys.path
@@ -302,7 +302,7 @@ def _palettes(text: str, mapping: dict[str, Any], root: Path) -> list[tuple[str,
                 found.append((node.target.id, node.value))
     else:
         for entry in wanted:
-            source = (text if entry["file"] == mapping["colour_file"]
+            source = (text if entry["file"] == mapping["color_file"]
                       else read(root / entry["file"])[0])
             body = ast.parse(source).body
             *owner, name = entry["dict"].split(".")
@@ -323,26 +323,26 @@ def _palettes(text: str, mapping: dict[str, Any], root: Path) -> list[tuple[str,
 
 def chart(text: str, mapping: dict[str, Any], brand: Any, pin: str, root: Path = ROOT) -> str:
     """COLORS.md: the brand's names, their values, and this application's names."""
-    colour_path = root / mapping["colour_file"]
-    namespace = _module_namespace(text, colour_path, root)
+    color_path = root / mapping["color_file"]
+    namespace = _module_namespace(text, color_path, root)
     tree = ast.parse(text)
-    colours = mapping["colours"]
+    colors = mapping["colors"]
 
     source: dict[str, str] = {}
     for node in tree.body:
         if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
             continue
         target = node.targets[0] if isinstance(node, ast.Assign) else node.target
-        if isinstance(target, ast.Name) and is_colour(namespace.get(target.id)):
+        if isinstance(target, ast.Name) and is_color(namespace.get(target.id)):
             source[target.id] = ast.unparse(node.value)
 
-    # A derived colour is made from the colour names its expression reads.
-    derived = [n for n in source if n not in colours]
+    # A derived color is made from the color names its expression reads.
+    derived = [n for n in source if n not in colors]
     reads = {n: {x.id for x in ast.walk(ast.parse(source[n], mode="eval"))
                  if isinstance(x, ast.Name) and x.id in source} for n in derived}
 
     def roots(name: str, seen: frozenset[str] = frozenset()) -> set[str]:
-        if name in colours:
+        if name in colors:
             return {name}
         out: set[str] = set()
         for base in reads.get(name, ()):
@@ -350,7 +350,7 @@ def chart(text: str, mapping: dict[str, Any], brand: Any, pin: str, root: Path =
                 out |= roots(base, seen | {name})
         return out
 
-    made_from: dict[str, list[str]] = {n: [] for n in colours}
+    made_from: dict[str, list[str]] = {n: [] for n in colors}
     for name in derived:
         for base in sorted(roots(name)):
             made_from[base].append(name)
@@ -367,22 +367,22 @@ def chart(text: str, mapping: dict[str, Any], brand: Any, pin: str, root: Path =
         keys = list(getattr(brand, table))
         return TABLES.index(table), keys.index(key)
 
-    from_brand = sorted(((n, e) for n, e in colours.items() if isinstance(e, str)),
+    from_brand = sorted(((n, e) for n, e in colors.items() if isinstance(e, str)),
                         key=brand_order)
-    own = [(n, e) for n, e in colours.items() if isinstance(e, dict)]
+    own = [(n, e) for n, e in colors.items() if isinstance(e, dict)]
     orphans = [n for n in derived if not roots(n)]
 
     out = [
-        f"# Colours: {mapping.get('app', 'this application')}",
+        f"# Colors: {mapping.get('app', 'this application')}",
         "",
         f"Generated by `python tools/sync_colors.py` from `brand_map.json`, "
-        f"`{mapping['colour_file']}` and rnv-brand at `{pin[:7]}`, the commit pinned in "
+        f"`{mapping['color_file']}` and rnv-brand at `{pin[:7]}`, the commit pinned in "
         f"`{DEV_REQS}`. Don't edit it by hand: change the map and run "
-        f"the script. `tests/test_colours_in_sync.py` fails when this file is out of date.",
+        f"the script. `tests/test_colors_in_sync.py` fails when this file is out of date.",
         "",
-        f"{len(from_brand)} colours come from the brand and {len(own)} are the "
+        f"{len(from_brand)} colors come from the brand and {len(own)} are the "
         f"application's own. {len(derived)} more are worked out in "
-        f"`{mapping['colour_file']}` from those, so they follow them.",
+        f"`{mapping['color_file']}` from those, so they follow them.",
         "",
         "## From the brand",
         "",
@@ -402,7 +402,7 @@ def chart(text: str, mapping: dict[str, Any], brand: Any, pin: str, root: Path =
         out.append(f"| `{name}` | `{_shown(namespace[name])}` | {_cell(entry['why'])} "
                    f"| {made(name)} |")
     if orphans:
-        out += ["", "Worked out from no colour above: "
+        out += ["", "Worked out from no color above: "
                 + ", ".join(f"`{n}`" for n in orphans) + "."]
 
     # Each palette's keys, in order: the expression it writes, or "as dark"
@@ -442,7 +442,7 @@ def chart(text: str, mapping: dict[str, Any], brand: Any, pin: str, root: Path =
             except Exception:
                 cells.append(f"`{_cell(expr)}`")
                 continue
-            if not isinstance(value, (str, tuple)) or not (is_colour(value) or isinstance(value, str)):
+            if not isinstance(value, (str, tuple)) or not (is_color(value) or isinstance(value, str)):
                 cells.append(f"`{_cell(expr)}`")
             elif expr == repr(value):
                 cells.append(f"`{_shown(value)}`")
@@ -452,7 +452,7 @@ def chart(text: str, mapping: dict[str, Any], brand: Any, pin: str, root: Path =
     notes = mapping.get("notes") or []
     if notes:
         out += ["", "## Not in the map", ""] + [f"- {_cell(n)}" for n in notes]
-    out += ["", "Which widgets each key reaches is in the fleet chart, *RNV Colour Chart*.", ""]
+    out += ["", "Which widgets each key reaches is in the fleet chart, *RNV Color Chart*.", ""]
     return "\n".join(out)
 
 
@@ -462,12 +462,12 @@ def build(root: Path = ROOT) -> dict[Path, tuple[str, str, tuple[bool, bool]]]:
     """Each file this script owns: (what is there, what it would write, its form)."""
     mapping = load_map(root)
     brand, pin = load_brand(root)
-    colour_path = root / mapping["colour_file"]
-    before, form = read(colour_path)
-    after = rewrite(before, resolve(mapping, brand), mapping["colour_file"])
+    color_path = root / mapping["color_file"]
+    before, form = read(color_path)
+    after = rewrite(before, resolve(mapping, brand), mapping["color_file"])
     chart_path = root / "COLORS.md"
     chart_before, chart_form = read(chart_path) if chart_path.exists() else ("", (False, False))
-    return {colour_path: (before, after, form),
+    return {color_path: (before, after, form),
             chart_path: (chart_before, chart(after, mapping, brand, pin, root), chart_form)}
 
 

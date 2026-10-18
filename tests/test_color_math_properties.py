@@ -3,39 +3,39 @@ RNV Color Mixer — Color Math Property Tests  (Phase 5 deliverable)
 ====================================================================
 
 Property-based testing of ColorMath using hypothesis. The locked suite's
-example-based roundtrip tests cover ~5 hand-picked colours per conversion;
-this file generalises to thousands of randomly-explored inputs and asserts
+example-based roundtrip tests cover ~5 hand-picked colors per conversion;
+this file generalizes to thousands of randomly-explored inputs and asserts
 the same invariants hold for *all* of them.
 
 What property-based testing buys us
 -----------------------------------
-Example-based unit tests check "for these specific 5 colours, hex roundtrip
+Example-based unit tests check "for these specific 5 colors, hex roundtrip
 is exact". Property tests check "for ANY RGB tuple, hex roundtrip is exact",
 generating up to 200 random examples per property, plus shrunk minimal
 counter-examples on failure.
 
 A subtle bug in `rgb_to_lab`'s gamma curve, for instance, would likely pass
-the 5 hand-picked test colours but fail under hypothesis on something like
+the 5 hand-picked test colors but fail under hypothesis on something like
 (127, 0, 73). When a property fails, hypothesis automatically shrinks to
 the simplest input that triggers the failure — e.g. (1, 0, 0) instead of
 (127, 53, 219) — making diagnosis easy.
 
 Scope discipline (per phase plan)
 ---------------------------------
-• Roundtrip invariants for the 5 colour spaces (HEX exact, HSL/HSV/LAB ±2,
+• Roundtrip invariants for the 5 color spaces (HEX exact, HSL/HSV/LAB ±2,
   RYB ±15)
 • Clamp idempotence and value-range invariants
-• Two-colour mix bounding-box property (RGB mix only — wider mixes have
+• Two-color mix bounding-box property (RGB mix only — wider mixes have
   combinatorial explosion)
 • Single-slot identity across all 6 mixing algorithms
 
 NOT scoped: 3+ slot combinatorial mixes, hue-wrap edge cases, LAB
-out-of-gamut clamping behaviour. Those would need targeted unit tests, not
+out-of-gamut clamping behavior. Those would need targeted unit tests, not
 property tests.
 
 Performance
 -----------
-Hypothesis `deadline=None` is set globally for this file because some colour
+Hypothesis `deadline=None` is set globally for this file because some color
 math (LAB, Kubelka-Munk) is non-trivial and can intermittently exceed the
 default 200ms per-example deadline on a busy CI. `max_examples=200` per
 property gives strong coverage without blowing past the 15-second budget.
@@ -71,7 +71,7 @@ arbitrary_float_st = st.floats(
 )
 
 # Suppress hypothesis health checks where they'd flag harmless variance
-# (the colour space conversions are uniform-cost, just sometimes slow)
+# (the color space conversions are uniform-cost, just sometimes slow)
 HYP_SETTINGS = settings(
     max_examples=200,
     deadline=None,
@@ -169,8 +169,8 @@ class TestColorMathProperties:
     @HYP_SETTINGS
     @given(rgb_st, rgb_st, st.integers(min_value=1, max_value=99))
     def test_property_two_color_rgb_mix_in_bounding_box(self, c1, c2, w1):
-        """A weighted RGB mix of two colours must lie within the axis-aligned
-        bounding box of those colours, per channel.
+        """A weighted RGB mix of two colors must lie within the axis-aligned
+        bounding box of those colors, per channel.
 
         This holds for the linear `weighted_rgb_mix` algorithm. Other
         algorithms (HSV, LAB, RYB, KM) interpolate in non-RGB spaces so
@@ -191,11 +191,11 @@ class TestColorMathProperties:
     @HYP_SETTINGS
     @given(rgb_st, positive_weight_st)
     def test_property_single_slot_identity_all_algorithms(self, rgb, weight):
-        """A single (colour, weight) pair must return that colour from all
+        """A single (color, weight) pair must return that color from all
         six mixing algorithms — there's nothing to mix it with.
 
         This is the strongest cross-algorithm invariant: it doesn't depend
-        on the colour space's interpolation behaviour, only on the
+        on the color space's interpolation behavior, only on the
         algorithms agreeing on the no-op case."""
         single = [(rgb, weight)]
         algorithms = [

@@ -22,7 +22,7 @@ from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QContextMenuEvent
 from PyQt6.QtWidgets import QMenu, QColorDialog
 
-from colour_values import EXAMPLE_ORANGE_UPPER
+from color_values import EXAMPLE_ORANGE_UPPER
 
 
 # ═══════════════════════════════════════════════════════════════════════════

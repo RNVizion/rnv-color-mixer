@@ -15,15 +15,15 @@ import pathlib
 
 import pytest
 
-from colour_values import (REGISTER_GOLD_TEXT_GROUND_FLOOR, RETIRED_MAGNIFIER_GRID_PEN,
+from color_values import (REGISTER_GOLD_TEXT_GROUND_FLOOR, RETIRED_MAGNIFIER_GRID_PEN,
                            RETIRED_OLD_DARK_GOLD, RETIRED_OLD_DARK_GOLD_TINT,
                            RETIRED_OLD_DARK_HOVER)
 from utils import config
 
-#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
-#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
+#: says. The values are held by tests/test_colors_in_sync.py, against the
 #: register at the pin; what this file holds is the name each one takes.
-BRAND_MAP = json.loads((pathlib.Path(__file__).resolve().parents[1] / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+BRAND_MAP = json.loads((pathlib.Path(__file__).resolve().parents[1] / "brand_map.json").read_text(encoding="utf-8"))["colors"]
 
 TM = config.ThemeManager
 PALETTES = {"DARK": TM.DARK_THEME, "LIGHT": TM.LIGHT_THEME, "IMAGE": TM.IMAGE_THEME}
@@ -81,9 +81,9 @@ def test_provenance_groups_are_valid():
 
 
 def test_register_values_match_rnv_brand():
-    """RNV-COLOUR-SYNC, 2026-10-16. This held the two golds by their hex codes.
+    """RNV-COLOR-SYNC, 2026-10-16. This held the two golds by their hex codes.
     The golds follow the register's accent names, as ruled (#45 A); the
-    values are written from there and held by tests/test_colours_in_sync.py."""
+    values are written from there and held by tests/test_colors_in_sync.py."""
     assert BRAND_MAP["BRAND_GOLD"] == "APP.accent"
     assert BRAND_MAP["BRAND_DARK_GOLD"] == "APP.accent-light-mode"
 
@@ -224,7 +224,7 @@ def _tracked_sources():
             text = raw.decode("utf-8", errors="surrogateescape")
         # Files whose JOB is to talk about these values are not call sites.
         # RNV-FLEET-FLOOR 2026-09-11: one marker every scanner in this
-        # fleet honours, so a delivery script is skipped whatever it is
+        # fleet honors, so a delivery script is skipped whatever it is
         # called. Such a script QUOTES the code it replaces, which reads
         # to a sweep exactly like a live call site.
         if ("RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN" in text
@@ -250,7 +250,7 @@ def test_the_retired_scan_is_still_looking():
     files = list(_tracked_sources())
     assert len(files) > 20, f"the source scan found only {len(files)} files"
     assert any(rel == "utils/config.py" for rel, _ in files), \
-        "the scan is not reading the colour file"
+        "the scan is not reading the color file"
 
 
 def test_the_tuple_form_is_covered_too():

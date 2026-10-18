@@ -12,7 +12,7 @@ nothing here would have noticed.
 
 THE INK GRID, published in the brand beside that move:
 
-    grey(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.
+    gray(n) = n * 0x11, n in 0..15.   TRUE_BLACK -> WHITE in fifteen steps.
 
 It governs INKS AND EDGES and deliberately does not govern surfaces:
 APP_SURFACE_DARK is BRAND_BLACK, at n = 1.53, a permanent that will not
@@ -51,14 +51,14 @@ IMAGE = ThemeManager.IMAGE_THEME
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / 'utils' / 'config.py'
 
-#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
-#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
+#: says. The values are held by tests/test_colors_in_sync.py, against the
 #: register at the pin; what this file holds is the name each one takes.
-BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colors"]
 
 GRID_STEP = 0x11
 
-#: The register's neutrals this app names. RNV-COLOUR-SYNC, 2026-10-16: this
+#: The register's neutrals this app names. RNV-COLOR-SYNC, 2026-10-16: this
 #: was PINNED, each name with its value written beside it; the values are
 #: written into utils/config.py from the register now, and held there.
 NEUTRALS = ('TRUE_BLACK', 'WHITE', 'APP_SURFACE_DARK', 'APP_BORDER_DARK',
@@ -92,7 +92,7 @@ INK_KEYS = ('text_color', 'main_btn_text', 'input_text', 'slot_border',
 LIGHT_SURFACE_KEYS = ('hover_color',)
 
 
-def grey(n: int) -> str:
+def gray(n: int) -> str:
     v = n * GRID_STEP
     return '#%02x%02x%02x' % (v, v, v)
 
@@ -130,8 +130,8 @@ def test_the_keys_this_file_reads_still_exist():
 # ------------------------------------------------------------------- the value
 
 def test_the_ink_is_a_step_on_the_grid():
-    assert colors.APP_TEXT_DARK == grey(13), (
-        f'APP_TEXT is {colors.APP_TEXT_DARK}, not grey(13). The ink grid admits no '
+    assert colors.APP_TEXT_DARK == gray(13), (
+        f'APP_TEXT is {colors.APP_TEXT_DARK}, not gray(13). The ink grid admits no '
         f'exceptions -- see rnv-brand engine/brand.py APP.')
 
 
@@ -139,10 +139,10 @@ def test_every_pinned_neutral_is_what_the_register_held():
     """The local half of the mirror. Runs everywhere, including where
     engine.brand is not importable.
 
-    RNV-COLOUR-SYNC, 2026-10-16. This held each value written out beside its
+    RNV-COLOR-SYNC, 2026-10-16. This held each value written out beside its
     name, and a brand move meant editing it by hand. Now it holds that
     brand_map.json takes each neutral from the register; the value is written
-    from there, and tests/test_colours_in_sync.py holds it."""
+    from there, and tests/test_colors_in_sync.py holds it."""
     own = {n: BRAND_MAP.get(n) for n in NEUTRALS
            if not isinstance(BRAND_MAP.get(n), str)}
     assert not own, (
@@ -223,7 +223,7 @@ def test_the_light_surface_did_not_follow_the_ink():
 # ------------------------------------------------------------- what did NOT move
 
 def test_the_light_ink_is_true_black():
-    """Primary text is one role with two mode values: dark is a grey on the
+    """Primary text is one role with two mode values: dark is a gray on the
     grid, light is TRUE_BLACK."""
     assert LIGHT['text_color'] == colors.TRUE_BLACK
 

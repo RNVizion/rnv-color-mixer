@@ -16,7 +16,7 @@ tests; we just construct, mutate sliders, and read state.
 
 Per the Phase 7 plan, direction-of-change is asserted (e.g. "warmer means
 more red, less blue"), not exact pixel values — the underlying HSV math
-has rounding behaviour we don't want to overspecify.
+has rounding behavior we don't want to overspecify.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ class TestColorFineTuneConstruction:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 2. Slider behaviour (5 tests, one per slider)
+# 2. Slider behavior (5 tests, one per slider)
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.integration

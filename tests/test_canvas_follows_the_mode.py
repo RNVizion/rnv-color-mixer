@@ -6,7 +6,7 @@ comment meant see through gold."
 WHAT WAS THERE. Three faults in one paint.
 
   The canvas asked a ThemeManager it made itself for the mode, and a new one
-  always answers dark. So in light mode a dragged selection and the colour
+  always answers dark. So in light mode a dragged selection and the color
   preview were drawn as in dark: dark's gold, a black plate, white figures.
   The slots had the same fault until 2026-09-26.
 
@@ -15,7 +15,7 @@ WHAT WAS THERE. Three faults in one paint.
 
   The branches asked whether the theme was NAMED Dark. Had the canvas been
   handed the app's theme, image mode, whose palette is the dark one under
-  its own name, would have taken light's black figures and grey plate.
+  its own name, would have taken light's black figures and gray plate.
 
 WHAT IS THERE NOW. The canvas hands its label the theme the app is in, as
 each slot is handed it. The fill is the mode's accent at
@@ -31,7 +31,7 @@ WHAT THIS GUARD HOLDS.
    through the mode's accent at CANVAS_SELECTION_ALPHA, and its edge is the
    accent, solid. Read back from the label's own pixels, and from the
    string the paint is handed.
-4. The size label and the colour preview are drawn for the mode: light
+4. The size label and the color preview are drawn for the mode: light
    figures on a dark plate in dark and image, dark figures on a light plate
    in light.
 5. Without a handler, the label takes the theme `is_dark` names.
@@ -56,7 +56,7 @@ SIZE = (420, 300)
 SELECTION = QRect(60, 50, 240, 150)
 INSIDE = (80, 70)                           # in the selection, clear of its edge, corners and size label
 EDGE = (60, 125)                            # on its left edge, half way down
-LABEL = QRect(165, 119, 30, 12)             # on the size label's plate, at the selection's centre
+LABEL = QRect(165, 119, 30, 12)             # on the size label's plate, at the selection's center
 THEMES = {"dark": "DARK_THEME", "light": "LIGHT_THEME", "image": "IMAGE_THEME"}
 
 
@@ -82,9 +82,9 @@ def _every_mode(app_window):
     assert {"dark", "light", "image"} <= set(seen), seen
 
 
-def _over(under: tuple, colour: str, alpha: int) -> tuple:
-    """`colour` at `alpha` painted over `under`: what a painter leaves."""
-    c = QColor(colour)
+def _over(under: tuple, color: str, alpha: int) -> tuple:
+    """`color` at `alpha` painted over `under`: what a painter leaves."""
+    c = QColor(color)
     return tuple(round(top * alpha / 255 + bottom * (255 - alpha) / 255)
                  for top, bottom in zip((c.red(), c.green(), c.blue()), under))
 
@@ -152,7 +152,7 @@ def test_dark_and_image_take_the_dark_look_and_light_the_light_one():
     from ui.canvas_view import ImageDisplayLabel
     assert ImageDisplayLabel._draws_dark(config.ThemeManager.DARK_THEME) is True
     assert ImageDisplayLabel._draws_dark(config.ThemeManager.IMAGE_THEME) is True, \
-        "image mode would draw light's black figures and grey plate"
+        "image mode would draw light's black figures and gray plate"
     assert ImageDisplayLabel._draws_dark(config.ThemeManager.LIGHT_THEME) is False
     assert ImageDisplayLabel._draws_dark(None) is False
     assert config.ThemeManager.IMAGE_THEME["accent"] == config.ThemeManager.DARK_THEME["accent"]
@@ -211,8 +211,8 @@ def test_the_size_label_is_drawn_for_the_mode(app_window):
 
 
 def test_the_preview_is_drawn_for_the_mode(app_window):
-    half = 60                                # the preview is 120 square, at the label's centre
-    corner = (SIZE[0] // 2 - half + 3, SIZE[1] // 2 - half + 3)      # on its plate, outside the colour square
+    half = 60                                # the preview is 120 square, at the label's center
+    corner = (SIZE[0] // 2 - half + 3, SIZE[1] // 2 - half + 3)      # on its plate, outside the color square
     for mode in _every_mode(app_window):
         plate = _previewing(app_window).pixelColor(*corner)
         ink = config.WHITE if mode == "light" else config.TRUE_BLACK
@@ -226,18 +226,18 @@ def test_the_crosshair_is_the_dark_gold_in_every_mode(app_window):
     """RNV-RULINGS-2026-10-11, item 26. Not the mode's accent: the same gold
     over the same image in each mode. Read back from the pixels, which are the
     ones the crosshair always drew: two arms, ten pixels each way from the
-    centre and one pixel wide, each pixel of them the pen's colour, and the
+    center and one pixel wide, each pixel of them the pen's color, and the
     image untouched all round them."""
     want = QColor(config.BRAND_DARK_GOLD).name()
-    centre = (200, 150)
+    center = (200, 150)
     for mode in _every_mode(app_window):
         label = _label(app_window)
         label.show_preview = False
         label.is_dragging, label.selection_rect = False, None
-        label.crosshair_pos = centre
+        label.crosshair_pos = center
         image = label.grab().toImage().convertToFormat(QImage.Format.Format_ARGB32)
         label.crosshair_pos = None
-        x, y = centre
+        x, y = center
         arms = ({image.pixelColor(x + d, y).name() for d in range(-10, 11)}
                 | {image.pixelColor(x, y + d).name() for d in range(-10, 11)})
         assert arms == {want}, f"{mode}: the crosshair is drawn in {sorted(arms)}, not the dark gold {want}"

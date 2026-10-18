@@ -169,7 +169,7 @@ def _style_tip(panel, widget, tail: str) -> None:
 
     These four labels were written as f"color: {{...}}", which emits the
     literal text `color: {...}`; Qt discards the declaration and the label
-    falls back to the inherited body colour. Measured live before the fix:
+    falls back to the inherited body color. Measured live before the fix:
     #e0e0e0 in dark, #000000 in light -- legible, and never gold.
     """
     tips = panel.__dict__.setdefault("_themed_tips", [])
@@ -1505,7 +1505,7 @@ class PackageDPanel(QDialog):
                 # Show empty state
                 empty_item = QListWidgetItem("No color history yet. Mix some colors to get started!")
                 self.history_list.addItem(empty_item)
-                self._colour_empty_history_line()
+                self._color_empty_history_line()
                 return
             
             # Import once outside loop for efficiency
@@ -1536,20 +1536,20 @@ class PackageDPanel(QDialog):
             # Re-enable updates - triggers single repaint
             self.history_list.setUpdatesEnabled(True)
         
-    def _colour_empty_history_line(self) -> None:
+    def _color_empty_history_line(self) -> None:
         """
         Draw the History tab's empty line in the muted text.
         
         RNV-RULINGS-2026-10-05, item 2. The line was given CSS gray, #808080, and
-        was never drawn in it: the list's sheet coloured every item, and a
-        sheet wins over an item's own colour. This list's item rule no
+        was never drawn in it: the list's sheet colored every item, and a
+        sheet wins over an item's own color. This list's item rule no
         longer sets one (see _apply_list_view_styles), and the line takes
         text_hint, the muted text the panel's descriptions take.
         
-        The empty line is the one item here that holds no colour to load:
+        The empty line is the one item here that holds no color to load:
         every entry, and every sample row, carries one in its data.
         Called when the list is filled and when the theme is applied, so
-        a line made in one mode is not left in another's colour.
+        a line made in one mode is not left in another's color.
         """
         history_list = getattr(self, 'history_list', None)
         if history_list is None:
@@ -1560,7 +1560,7 @@ class PackageDPanel(QDialog):
             if item.data(Qt.ItemDataRole.UserRole) is None:
                 item.setForeground(muted)
     
-    def _colour_empty_presets_lines(self) -> None:
+    def _color_empty_presets_lines(self) -> None:
         """
         Draw the Presets list's empty lines in the muted text.
         
@@ -1568,15 +1568,15 @@ class PackageDPanel(QDialog):
         list when it has nothing to show: "No user presets yet", with User
         Presets chosen and none saved, and the line a category shows when it
         holds no preset. The first was given the gold text and the second
-        dark's disabled grey in every mode, and neither was drawn in it: the
-        list's sheet coloured every item, the fault the History tab's empty
+        dark's disabled gray in every mode, and neither was drawn in it: the
+        list's sheet colored every item, the fault the History tab's empty
         line had (RNV-RULINGS-2026-10-05, item 2). This list's item rule no
-        longer sets a colour, and both lines take text_hint, as that line does.
+        longer sets a color, and both lines take text_hint, as that line does.
         
         An empty line is the one item here that holds nothing in its data:
         every preset, and every placeholder, carries one. Called when a line
         is made and when the theme is applied, so a line made in one mode is
-        not left in another's colour.
+        not left in another's color.
         """
         presets_list = getattr(self, 'presets_list', None)
         if presets_list is None:
@@ -1593,8 +1593,8 @@ class PackageDPanel(QDialog):
         
         Uses setUpdatesEnabled for batch updates.
         """
-        # RNV-COLOUR-SYNC, #56 A (2026-10-17): sample data, named in the
-        # colour file as the application's own.
+        # RNV-COLOR-SYNC, #56 A (2026-10-17): sample data, named in the
+        # color file as the application's own.
         placeholder_colors = [
             config.HISTORY_SAMPLE_ORANGE_RED, config.HISTORY_SAMPLE_GREEN,
             config.HISTORY_SAMPLE_BLUE, config.HISTORY_SAMPLE_MAGENTA,
@@ -1667,7 +1667,7 @@ class PackageDPanel(QDialog):
                     )
                     item.setFlags(Qt.ItemFlag.NoItemFlags)  # Not selectable
                     self.presets_list.addItem(item)
-                    self._colour_empty_presets_lines()
+                    self._color_empty_presets_lines()
                     self.delete_preset_btn.setEnabled(False)
                     
                     # Populate categories combo if empty
@@ -1691,7 +1691,7 @@ class PackageDPanel(QDialog):
                     )
                     item.setFlags(Qt.ItemFlag.NoItemFlags)
                     self.presets_list.addItem(item)
-                    self._colour_empty_presets_lines()
+                    self._color_empty_presets_lines()
                     self.delete_preset_btn.setEnabled(False)
                     
                     if self.category_combo.count() == 0:
@@ -2776,9 +2776,9 @@ class PackageDPanel(QDialog):
         accent_ink_col = t['accent_ink']
 
         # RNV-RULINGS-2026-10-05, item 2. The item rule's own `color` is handed in:
-        # a sheet that colours every item wins over an item's own colour, and
+        # a sheet that colors every item wins over an item's own color, and
         # the History tab's empty line has one. That list takes the sheet
-        # without the line. An item there with no colour of its own takes the
+        # without the line. An item there with no color of its own takes the
         # list's: QListWidget's `color` and the palette's Text, the same value.
         # RNV-RULINGS-2026-10-11, item 20: so does the Presets list, whose two
         # empty lines have one too. The other two lists take the sheet as it was.
@@ -2837,8 +2837,8 @@ class PackageDPanel(QDialog):
             widget.setPalette(palette)
 
         # The empty lines hold the muted text of the mode they were made in.
-        self._colour_empty_history_line()
-        self._colour_empty_presets_lines()
+        self._color_empty_history_line()
+        self._color_empty_presets_lines()
 
     def _apply_combo_view_styles(self, is_dark: bool = True) -> None:
         """Apply brand hover/selection colors to all combo box dropdowns.

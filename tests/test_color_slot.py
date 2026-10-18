@@ -38,7 +38,7 @@ from PyQt6.QtCore import pyqtBoundSignal
 
 # Bootstrap (sys.path + virtual packages) is done by tests/conftest.py
 from core.color_slot import ColorSlot
-from colour_values import (DATA_TYPED_ORANGE, EXAMPLE_BROWN_DIGITS, EXAMPLE_PALE_BLUE_DIGITS,
+from color_values import (DATA_TYPED_ORANGE, EXAMPLE_BROWN_DIGITS, EXAMPLE_PALE_BLUE_DIGITS,
                            INVALID_ONE_LETTER, INVALID_SEVEN_DIGIT, INVALID_TWO_DIGIT)
 
 
@@ -60,7 +60,7 @@ def slot(qtbot):
 
 @pytest.mark.integration
 class TestColorSlotConstruction:
-    """Construction is parameterised by index; defaults must match what the
+    """Construction is parameterized by index; defaults must match what the
     rest of the app expects (color (200,200,200), weight 0, history of 1)."""
 
     def test_default_state_after_construction(self, slot):
@@ -271,7 +271,7 @@ class TestColorSlotHexEntry:
     def test_invalid_hex_entry_is_silently_ignored_during_typing(self, slot):
         """`_on_hex_changed` only previews valid hex; partial/invalid input
         leaves the slot's color unchanged. This is the core robustness
-        contract for the live-preview behaviour."""
+        contract for the live-preview behavior."""
         starting_color = slot.get_color()
         # Various invalid forms a user might be in the middle of typing
         for bogus in ("", "#", INVALID_ONE_LETTER, INVALID_TWO_DIGIT, "not-a-color",

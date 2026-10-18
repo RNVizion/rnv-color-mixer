@@ -598,7 +598,7 @@ Bringing real-world paint mixing to the digital palette<br>
             """)
 
         # RNV-CHART-RULINGS, 2026-09-26 (ruling 3). The dialog's two gold
-        # texts carry their colour inline, so the sheet above cannot reach
+        # texts carry their color inline, so the sheet above cannot reach
         # them. Each was written once, with the palette of the moment --
         # always dark, since the app passes its ui_handler where the flag
         # belongs -- and nothing wrote it again: light mode showed dark's gold.

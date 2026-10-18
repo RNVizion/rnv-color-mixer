@@ -1,16 +1,16 @@
 name: Brand sync
 
-# RNV-COLOUR-SYNC, 2026-10-16 (#38 B). Once a day, read rnv-brand's head and
-# write this application's colours from it with tools/sync_colors.py.
+# RNV-COLOR-SYNC, 2026-10-16 (#38 B). Once a day, read rnv-brand's head and
+# write this application's colors from it with tools/sync_colors.py.
 #
-#   No colour this app uses moved  -> nothing is opened. The run ends there.
+#   No color this app uses moved  -> nothing is opened. The run ends there.
 #   One did                        -> the tests run on the change, and ONE pull
 #                                     request is opened with the new pin,
 #                                     utils/config.py and COLORS.md. If it is
 #                                     still open the next day, it is updated,
 #                                     not opened again.
 #
-# Merge it, and the next build carries the new colours. Nothing reads the
+# Merge it, and the next build carries the new colors. Nothing reads the
 # brand while the application runs.
 #
 # Needs one repository setting: Settings > Actions > General > Workflow
@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   sync:
-    name: Sync colours from rnv-brand / Python 3.13
+    name: Sync colors from rnv-brand / Python 3.13
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -49,7 +49,7 @@ jobs:
         with:
           python-version: "3.13"
 
-      # The sync reads the colour file as the application does, so the
+      # The sync reads the color file as the application does, so the
       # application's own packages, and Qt's system libraries, come first.
       - name: Install system Qt dependencies
         run: |
@@ -70,7 +70,7 @@ jobs:
             libxcb-xkb1 \
             libfontconfig1
 
-      - name: Pin the brand's head and write the colours from it
+      - name: Pin the brand's head and write the colors from it
         id: sync
         env:
           QT_QPA_PLATFORM: offscreen
@@ -90,7 +90,7 @@ jobs:
           fi
           python tools/sync_colors.py | tee sync.log
           if git diff --quiet -- utils/config.py; then
-            echo "No colour this app uses moved at rnv-brand ${head:0:7}. Nothing to open."
+            echo "No color this app uses moved at rnv-brand ${head:0:7}. Nothing to open."
             echo "moved=no" >> "$GITHUB_OUTPUT"
           else
             echo "moved=yes" >> "$GITHUB_OUTPUT"
@@ -123,7 +123,7 @@ jobs:
           git commit -m "Brand sync: rnv-brand@${HEAD:0:7}"
           git push --force origin brand-sync
           {
-            echo "rnv-brand moved a colour this application uses, at ${HEAD:0:7}."
+            echo "rnv-brand moved a color this application uses, at ${HEAD:0:7}."
             echo
             echo '```'
             cat sync.log

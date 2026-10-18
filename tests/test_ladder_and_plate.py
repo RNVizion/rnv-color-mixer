@@ -14,12 +14,12 @@ the docstrings that argued the other way.
 WHY THE LADDER LOOKED INCOMPLETE. The register had called it "two-thirds
 specified" because APP["border"], APP_BORDER_DARK, is not APP_PANEL_HOVER_DARK,
 treating the border as a missing rung. It is not a rung: APP_BORDER_DARK is
-grey(3) on the INK grid, which governs inks and EDGES. Two families compared
+gray(3) on the INK grid, which governs inks and EDGES. Two families compared
 to each other.
 
 THE COINCIDENCE THAT WENT. Until RNV-NAMED-AND-USED, 2026-10-04, a second
 name held APP_ITEM_HOVER_LIGHT's value here: the dark slider handle's hover,
-grey(14) on the ink grid, kept apart from APP["hover-light"] by a table and
+gray(14) on the ink grid, kept apart from APP["hover-light"] by a table and
 three tests in this
 file. No sheet painted that name -- a hovered handle takes the accent -- so
 it went, and the plate's hex has one name again. With nothing left to keep
@@ -33,17 +33,17 @@ import pathlib
 
 import pytest
 
-from colour_values import REGISTER_GOLD_TEXT_GROUND_FLOOR
+from color_values import REGISTER_GOLD_TEXT_GROUND_FLOOR
 from utils import config
 from utils.config import ThemeManager
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / 'utils' / 'config.py'
 
-#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
-#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
+#: says. The values are held by tests/test_colors_in_sync.py, against the
 #: register at the pin; what this file holds is the name each one takes.
-BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colors"]
 
 GRID_STEP = 0x11
 LADDER_STEP = 0x10
@@ -52,7 +52,7 @@ TEXT_FLOOR = 4.5
 #: Constant -> the APP key it mirrors. This app names its neutrals by role AND
 #: mode because it registers a light set beside the dark one, so the APP_<KEY>
 #: convention the other apps resolve by does not apply -- the map is explicit,
-#: exactly as tests/test_app_mirror.py does it. RNV-COLOUR-SYNC, 2026-10-16:
+#: exactly as tests/test_app_mirror.py does it. RNV-COLOR-SYNC, 2026-10-16:
 #: the value both held was written here too; it is written from the register
 #: now.
 NEW = {
@@ -70,7 +70,7 @@ PALETTES = {'DARK_THEME': ThemeManager.DARK_THEME,
 FLOOR = REGISTER_GOLD_TEXT_GROUND_FLOOR
 
 
-def grey(n: int) -> str:
+def gray(n: int) -> str:
     v = n * GRID_STEP
     return '#%02x%02x%02x' % (v, v, v)
 
@@ -121,9 +121,9 @@ def test_the_reclassified_constants_still_hold_their_values():
     """This pass changes what is SAID about three constants. If it moved one of
     them, that would be the worst possible outcome of a provenance pass.
 
-    RNV-COLOUR-SYNC, 2026-10-16: it held each value written out. It holds now
+    RNV-COLOR-SYNC, 2026-10-16: it held each value written out. It holds now
     that brand_map.json takes each from its APP key; the value is written from
-    there, and tests/test_colours_in_sync.py holds it."""
+    there, and tests/test_colors_in_sync.py holds it."""
     drift = {n: BRAND_MAP.get(n) for n, key in NEW.items()
              if BRAND_MAP.get(n) != f'APP.{key}'}
     assert not drift, (
@@ -173,7 +173,7 @@ def test_the_dark_rungs_are_exact_steps_on_the_ladder():
 
 def test_the_border_is_an_edge_and_not_a_rung():
     """The distinction that made the ladder look incomplete for a week."""
-    assert config.APP_BORDER_DARK == grey(3)
+    assert config.APP_BORDER_DARK == gray(3)
     base = int(config.APP_SURFACE_DARK.lstrip('#'), 16)
     rungs = {base + n * (LADDER_STEP * 0x010101) for n in range(-1, 3)}
     assert int(config.APP_BORDER_DARK.lstrip('#'), 16) not in rungs
@@ -185,7 +185,7 @@ def test_the_canvas_is_not_the_web_ground():
     now wrong and the second half was always the part that mattered."""
     r, g, b = (int(config.APP_CANVAS_DARK.lstrip('#')[i:i + 2], 16)
                for i in (0, 2, 4))
-    assert r == g == b, f'{config.APP_CANVAS_DARK} is not a pure grey'
+    assert r == g == b, f'{config.APP_CANVAS_DARK} is not a pure gray'
     brand = pytest.importorskip('engine.brand', reason='rnv-brand not importable')
     assert config.APP_CANVAS_DARK.lower() != brand.WEB_BLACK.lower()
 
@@ -193,7 +193,7 @@ def test_the_canvas_is_not_the_web_ground():
 # ------------------------------------------------------------------- the plate
 
 def test_the_plate_is_a_step_on_the_ink_grid():
-    assert config.APP_ITEM_HOVER_LIGHT == grey(14)
+    assert config.APP_ITEM_HOVER_LIGHT == gray(14)
 
 
 def test_the_plate_is_not_the_gold_text_floor():

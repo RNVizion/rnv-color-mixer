@@ -1,7 +1,7 @@
 """
 Contrast pairing guard.   RNV-GOLD-GUARD-FILE-NAMES-RETIRED-VALUES-BY-DESIGN
 
-The rest of the suite asserts hex EQUALITY. That cannot catch a legible colour
+The rest of the suite asserts hex EQUALITY. That cannot catch a legible color
 placed on the wrong ground, which is how every gold failure here survived: the
 value was correct on both sides, the pairing was not. A value census reports
 this repo clean.
@@ -17,26 +17,26 @@ import re
 
 import pytest
 
-#: RNV-COLOUR-SYNC, #50 A (2026-10-17). The register's floor for gold text,
+#: RNV-COLOR-SYNC, #50 A (2026-10-17). The register's floor for gold text,
 #: GOLD_TEXT_GROUND_FLOOR in rnv-brand's engine/brand.py: a boundary, not a
-#: colour this application draws. Named in tests/colour_values.py since #53 A
+#: color this application draws. Named in tests/color_values.py since #53 A
 #: (2026-10-17); test_the_gold_text_floor_is_the_register_s holds it to the
-#: register, and so does tests/test_colour_values.py.
-from colour_values import (DATA_CSS_BLACK, DATA_CSS_GREY, DATA_CSS_WHITE,
+#: register, and so does tests/test_color_values.py.
+from color_values import (DATA_CSS_BLACK, DATA_CSS_GRAY, DATA_CSS_WHITE,
                            REGISTER_GOLD_TEXT_GROUND_FLOOR)
 from utils import config
 
 TEXT_FLOOR = 4.5
 HEX = re.compile(r"^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$")
-NAMED = {"white": DATA_CSS_WHITE, "black": DATA_CSS_BLACK, "gray": DATA_CSS_GREY,
-         "grey": DATA_CSS_GREY}
+NAMED = {"white": DATA_CSS_WHITE, "black": DATA_CSS_BLACK, "gray": DATA_CSS_GRAY,
+         "grey": DATA_CSS_GRAY}
 
 # (theme, foreground, background) -> why it may sit below the floor.
 ACCEPTED = {
     # The main-window button scheme is a deliberate inversion: the hover ground
     # goes near-black while the label stays black, and the pressed state flips
     # the label to white. Both are intentional and predate this pass.
-    # RNV-COLOUR-SYNC, 2026-10-16: each pair by the constants the sheets draw
+    # RNV-COLOR-SYNC, 2026-10-16: each pair by the constants the sheets draw
     # it with, where it was written as their hex codes.
     ("LIGHT", config.TRUE_BLACK, config.APP_BTN_HOVER_INVERSE):
         "main button hover -- deliberate inversion",
@@ -186,7 +186,7 @@ def test_text_pairs_meet_aa(theme):
 
 @pytest.mark.parametrize("theme", ["DARK", "LIGHT", "IMAGE"])
 def test_accepted_entries_are_still_real(theme):
-    """An ACCEPTED entry that no longer occurs is a licence waiting for a future
+    """An ACCEPTED entry that no longer occurs is a license waiting for a future
     defect. It should be deleted, not left to outlive its reason."""
     seen = {(theme, fg, bg) for _, fg, bg in _pairs(theme)}
     stale = [k for k in ACCEPTED if k[0] == theme and k not in seen]
@@ -206,7 +206,7 @@ def test_the_textless_exclusion_does_not_swallow_the_sheet(theme):
 
 
 def test_every_textless_entry_is_a_real_sub_control():
-    """A dead entry is a licence waiting for a future defect."""
+    """A dead entry is a license waiting for a future defect."""
     seen = set()
     for theme in ("DARK", "LIGHT", "IMAGE"):
         for selector, _ in _rules(getattr(config, theme + "_STYLESHEET")):
@@ -225,7 +225,7 @@ def test_the_audit_finds_something_to_audit(theme):
 
 
 # The two button schemes, as the other four aligned apps render them.
-# (bg, fg) for rest, hover, pressed. RNV-COLOUR-SYNC, 2026-10-16: by the
+# (bg, fg) for rest, hover, pressed. RNV-COLOR-SYNC, 2026-10-16: by the
 # constants the sheets draw them with, where they were written as hex codes.
 MAIN_SCHEME = {
     "DARK":  ((config.APP_SURFACE_DARK, config.APP_TEXT_DARK),
@@ -303,7 +303,7 @@ def test_gold_text_never_lands_below_the_coverage_floor():
 
 
 def test_the_gold_text_floor_is_the_register_s():
-    """RNV-COLOUR-SYNC, #50 A (2026-10-17). The floor above is the register's
+    """RNV-COLOR-SYNC, #50 A (2026-10-17). The floor above is the register's
     boundary, written as the register publishes it. This holds it to the
     register wherever rnv-brand is installed, as CI installs it."""
     brand = pytest.importorskip("engine.brand", reason="rnv-brand not importable")
@@ -311,7 +311,7 @@ def test_the_gold_text_floor_is_the_register_s():
 
 # ── Escape sequences (RNV-ESCAPE-SEQUENCES, 2026-09-08) ────────────
 # The docstring of _rules() was made raw. It contains \{ , which is
-# not a recognised escape: a warning today, and a SyntaxError from
+# not a recognized escape: a warning today, and a SyntaxError from
 # Python 3.14 that would stop this module importing at all.
 # tests/test_escape_sequences.py sweeps every file for the same
 # thing, and found this was the only one in the fleet.

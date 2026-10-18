@@ -25,7 +25,7 @@ import tempfile
 from pathlib import Path
 from PyQt6.QtWidgets import QMessageBox, QFileDialog
 
-from colour_values import EXAMPLE_PURE_BLUE_DIGITS, EXAMPLE_PURE_GREEN_UPPER
+from color_values import EXAMPLE_PURE_BLUE_DIGITS, EXAMPLE_PURE_GREEN_UPPER
 
 
 # ═══════════════════════════════════════════════════════════════════════════

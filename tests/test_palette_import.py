@@ -60,7 +60,7 @@ original rule would **not** have caught load_image at all: its blocker was
     reply = QMessageBox.question(None, "Large Image File", ...)
 
 which is not a `show_*_dialog` call. A rule that names one project-specific
-helper only ever catches code that uses that helper. It now recognises any
+helper only ever catches code that uses that helper. It now recognizes any
 blocking Qt call -- QMessageBox and friends, QInputDialog, and a bare
 `.exec()` -- and it is checked over both modules. Verified against the trees
 before each fix: the wider rule flags both original defects and neither
@@ -240,7 +240,7 @@ def test_the_wrapper_delegates_rather_than_reimplementing():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# behaviour
+# behavior
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.timeout(60)
@@ -266,7 +266,7 @@ def test_every_bad_input_returns_instead_of_blocking(tmp_path):
 
         colors, problem = fu.import_palette_data(str(target))
 
-        assert colors is None, f"{name} produced colours: {colors!r}"
+        assert colors is None, f"{name} produced colors: {colors!r}"
         assert problem is not None, f"{name} reported no problem"
 
 
@@ -279,7 +279,7 @@ def test_a_good_palette_still_imports(tmp_path):
     colors, problem = _fu().import_palette_data(str(target))
 
     assert problem is None, f"a valid palette reported: {problem}"
-    assert colors, "a valid palette imported no colours"
+    assert colors, "a valid palette imported no colors"
 
 
 @pytest.mark.timeout(60)

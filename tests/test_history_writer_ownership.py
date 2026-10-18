@@ -20,7 +20,7 @@ alone, no pytest and no fixtures, five times in five:
     ch = ColorHistory(); ch.clear(); ch.add_color((100, 150, 200))
 
 `clear()` and `add_color()` each call `save_async()`. Both are ordinary
-application paths -- `RNV_Color_Mixer.py` adds a colour on every mix,
+application paths -- `RNV_Color_Mixer.py` adds a color on every mix,
 `core/package_d_panel.py` clears the history from the panel.
 
 The skip reason on those six tests said the crash was Windows-only. It
@@ -44,7 +44,7 @@ Which is why the cheap static check is deliberately FIRST in this file.
 pytest runs tests in definition order, and both tampering experiments --
 removing the retention, and moving it after the reassignment -- fail that
 check with a readable message (`assert None is not None`, `assert 210 <
-206`) before the behavioural test gets far enough to kill the run. Ordering
+206`) before the behavioral test gets far enough to kill the run. Ordering
 is load-bearing here; do not sort these alphabetically.
 """
 from __future__ import annotations

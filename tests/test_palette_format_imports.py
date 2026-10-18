@@ -8,10 +8,10 @@ tests never reach. This single file lifts `palette_formats.py` coverage
 substantially because the import methods (lines ~470–1010) were the bulk
 of the unexercised territory.
 
-Format behaviour is uneven
+Format behavior is uneven
 --------------------------
 Of the 15 formats with both export and import dispatch, **11 round-trip
-cleanly** (count + first colour match): gpl, ase, aco, json, xml, css,
+cleanly** (count + first color match): gpl, ase, aco, json, xml, css,
 hsv, txt, afpalette, clr, swatches.
 
 The remaining **4 have documented quirks** confirmed against the actual
@@ -19,13 +19,13 @@ implementation as of v3.3.3:
 
   • `.colors`    — importer returns []  (XML schema mismatch)
   • `.hex`       — importer returns []  (header-line skip logic too eager)
-  • `.hsl`       — importer parses first colour as (255, 255, 255) instead
+  • `.hsl`       — importer parses first color as (255, 255, 255) instead
                    of (255, 0, 0) — likely a hue-vs-saturation column swap
-  • `.svg`       — importer extracts ALL fill colours from the SVG, not
-                   just the swatches — picks up background / text colours
+  • `.svg`       — importer extracts ALL fill colors from the SVG, not
+                   just the swatches — picks up background / text colors
 
 Tests for these 4 formats use a softer contract: "import does not crash,
-returns a list" — they document the present behaviour rather than
+returns a list" — they document the present behavior rather than
 asserting correctness. If the underlying parsers are fixed in a future
 release, these tests will need to be tightened (the failure message will
 say so).
@@ -53,7 +53,7 @@ from core.palette_formats import PaletteFormats
 SNAPSHOT_FIRST_COLOR = (255, 0, 0)
 SNAPSHOT_COLOR_COUNT = 4
 
-# Formats that round-trip cleanly (first colour and count both preserved)
+# Formats that round-trip cleanly (first color and count both preserved)
 CLEAN_FORMATS = (
     "gpl", "ase", "aco", "json", "xml", "css",
     "hsv", "hsl", "txt", "afpalette", "clr", "swatches",
@@ -72,7 +72,7 @@ QUIRKY_FORMATS = ("colors", "hex", "hsl", "svg")
 @pytest.mark.snapshot
 class TestPaletteImportCleanRoundTrip:
     """For formats with reliable importers, the snapshot palette must
-    round-trip with both count and first colour intact."""
+    round-trip with both count and first color intact."""
 
     @pytest.mark.parametrize("ext", CLEAN_FORMATS)
     def test_import_returns_correct_count(self, ext, snapshots_dir):
@@ -91,7 +91,7 @@ class TestPaletteImportCleanRoundTrip:
         snap = snapshots_dir / f"palette_4color.{ext}"
         result = PaletteFormats.import_palette(str(snap))
         assert result, f".{ext} import returned empty"
-        # Result is list[tuple[tuple[int,int,int], int]] — extract colour
+        # Result is list[tuple[tuple[int,int,int], int]] — extract color
         first_entry = result[0]
         if isinstance(first_entry, tuple) and len(first_entry) == 2:
             first_color = first_entry[0]
@@ -99,7 +99,7 @@ class TestPaletteImportCleanRoundTrip:
             first_color = first_entry  # some importers return [(r,g,b)] only
 
         assert first_color == SNAPSHOT_FIRST_COLOR, (
-            f".{ext} first colour mismatch: imported {first_color}, "
+            f".{ext} first color mismatch: imported {first_color}, "
             f"expected {SNAPSHOT_FIRST_COLOR}"
         )
 
@@ -110,25 +110,25 @@ class TestPaletteImportCleanRoundTrip:
 
 @pytest.mark.snapshot
 class TestPaletteImportQuirkyFormats:
-    """Documented behaviour of importers that don't cleanly invert their
+    """Documented behavior of importers that don't cleanly invert their
         own exporter on the test palette. Currently SVG only — its importer
-        extracts every fill colour in the file, not just palette swatches."""
+        extracts every fill color in the file, not just palette swatches."""
 
 
     def test_svg_import_returns_more_than_palette_colors(self, snapshots_dir):
-        """`.svg` importer extracts every fill colour referenced in the
+        """`.svg` importer extracts every fill color referenced in the
         SVG, including non-palette ones (background, label text). The
-        snapshot SVG contains 6 distinct fill colours; only 4 of them
+        snapshot SVG contains 6 distinct fill colors; only 4 of them
         are the palette swatches."""
         snap = snapshots_dir / "palette_4color.svg"
         result = PaletteFormats.import_palette(str(snap))
         assert isinstance(result, list)
-        # SVG importer extracts all fill colours, not just the swatches.
+        # SVG importer extracts all fill colors, not just the swatches.
         # The exact count depends on the SVG export template; assert >= 4.
         assert len(result) >= SNAPSHOT_COLOR_COUNT, (
             f".svg importer returned {len(result)} entries; expected >= "
-            f"{SNAPSHOT_COLOR_COUNT} (palette colours, possibly plus "
-            f"background/text colours from the export template)."
+            f"{SNAPSHOT_COLOR_COUNT} (palette colors, possibly plus "
+            f"background/text colors from the export template)."
         )
 
 

@@ -3,28 +3,28 @@
 RNV-RULINGS-2026-10-05, item 2. Ruled 2026-10-05: "Yes".
 
 WHAT WAS THERE. With no history, the tab shows one line: "No color history
-yet. Mix some colors to get started!". The code gave it CSS gray, DATA_CSS_GREY,
-and it was never drawn in it: the list's sheet coloured every item
+yet. Mix some colors to get started!". The code gave it CSS gray, DATA_CSS_GRAY,
+and it was never drawn in it: the list's sheet colored every item
 (`QListWidget::item { color: ... }`), and a sheet wins over an item's own
-colour. The line was drawn like an entry: APP_TEXT_DARK in dark and image, black
+color. The line was drawn like an entry: APP_TEXT_DARK in dark and image, black
 in light. Shown on 2026-10-04 with a magenta control.
 
-WHAT IS THERE NOW. The History list's item rule sets no colour, so an item's
-own colour is drawn; an item that has none takes the list's, which is the
-colour the rule gave it. And the line holds `text_hint`, the muted text the
+WHAT IS THERE NOW. The History list's item rule sets no color, so an item's
+own color is drawn; an item that has none takes the list's, which is the
+color the rule gave it. And the line holds `text_hint`, the muted text the
 panel's ten descriptions take: 4.91:1 in dark and image, 5.27:1 in light.
 
 THE OTHER THREE LISTS kept the sheet they had. Two more lines in this panel
-set a colour of their own, both in the Presets list, whose sheet coloured
+set a color of their own, both in the Presets list, whose sheet colored
 every item as this one's did. RNV-RULINGS-2026-10-11, item 20, ruled B: that
-list's item rule sets no colour either, and both lines are drawn in the
+list's item rule sets no color either, and both lines are drawn in the
 muted text (tests/test_empty_presets_lines_draw.py). The Sessions list and
 the harmony preview keep the sheet they had.
 
 WHAT THIS GUARD HOLDS.
 
 1. The empty line holds the mode's muted text.
-2. It is DRAWN in it, and an entry is drawn in the list's own text colour
+2. It is DRAWN in it, and an entry is drawn in the list's own text color
    as it always was. Read back from the list's own pixels, as a comparison:
    how far the empty line's text stands from the row's ground, against how
    far an entry's does. Text is drawn with soft edges, more or less so from
@@ -32,9 +32,9 @@ WHAT THIS GUARD HOLDS.
    is the test the old line would have failed.
 3. It follows the mode: a switch made with the panel open, or while it was
    closed, leaves the line in the new mode's muted text.
-4. The History and Presets lists' item rules set no colour, and the other
+4. The History and Presets lists' item rules set no color, and the other
    two lists' rules still do.
-5. An entry holds no colour of its own, as filled and after each mode's
+5. An entry holds no color of its own, as filled and after each mode's
    theme has been applied over it.
 6. The muted text can be read on the list's ground: 4.5:1 or better.
 
@@ -60,8 +60,8 @@ def _far(a: QColor, b: QColor) -> int:
     return abs(a.red() - b.red()) + abs(a.green() - b.green()) + abs(a.blue() - b.blue())
 
 
-def _lum(colour: str) -> float:
-    c = QColor(colour)
+def _lum(color: str) -> float:
+    c = QColor(color)
 
     def lin(v):
         v /= 255
@@ -98,8 +98,8 @@ def _history_tab(app_window, entries=()):
     panel = app_window._package_d_panel
     assert panel is not None and panel.isVisible()
     panel.color_history.clear()
-    for colour in entries:
-        panel.color_history.add_color(colour)
+    for color in entries:
+        panel.color_history.add_color(color)
     panel.refresh_history()
     for tabs in panel.findChildren(QTabWidget):
         for index in range(tabs.count()):
@@ -115,7 +115,7 @@ def _history_tab(app_window, entries=()):
 def _reach(list_widget, row: int = 0, skip_left: int = 0) -> tuple:
     """(the row's ground, how far its text stands from that ground): the
     distance of the pixel furthest from the ground. `skip_left` leaves out
-    an entry's colour square."""
+    an entry's color square."""
     image = list_widget.viewport().grab().toImage().convertToFormat(QImage.Format.Format_ARGB32)
     rect = list_widget.visualItemRect(list_widget.item(row))
     ground = image.pixelColor(rect.right() - 4, rect.top() + 4)
@@ -150,7 +150,7 @@ def test_the_empty_line_holds_the_modes_muted_text(app_window):
 
 
 def test_the_empty_line_is_drawn_in_the_muted_text_and_an_entry_in_the_lists(app_window):
-    """Read back from the pixels. Setting a colour on an item is not drawing it."""
+    """Read back from the pixels. Setting a color on an item is not drawing it."""
     for mode in _every_mode(app_window):
         panel = _history_tab(app_window)
         palette = _palette(panel)
@@ -166,7 +166,7 @@ def test_the_empty_line_is_drawn_in_the_muted_text_and_an_entry_in_the_lists(app
         assert abs(got - want) < 0.12, (
             f"{mode}: the empty line's text stands {got:.2f} as far from the ground as an entry's. In the "
             f"muted text it stands {want:.2f} as far; at 1.00 it is drawn like an entry, which is what a "
-            f"sheet that colours every item does")
+            f"sheet that colors every item does")
         panel.color_history.clear()
         panel.close()
 
@@ -178,7 +178,7 @@ def test_it_follows_a_switch_made_with_the_panel_open(app_window):
         palette = _palette(panel)
         item = panel.history_list.item(0)
         assert item.foreground().color().name() == QColor(palette["text_hint"]).name(), \
-            f"a switch to {mode} left the empty line in the old mode's colour"
+            f"a switch to {mode} left the empty line in the old mode's color"
 
 
 def test_it_follows_a_switch_made_while_the_panel_was_closed(app_window):
@@ -192,14 +192,14 @@ def test_it_follows_a_switch_made_while_the_panel_was_closed(app_window):
         item = panel.history_list.item(0)
         assert item.text().startswith(EMPTY)
         assert item.foreground().color().name() == QColor(_palette(panel)["text_hint"]).name(), \
-            f"a switch to {mode} with the panel closed left the empty line in the old mode's colour"
+            f"a switch to {mode} with the panel closed left the empty line in the old mode's color"
 
 
-#: The lists whose item rule sets no colour: each holds a line with a colour of its own.
+#: The lists whose item rule sets no color: each holds a line with a color of its own.
 BARE = ("history_list", "presets_list")
 
 
-def test_the_history_lists_item_rule_sets_no_colour_and_the_others_still_do(app_window):
+def test_the_history_lists_item_rule_sets_no_color_and_the_others_still_do(app_window):
     for mode in _every_mode(app_window):
         panel = _history_tab(app_window)
         text = _palette(panel)["text_color"]
@@ -211,20 +211,20 @@ def test_the_history_lists_item_rule_sets_no_colour_and_the_others_still_do(app_
                           for line in rules[0].split(";") if ":" in line}
             if name in BARE:
                 assert "color" not in properties, (
-                    f"{mode}: {name}'s item rule sets a colour again. A sheet wins over an "
-                    f"item's own colour, so its empty line would stop being drawn in the muted text.")
+                    f"{mode}: {name}'s item rule sets a color again. A sheet wins over an "
+                    f"item's own color, so its empty line would stop being drawn in the muted text.")
             else:
                 assert properties.get("color") == text, \
-                    f"{mode}: {name}'s item rule no longer colours its items {text}: {properties}"
+                    f"{mode}: {name}'s item rule no longer colors its items {text}: {properties}"
             list_rule = re.search(r"QListWidget \{([^}]*)\}", sheet)
             assert list_rule and re.search(r"(?<![a-z-])color:\s*" + re.escape(text), list_rule.group(1)), \
-                f"{mode}: {name} no longer gives its items the list's text colour"
+                f"{mode}: {name} no longer gives its items the list's text color"
         panel.close()
 
 
-def test_an_entry_holds_no_colour_of_its_own(app_window):
+def test_an_entry_holds_no_color_of_its_own(app_window):
     """Not when the list is filled, and not when a theme is applied over it:
-    the pass that colours the empty line runs then too, and has to leave
+    the pass that colors the empty line runs then too, and has to leave
     every entry alone."""
     panel = _history_tab(app_window, entries=[(40, 90, 200), (200, 90, 40)])
     assert panel.history_list.count() == 2
@@ -234,7 +234,7 @@ def test_an_entry_holds_no_colour_of_its_own(app_window):
             item = panel.history_list.item(row)
             assert item.data(Qt.ItemDataRole.UserRole) is not None and not item.text().startswith(EMPTY)
             assert item.data(Qt.ItemDataRole.ForegroundRole) is None, \
-                f"an entry was given a colour of its own {when}"
+                f"an entry was given a color of its own {when}"
     entries_hold_none("when the list was filled")
     for _ in range(3):
         mode = _switch(app_window)

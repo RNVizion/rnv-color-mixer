@@ -69,7 +69,7 @@ STYLESHEETS: dict[str, str] = {
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Update-mode mechanism — env var OR CLI flag, both honoured
+# Update-mode mechanism — env var OR CLI flag, both honored
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _update_mode_active(request) -> bool:
@@ -174,7 +174,7 @@ class TestStylesheetSnapshots:
     """Byte-exact snapshots of each theme's stylesheet string.
 
     Stylesheets are encoded UTF-8 and stored as bytes so that line-ending
-    behaviour is identical across Windows and Linux (avoids text-mode CRLF
+    behavior is identical across Windows and Linux (avoids text-mode CRLF
     translation surprises)."""
 
     @pytest.mark.parametrize("name", sorted(STYLESHEETS.keys()))

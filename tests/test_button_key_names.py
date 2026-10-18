@@ -39,7 +39,7 @@ DIALOG = {
     "image": ("dialog_btn_hover_bg", "dialog_btn_pressed_bg"),
 }
 
-#: RNV-COLOUR-SYNC, 2026-10-16: each key by the constant it paints, where it
+#: RNV-COLOR-SYNC, 2026-10-16: each key by the constant it paints, where it
 #: was written as that constant's hex code, so a brand move needs no edit here.
 PINNED_MAIN = {
     "dark": {"main_btn_bg": "APP_SURFACE_DARK", "main_btn_text": "APP_TEXT_DARK",

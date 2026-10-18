@@ -1,11 +1,11 @@
-"""Every colour value the tests use is named once.   RNV-COLOUR-SYNC (#53 A)
+"""Every color value the tests use is named once.   RNV-COLOR-SYNC (#53 A)
 
-Installed 2026-10-17, ruled in #52 to #57. The application's own colours and
-the brand's are named in the colour file, which brand_map.json names, and a
-test reads them from there. Every other colour value a test needs is named in
-tests/colour_values.py, once, with why:
+Installed 2026-10-17, ruled in #52 to #57. The application's own colors and
+the brand's are named in the color file, which brand_map.json names, and a
+test reads them from there. Every other color value a test needs is named in
+tests/color_values.py, once, with why:
 
-  EXAMPLE_   a sample given to a helper or to the colour maths
+  EXAMPLE_   a sample given to a helper or to the color math
   DATA_      what a user, a file, the clipboard or the search box supplies
   RETIRED_   a value the application no longer uses, kept so a test can say so
   REGISTER_  a value the brand publishes that this application does not draw;
@@ -14,14 +14,14 @@ tests/colour_values.py, once, with why:
 
 WHAT THIS GUARD HOLDS.
 
-1. No test under tests/, and no root suite, writes a colour value anywhere
-   but tests/colour_values.py: a string that is only a colour -- a hex code
+1. No test under tests/, and no root suite, writes a color value anywhere
+   but tests/color_values.py: a string that is only a color -- a hex code
    of three, six or eight digits, or an rgb() or rgba() value (#54 A).
 2. No sentence in a test -- a comment, a docstring, a message -- writes a hex
    code or an rgb() value either. It says the name, and a message prints the
    value through it, in an f-string (#57 A). What a value is, and why it was
-   retired, is said once, beside it, in tests/colour_values.py.
-3. The readers are looking: they find every value in tests/colour_values.py,
+   retired, is said once, beside it, in tests/color_values.py.
+3. The readers are looking: they find every value in tests/color_values.py,
    and a planted sentence.
 4. Every name there says what kind it is, says why, and is used by a test.
 5. Every REGISTER_ value is the brand's, at the pinned commit.
@@ -42,9 +42,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = ROOT / "tests"
-VALUES_FILE = TESTS / "colour_values.py"
+VALUES_FILE = TESTS / "color_values.py"
 KINDS = ("EXAMPLE_", "DATA_", "RETIRED_", "REGISTER_", "INVALID_")
-COLOUR = re.compile(r"^\s*(?:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})"
+COLOR = re.compile(r"^\s*(?:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})"
                     r"|rgba?\([^()]*\))\s*$")
 #: A hex code, or the start of an rgb() value, inside a sentence.
 IN_A_SENTENCE = re.compile(
@@ -59,11 +59,11 @@ def _load(name: str, path: Path):
     return module
 
 
-VALUES = _load("colour_values_under_guard", VALUES_FILE)
+VALUES = _load("color_values_under_guard", VALUES_FILE)
 
 
-def colour_strings(source: str) -> list[tuple[int, str]]:
-    """(line, value) for every string in the source that is only a colour."""
+def color_strings(source: str) -> list[tuple[int, str]]:
+    """(line, value) for every string in the source that is only a color."""
     found = []
     for tok in tokenize.generate_tokens(io.StringIO(source).readline):
         if tok.type != tokenize.STRING:
@@ -72,14 +72,14 @@ def colour_strings(source: str) -> list[tuple[int, str]]:
             value = ast.literal_eval(tok.string)
         except (ValueError, SyntaxError):
             continue
-        if isinstance(value, str) and COLOUR.match(value):
+        if isinstance(value, str) and COLOR.match(value):
             found.append((tok.start[0], value))
     return found
 
 
-def sentence_colours(source: str) -> list[tuple[int, str]]:
+def sentence_colors(source: str) -> list[tuple[int, str]]:
     """(line, text) for every hex code or rgb() value inside a comment, a
-    docstring, a message, or any other string that is not only a colour."""
+    docstring, a message, or any other string that is not only a color."""
     found = []
     middle = getattr(tokenize, "FSTRING_MIDDLE", None)
     for tok in tokenize.generate_tokens(io.StringIO(source).readline):
@@ -88,7 +88,7 @@ def sentence_colours(source: str) -> list[tuple[int, str]]:
                 value = ast.literal_eval(tok.string)
             except (ValueError, SyntaxError):
                 value = None
-            if isinstance(value, str) and COLOUR.match(value):
+            if isinstance(value, str) and COLOR.match(value):
                 continue
         elif tok.type not in (tokenize.COMMENT, middle):
             continue
@@ -106,24 +106,24 @@ def _test_files() -> list[Path]:
 
 
 def _named() -> dict[str, str]:
-    """Each name tests/colour_values.py gives a value, with that value."""
+    """Each name tests/color_values.py gives a value, with that value."""
     return {k: v for k, v in vars(VALUES).items() if k.isupper() and isinstance(v, str)}
 
 
-def test_no_colour_value_is_written_outside_colour_values():
+def test_no_color_value_is_written_outside_color_values():
     strays = []
     for path in _test_files():
-        for line, value in colour_strings(path.read_text(encoding="utf-8-sig")):
+        for line, value in color_strings(path.read_text(encoding="utf-8-sig")):
             strays.append(f"{path.relative_to(ROOT).as_posix()}:{line} {value!r}")
     assert not strays, (
-        "a colour value written in a test. Read it from the colour file if it is the "
-        "application's colour, or name it in tests/colour_values.py:\n  " + "\n  ".join(strays))
+        "a color value written in a test. Read it from the color file if it is the "
+        "application's color, or name it in tests/color_values.py:\n  " + "\n  ".join(strays))
 
 
-def test_no_sentence_in_a_test_writes_a_colour():
+def test_no_sentence_in_a_test_writes_a_color():
     found = []
     for path in _test_files():
-        for line, text in sentence_colours(path.read_text(encoding="utf-8-sig")):
+        for line, text in sentence_colors(path.read_text(encoding="utf-8-sig")):
             found.append(f"{path.relative_to(ROOT).as_posix()}:{line} {text!r}")
     assert not found, (
         "a hex code or an rgb() value written in a comment, a docstring or a "
@@ -136,15 +136,15 @@ def test_the_sentence_reader_is_looking():
                f"z = 'one\\n{hexes[0]}'\n"
                f"x = f'{{a}} on {hexes[1]}'\n"
                f"y = 'rgb({0}, {0}, {0}) is not a name'\n")
-    assert [t for _, t in sentence_colours(planted)] == [hexes[0]] + hexes + [f"rgb({0}"], \
+    assert [t for _, t in sentence_colors(planted)] == [hexes[0]] + hexes + [f"rgb({0}"], \
         "the sentence reader misses a hex code in a comment or a message -- it is blind"
 
 
-def test_the_reader_finds_every_value_in_colour_values():
-    found = {value for _, value in colour_strings(VALUES_FILE.read_text(encoding="utf-8-sig"))}
-    colours = {v for v in _named().values() if COLOUR.match(v)}
-    assert colours, "tests/colour_values.py names no colour -- the reader is blind"
-    assert colours <= found, f"the reader misses {sorted(colours - found)}"
+def test_the_reader_finds_every_value_in_color_values():
+    found = {value for _, value in color_strings(VALUES_FILE.read_text(encoding="utf-8-sig"))}
+    colors = {v for v in _named().values() if COLOR.match(v)}
+    assert colors, "tests/color_values.py names no color -- the reader is blind"
+    assert colors <= found, f"the reader misses {sorted(colors - found)}"
 
 
 def test_every_name_says_what_kind_it_is():
@@ -170,7 +170,7 @@ def test_every_name_says_why():
 def test_every_name_is_used_by_a_test():
     text = "\n".join(p.read_text(encoding="utf-8-sig") for p in _test_files())
     unused = sorted(n for n in _named() if not re.search(rf"\b{n}\b", text))
-    assert not unused, f"named in tests/colour_values.py and used by no test: {unused}"
+    assert not unused, f"named in tests/color_values.py and used by no test: {unused}"
 
 
 def test_every_register_value_is_the_brands():

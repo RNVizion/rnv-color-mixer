@@ -940,7 +940,7 @@ class ColorMixerApp(QMainWindow):
             # The preview's border is the mode's border_color, and only
             # _update_preview() writes it. RNV-CHART-RULINGS, 2026-09-26
             # (ruling 3): until this, a mode switch left the previous mode's
-            # border on the preview until the next colour was mixed.
+            # border on the preview until the next color was mixed.
             if getattr(self, 'preview_label', None) is not None:
                 self._update_preview(self.current_mixed_color)
         

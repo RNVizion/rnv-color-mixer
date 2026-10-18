@@ -84,7 +84,7 @@ GROUND_KEYS = ('panel_bg', 'window_bg', 'panel_secondary')
 #: An entry here is an exemption, so it has to earn its place twice: the
 #: reason must be true, and test_no_exemption_has_outlived_its_reason below
 #: fails when the site it names has stopped failing, so a fix cannot leave a
-#: licence standing behind it.
+#: license standing behind it.
 ACCEPTED: dict[str, str] = {}
 
 #: Below this, the sweep has stopped finding things and is passing for the
@@ -135,11 +135,11 @@ def _golds() -> set:
 
 
 def _fstrings(source: str):
-    """(lineno, text, local bindings) for every f-string mentioning a colour.
+    """(lineno, text, local bindings) for every f-string mentioning a color.
 
     Read through ast.JoinedStr, NOT the token stream. Python 3.12 splits an
     f-string into FSTRING_START/MIDDLE/END tokens (PEP 701) rather than one
-    STRING token, so a tokenising version finds every f-string on 3.11 and none
+    STRING token, so a tokenizing version finds every f-string on 3.11 and none
     on 3.12 -- reporting zero sites, which reads as clean and is blind.
     """
     try:
@@ -296,7 +296,7 @@ def _enclosing_label(text: str, palette: dict, binds: dict):
     A fill rule often sets only a background -- `QPushButton:hover { background
     -color: ... }` -- and the label comes from the base `QPushButton` rule.
     Reading it is what makes the fill direction checkable at all: six of the
-    ten gold fills across these apps declare no colour of their own.
+    ten gold fills across these apps declare no color of their own.
     """
     for selector, body in BLOCK.findall(text):
         name = ' '.join(selector.split())
@@ -345,7 +345,7 @@ def _fill_sweep():
                     label = (_resolve(fg_decl.group(1), palette, binds)
                              if fg_decl is not None else None)
                     if label is None and fg_decl is not None:
-                        #: A DECLARED COLOUR THIS READER CANNOT PARSE IS NOT AN
+                        #: A DECLARED COLOR THIS READER CANNOT PARSE IS NOT AN
                         #: ABSENT ONE. rnv-color-palette-manager writes
                         #: `color: {WHITE if is_light else TRUE_BLACK}` on its
                         #: pressed gold button -- correct in both modes, 6.03:1
@@ -489,7 +489,7 @@ def test_no_gold_is_drawn_as_text_below_the_floor():
 
 
 def test_no_exemption_has_outlived_its_reason():
-    """An exemption whose site has stopped failing is a licence with no
+    """An exemption whose site has stopped failing is a license with no
     subject -- it would let a future regression at the same declaration pass
     unseen. Fixing a site means deleting its entry in the same commit."""
     rows, _unresolved = _sweep()
@@ -567,5 +567,5 @@ def test_every_textless_entry_is_a_real_sub_control():
     stale = [name for name in TEXTLESS if name not in seen]
     assert not stale, (
         f'TEXTLESS names sub-controls this app never styles: {stale}. An '
-        f'exclusion that excludes nothing is a licence with no subject -- '
+        f'exclusion that excludes nothing is a license with no subject -- '
         f'delete it, or find out why the sub-control went away.')

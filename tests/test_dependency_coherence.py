@@ -34,7 +34,7 @@ WHAT THIS FILE GUARDS.
      (Named indirectly on purpose. tests/test_pil_compat.py sweeps every
      file for the retired call and this one is not exempt from that sweep,
      so writing the call form here -- even in prose -- fails it. Use versus
-     mention, and this file was the tenth instance in this programme.)
+     mention, and this file was the tenth instance in this program.)
   4. What is installed satisfies what is declared. Everything above reads
      text; this one looks at the machine, and it is the shape of check that
      would have caught the failure that started all this.
@@ -221,7 +221,7 @@ def test_this_guard_can_see_the_files_it_judges():
 
 
 def test_a_tool_setting_is_not_read_as_a_dependency():
-    """The exclusion list, tested by behaviour rather than by census.
+    """The exclusion list, tested by behavior rather than by census.
 
     `line-length = 100` in ruff's config and `precision = 0` in coverage's
     both parse as a name followed by a comparison and a number -- the regex

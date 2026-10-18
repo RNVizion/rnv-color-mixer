@@ -67,7 +67,7 @@ class ColorSlot(QWidget, SignalMixin):
         self.index = index
         self.on_change = on_change_callback
         # RNV-NAMED-AND-USED (2026-10-04): config.DEFAULT_COLOR is this
-        # colour's name. Nothing read it; it was written out here five times.
+        # color's name. Nothing read it; it was written out here five times.
         self.color = config.DEFAULT_COLOR
         self._weight = 0
         self.is_dark = True
@@ -537,7 +537,7 @@ class ColorSlot(QWidget, SignalMixin):
             theme_manager = config.ThemeManager()
             theme_manager.current_theme = 'dark' if is_dark else 'light'
             theme = theme_manager.get_current_theme()
-        # Kept for _update_swatch_display(), which a colour change calls
+        # Kept for _update_swatch_display(), which a color change calls
         # without a theme.
         self._theme = theme
         

@@ -20,7 +20,7 @@ from pathlib import Path
 from PIL import Image
 from PyQt6.QtWidgets import QMessageBox
 
-from colour_values import (DATA_CLIPBOARD_ORANGE_PADDED, DATA_CLIPBOARD_ORANGE_RGB,
+from color_values import (DATA_CLIPBOARD_ORANGE_PADDED, DATA_CLIPBOARD_ORANGE_RGB,
                            DATA_CLIPBOARD_ORANGE_SHORT)
 
 

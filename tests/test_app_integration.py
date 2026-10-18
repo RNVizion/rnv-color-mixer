@@ -18,7 +18,7 @@ Isolation rules
    color history, and autosave files all land in a sandbox.
 3. **No real screen-color picker**: tests that touch picker code paths
    stick to inspecting wiring, not invoking multi-monitor sampling.
-4. **State, not pixels**: tests verify object state (colours, weights,
+4. **State, not pixels**: tests verify object state (colors, weights,
    theme name, file existence) rather than pixel-perfect rendering.
 
 Synchronization rule: NO time.sleep — qtbot.waitUntil / waitSignal only.
@@ -148,7 +148,7 @@ class TestThemeCycling:
         assert app_window.ui_handler.is_dark_mode() is False
 
     def test_cycle_three_steps_visits_expected_themes(self, app_window):
-        """Theme cycle behaviour depends on whether Image Mode assets exist:
+        """Theme cycle behavior depends on whether Image Mode assets exist:
           • If `image_mode_available` is True (a background image or ≥4 button
             base PNGs are on disk): Dark → Light → Image → Dark → … (ternary)
           • Otherwise: Dark ↔ Light (binary)
@@ -247,7 +247,7 @@ class TestSessionRoundTrip:
         _ensure_n_slots(app_window, 12)
         assert len(app_window.slots) == 12
 
-        # Distinct colour/weight per slot so any silent reordering shows up
+        # Distinct color/weight per slot so any silent reordering shows up
         for i in range(12):
             app_window.slots[i].set_color((i * 20, 100 + i, (i * 7) % 256))
             app_window.slots[i].set_weight(8)  # 12 × 8 ≈ 100
@@ -264,7 +264,7 @@ class TestSessionRoundTrip:
         for i in range(12):
             expected = (i * 20, 100 + i, (i * 7) % 256)
             assert app_window.slots[i].get_color() == expected, (
-                f"slot {i} colour drifted; got {app_window.slots[i].get_color()}"
+                f"slot {i} color drifted; got {app_window.slots[i].get_color()}"
             )
             assert app_window.slots[i].get_weight() == 8
 
@@ -397,14 +397,14 @@ class TestMixingAndSlots:
 
     def test_zero_weight_slots_excluded_from_mix(self, app_window):
         """Slots with weight 0 must not contribute to the mix even if they
-        have a non-default colour set."""
+        have a non-default color set."""
         app_window.slots[0].set_color((100, 200, 50))
         app_window.slots[0].set_weight(0)
         app_window.slots[1].set_color((50, 50, 50))
         app_window.slots[1].set_weight(100)
         app_window.auto_mix_colors()
 
-        # Only slot 1 contributes, so the mix should equal slot 1's colour
+        # Only slot 1 contributes, so the mix should equal slot 1's color
         assert app_window.current_mixed_color == (50, 50, 50)
 
 

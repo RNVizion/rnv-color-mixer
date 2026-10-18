@@ -155,7 +155,7 @@ ch = ColorHistory(); ch.clear(); ch.add_color((100, 150, 200))
 ```
 
 `clear()` and `add_color()` each call `save_async()`. Both are ordinary
-application paths — the mixer adds a colour on every mix, and
+application paths — the mixer adds a color on every mix, and
 `core/package_d_panel.py` clears the history from the panel. Sixty rapid
 saves now survive with no `cleanup()` at all; before, three in three
 aborted.

@@ -333,8 +333,8 @@ class ColorHistory:
                 f.write("<html>\n<head>\n")
                 f.write("<title>Color Mixer - Color History</title>\n")
                 f.write("<style>\n")
-                # RNV-NAMED-AND-USED (2026-10-04): the page's four colours, by
-                # name. They were #f5f5f5, white, #333 and #333; the same colours.
+                # RNV-NAMED-AND-USED (2026-10-04): the page's four colors, by
+                # name. They were #f5f5f5, white, #333 and #333; the same colors.
                 f.write(f"body {{ font-family: Arial, sans-serif; padding: 20px; background: {config.HISTORY_EXPORT_PAGE_BG}; }}\n")
                 f.write(f".color {{ display: flex; align-items: center; margin: 10px 0; padding: 10px; background: {config.HISTORY_EXPORT_CARD_BG}; border-radius: 5px; }}\n")
                 f.write(f".swatch {{ width: 60px; height: 40px; border: 2px solid {config.HISTORY_EXPORT_INK}; margin-right: 15px; border-radius: 3px; }}\n")

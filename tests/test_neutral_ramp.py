@@ -150,12 +150,12 @@ def test_both_rendering_paths_are_still_carrying_something():
     assert len(from_dicts) >= 10, f"only {len(from_dicts)} reach a theme dict"
 
 
-def test_the_neutrals_are_pure_greys():
+def test_the_neutrals_are_pure_grays():
     """Every neutral in all five desktop apps is R = G = B. A neutral that
-    picks up a cast is a colour wearing a neutral's name."""
+    picks up a cast is a color wearing a neutral's name."""
     bad = []
     for name in config.NEUTRAL_PROVENANCE:
         h = getattr(config, name).lstrip("#")
         if not (h[0:2] == h[2:4] == h[4:6]):
             bad.append(f"{name}=#{h}")
-    assert not bad, f"neutrals that are not pure greys: {bad}"
+    assert not bad, f"neutrals that are not pure grays: {bad}"

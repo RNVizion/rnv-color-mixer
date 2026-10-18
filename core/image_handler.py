@@ -96,7 +96,7 @@ class ImageHandler(QObject):
         Stats the file. Never opens it, and never shows anything -- so it can
         be called from a test, a script or CI. The conditions are exactly the
         ones under which load_image used to raise its own dialog, which is
-        what keeps the user-visible behaviour identical.
+        what keeps the user-visible behavior identical.
         """
         try:
             if not path or not isinstance(path, str) or len(path) > 255:

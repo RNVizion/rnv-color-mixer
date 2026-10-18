@@ -7,7 +7,7 @@ that was 537 MB of pixels reproducing, for the most part, flat geometric
 shapes.
 
 The backgrounds are now 3840 on the long edge -- a full 4K width, so a
-maximised window on a 4K display still scales DOWN rather than up -- and the
+maximized window on a 4K display still scales DOWN rather than up -- and the
 oversized square assets are 512.
 
 WHAT THIS GUARD IS FOR. Nothing about a resize sticks. The next export from a
@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parent.parent
 #: glob -> the largest edge this asset may have, and why that number.
 BUDGET = (
     ('resources/background_images/*.png', 3840,
-     'a window background; 3840 is a full 4K width, so even a maximised '
+     'a window background; 3840 is a full 4K width, so even a maximized '
      'window on a 4K display scales it down rather than up'),
     ('resources/button_images/settings_gear_*.png', 512,
      'renders inside a 50x50 button; 512 leaves headroom for 3x HiDPI '
@@ -93,7 +93,7 @@ def test_every_governed_asset_is_within_its_budget():
 def test_no_governed_asset_is_absurdly_heavy():
     """Dimensions and bytes are different failures.
 
-    A 3840px PNG saved without optimisation, or as 16-bit, is the right shape
+    A 3840px PNG saved without optimization, or as 16-bit, is the right shape
     and still ten times the weight. This catches that without pretending to
     know what a good size is.
     """

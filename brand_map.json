@@ -1,7 +1,7 @@
 {
-  "about": "Where each colour in utils/config.py comes from. A string is a name in rnv-brand (TABLE.key, or one of its own constants, in engine/brand.py); an object is a value this application owns, with the reason. Edit this file, then run: python tools/sync_colors.py",
+  "about": "Where each color in utils/config.py comes from. A string is a name in rnv-brand (TABLE.key, or one of its own constants, in engine/brand.py); an object is a value this application owns, with the reason. Edit this file, then run: python tools/sync_colors.py",
   "app": "RNV Color Mixer",
-  "colour_file": "utils/config.py",
+  "color_file": "utils/config.py",
   "palettes": [
     {
       "file": "utils/config.py",
@@ -17,24 +17,24 @@
     }
   ],
   "notes": [
-    "DEBUG_OVERLAY_COLORS, the colours of the debug overlay, a development aid kept in its own dictionary."
+    "DEBUG_OVERLAY_COLORS, the colors of the debug overlay, a development aid kept in its own dictionary."
   ],
-  "colours": {
+  "colors": {
     "DEFAULT_COLOR": {
       "app": [200, 200, 200],
-      "why": "Data: the colour a new mix starts from."
+      "why": "Data: the color a new mix starts from."
     },
     "INITIAL_COLOR_TUPLE": {
       "app": [0, 0, 0],
-      "why": "Data: the initial colour, as channels."
+      "why": "Data: the initial color, as channels."
     },
     "INITIAL_COLOR_HEX": {
       "app": "#000000",
-      "why": "Data: the initial colour, as hex."
+      "why": "Data: the initial color, as hex."
     },
     "INITIAL_COLOR_RGB": {
       "app": "rgb(0,0,0)",
-      "why": "Data: the initial colour, as an rgb() string."
+      "why": "Data: the initial color, as an rgb() string."
     },
     "BRAND_GOLD": "APP.accent",
     "BRAND_DARK_GOLD": "APP.accent-light-mode",
@@ -48,46 +48,46 @@
     "APP_PANEL_HOVER_DARK": "APP.panel-hover",
     "APP_HINT_DARK": {
       "app": "#888888",
-      "why": "grey(8) on the register's ink grid, which the register states as a rule and does not name. Hint text in dark and image."
+      "why": "gray(8) on the register's ink grid, which the register states as a rule and does not name. Hint text in dark and image."
     },
     "APP_WINDOW_LIGHT": "APP.surface-light-3",
     "APP_BORDER_LIGHT": {
       "app": "#cccccc",
-      "why": "grey(12) on the register's ink grid, which the register states as a rule and does not name. Every border in light, the scrollbar handle at rest and the splitter."
+      "why": "gray(12) on the register's ink grid, which the register states as a rule and does not name. Every border in light, the scrollbar handle at rest and the splitter."
     },
     "APP_ITEM_HOVER_LIGHT": "APP.hover-light",
     "APP_HANDLE_LIGHT": {
       "app": "#666666",
-      "why": "grey(6) on the register's ink grid, which the register states as a rule and does not name. The light slider handle at rest."
+      "why": "gray(6) on the register's ink grid, which the register states as a rule and does not name. The light slider handle at rest."
     },
     "APP_HINT_LIGHT": {
       "app": "#666666",
-      "why": "grey(6) on the register's ink grid, which the register states as a rule and does not name. Hint and muted text in light."
+      "why": "gray(6) on the register's ink grid, which the register states as a rule and does not name. Hint and muted text in light."
     },
     "APP_HANDLE_EDGE_LIGHT": {
       "app": "#888888",
-      "why": "grey(8) on the register's ink grid, which the register states as a rule and does not name. The light slider handle's border, and the light menu's disabled label."
+      "why": "gray(8) on the register's ink grid, which the register states as a rule and does not name. The light slider handle's border, and the light menu's disabled label."
     },
     "APP_CONTROL_DIM": {
       "app": "#555555",
-      "why": "grey(5) on the register's ink grid, which the register states as a rule and does not name. The light slider handle when hovered, and the image-mode checkbox border."
+      "why": "gray(5) on the register's ink grid, which the register states as a rule and does not name. The light slider handle when hovered, and the image-mode checkbox border."
     },
     "APP_BTN_PRESSED": {
       "app": "#444444",
-      "why": "grey(4) on the register's ink grid, which the register states as a rule and does not name. The basic button's pressed fill, in all three modes."
+      "why": "gray(4) on the register's ink grid, which the register states as a rule and does not name. The basic button's pressed fill, in all three modes."
     },
     "APP_CHROME_DARK": {
       "app": "#444444",
-      "why": "grey(4) on the register's ink grid, which the register states as a rule and does not name. A control's resting chrome in dark and image: the slider groove, a menu's edge."
+      "why": "gray(4) on the register's ink grid, which the register states as a rule and does not name. A control's resting chrome in dark and image: the slider groove, a menu's edge."
     },
     "APP_CHROME_LIGHT": {
       "app": "#e0e0e0",
-      "why": "grey(14) on the ramp. The light slider groove. It shares pressed-light's hex without being a pressed state."
+      "why": "gray(14) on the ramp. The light slider groove. It shares pressed-light's hex without being a pressed state."
     },
     "APP_TEXT_DIM_LIGHT": "APP.text-dim",
     "APP_MENU_DIM_DARK": {
       "app": "#666666",
-      "why": "grey(6) on the register's ink grid, which the register states as a rule and does not name. The disabled menu label in dark and image."
+      "why": "gray(6) on the register's ink grid, which the register states as a rule and does not name. The disabled menu label in dark and image."
     },
     "CANVAS_FAILED_BG": {
       "app": "#ffcccc",
@@ -103,7 +103,7 @@
     },
     "HISTORY_EXPORT_CARD_BG": {
       "app": "#ffffff",
-      "why": "Data, not chrome: each colour's card on the exported history page."
+      "why": "Data, not chrome: each color's card on the exported history page."
     },
     "HISTORY_EXPORT_INK": {
       "app": "#333333",
@@ -119,7 +119,7 @@
     },
     "CANVAS_PREVIEW_EDGE_DARK": {
       "app": "#e6e6e6",
-      "why": "The edge of the canvas's colour preview in dark."
+      "why": "The edge of the canvas's color preview in dark."
     },
     "CANVAS_LABEL_PLATE_LIGHT": {
       "app": "#c8c8c8",

@@ -39,7 +39,7 @@ from PyQt6.QtCore import QEventLoop, QTimer
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox, QWidget
 
-from colour_values import EXAMPLE_BLACK, EXAMPLE_BLACK_SHORT, EXAMPLE_WHITE
+from color_values import EXAMPLE_BLACK, EXAMPLE_BLACK_SHORT, EXAMPLE_WHITE
 from utils.config import BRAND_DARK_GOLD, BRAND_GOLD, TRUE_BLACK, WHITE
 
 @pytest.fixture
@@ -78,9 +78,9 @@ def _prepare(win) -> None:
 #: the bright gold.
 #:
 #: RNV-ACCENT-READ-2026-10-16. The golds and their inks are read from this
-#: app's own colour file, where they were written here as hex codes. A guard
+#: app's own color file, where they were written here as hex codes. A guard
 #: that names BRAND_DARK_GOLD's hex code finds nothing once the brand's accent
-#: is another colour, and fails by finding nothing; read from the colour file,
+#: is another color, and fails by finding nothing; read from the color file,
 #: it holds the rule on whatever the accent is.
 GOLD_INK = {BRAND_DARK_GOLD.lower(): WHITE.lower(), BRAND_GOLD.lower(): TRUE_BLACK.lower()}
 GOLD_NAME = {BRAND_DARK_GOLD.lower(): "the dark gold", BRAND_GOLD.lower(): "the bright gold"}
@@ -91,7 +91,7 @@ DECL = re.compile(r"([a-zA-Z-]+)\s*:\s*([^;]+);?")
 #: A part of a widget that holds no text. A gold fill there needs no ink.
 TEXT_FREE = re.compile(r"::(?:indicator|handle|chunk|sub-page|add-page|up-button|down-button|groove|"
                        r"add-line|sub-line|up-arrow|down-arrow|branch)\b")
-#: The palettes' two colour groups text is drawn in.
+#: The palettes' two color groups text is drawn in.
 GROUPS = (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive)
 
 
@@ -115,7 +115,7 @@ def _gold(value: str):
 
 
 def _ink(value):
-    """A colour written in a rule, as #rrggbb: None when the rule sets none."""
+    """A color written in a rule, as #rrggbb: None when the rule sets none."""
     if not value:
         return None
     found = HEX.findall(value)

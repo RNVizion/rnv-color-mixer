@@ -231,7 +231,7 @@ def test_arguments_still_reach_the_callback(qapp, main_module):
 def test_the_liveness_check_says_nothing_when_it_cannot_tell(main_module):
     """"Unknown" must behave the way this code behaved before the check.
 
-    A liveness test that answered "gone" for anything it did not recognise
+    A liveness test that answered "gone" for anything it did not recognize
     would silently stop callbacks from running -- a much quieter bug than
     the one being fixed, and one no suite would attribute to this change.
     """

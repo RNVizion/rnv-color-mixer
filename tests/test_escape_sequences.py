@@ -2,17 +2,17 @@ r"""RNV-ESCAPE-SEQUENCES-GUARD -- every string literal here is still legal
 Python, and will still be legal in Python 3.14.
 
 THIS DOCSTRING IS RAW ON PURPOSE, and the first draft was not. It quotes the
-offending text, so it reproduced the offence: the guard against invalid
+offending text, so it reproduced the offense: the guard against invalid
 escape sequences contained an invalid escape sequence, and failed itself on
 the first run. Use versus mention -- the eleventh instance in this
-programme. A file that must SHOW a bad escape has to be raw, or say it in
+program. A file that must SHOW a bad escape has to be raw, or say it in
 words.
 
 Installed 2026-09-08. tests/test_contrast_pairs.py carried
 
     A regex over `\{\{([^{}]*)\}\}` once found 23 of 173 rules ...
 
-inside a NON-RAW docstring. Backslash-brace is not a recognised escape, so
+inside a NON-RAW docstring. Backslash-brace is not a recognized escape, so
 Python kept the backslash and warned. That warning has been:
 
     3.6 - 3.11   DeprecationWarning  (invisible unless you look)
@@ -85,7 +85,7 @@ def test_no_source_file_has_an_invalid_escape_sequence():
     """
     offenders = _offenders()
     assert not offenders, (
-        'these contain escape sequences Python does not recognise:\n  '
+        'these contain escape sequences Python does not recognize:\n  '
         + '\n  '.join(offenders)
         + "\n\nPython 3.14 turns these into SyntaxError and the module stops "
           "importing. Make the string raw -- r'...' -- or double the "

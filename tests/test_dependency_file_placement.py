@@ -96,7 +96,7 @@ def test_that_sweep_is_actually_looking():
 
 
 def test_the_mention_exemption_is_not_dead():
-    """An exemption asserted in one direction only is a licence waiting for a
+    """An exemption asserted in one direction only is a license waiting for a
     defect. This proves the exempted file still needs its exemption."""
     here = pathlib.Path(__file__)
     assert here.name in MENTION_ONLY
@@ -109,7 +109,7 @@ def test_the_history_exemption_is_honest():
 
     If one ever appears carrying the retired name, that is correct and should
     stay. If one appears WITHOUT it, the exemption is dead weight and this
-    test says so rather than letting it sit there as a silent licence.
+    test says so rather than letting it sit there as a silent license.
     """
     for name in HISTORY_FILES:
         path = REPO / name

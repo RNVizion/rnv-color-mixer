@@ -2,7 +2,7 @@
 
 RNV-RULINGS-2026-10-05, item 5. Ruled 2026-10-05: "Yes."
 
-WHAT WENT. The settings' defaults stored a colour for a new slot under one
+WHAT WENT. The settings' defaults stored a color for a new slot under one
 key that nothing read and no control set. A new slot starts from
 config.DEFAULT_COLOR; the stored value only looked as if it decided that.
 A settings file that already holds the key keeps it: the key is carried and
@@ -21,7 +21,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-#: What went. A new slot's colour is config.DEFAULT_COLOR.
+#: What went. A new slot's color is config.DEFAULT_COLOR.
 PREFERENCE_GONE = "default_slot_color"
 
 MENTION_ONLY = {pathlib.Path(__file__).name}

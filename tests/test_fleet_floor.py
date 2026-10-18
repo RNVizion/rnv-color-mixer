@@ -44,7 +44,7 @@ Python version, three more statements came out:
 
 Classifiers are what the package advertises publicly; three repositories
 were advertising support for three versions they had just stopped running.
-The text transformer's ruff target was live behaviour rather than
+The text transformer's ruff target was live behavior rather than
 decoration -- with `UP` (pyupgrade) selected, `py310` tells the linter to
 rewrite modern syntax BACKWARDS, in the one repository whose runtime check
 this round moved to 3.13.
@@ -103,7 +103,7 @@ REQUIREMENTS = ROOT / "requirements.txt"
 #: TEXT, and skips a line only when it contains "tests/requirements-dev.txt"
 #: literally. The pathlib form is the same path and was invisible to it, so
 #: a correct line was reported as naming the root. Tenth time in this
-#: programme that a check matched text where the text was the wrong surface.
+#: program that a check matched text where the text was the wrong surface.
 DEV_REQUIREMENTS = ROOT / "tests/requirements-dev.txt"
 
 #: Runtime packages whose MAJOR version must be capped. PyQt7 does not exist
@@ -255,12 +255,12 @@ def test_nothing_else_in_pyproject_names_an_older_version():
     `scikit-learn>=1.3.0` is a DEPENDENCY's. A sweep for `\\b3\\.\\d+\\b`
     hits all three -- run, not imagined -- so a rule built that way would
     land red in the two repositories that were ALREADY CORRECT, over three
-    numbers with nothing to do with Python. Eleventh time in this programme
+    numbers with nothing to do with Python. Eleventh time in this program
     that a check would have matched text where the text meant something
     else, and the first where reading the structure cost nothing: the file
     is TOML and the floor is 3.13, so tomllib is in the standard library.
 
-    Comments are invisible to the parse, which is the behaviour this rule
+    Comments are invisible to the parse, which is the behavior this rule
     wants: a note in pyproject.toml explaining that the classifiers used to
     list 3.10 is a mention, not a declaration. The rule that had to be
     removed from this guard died precisely because it could not tell those

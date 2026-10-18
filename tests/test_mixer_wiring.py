@@ -34,10 +34,10 @@ from utils import config as C
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'utils/config.py'
 
-#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
-#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
+#: says. The values are held by tests/test_colors_in_sync.py, against the
 #: register at the pin; what this file holds is the name each one takes.
-BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colors"]
 
 PALETTES = ['DARK_THEME', 'LIGHT_THEME', 'IMAGE_THEME']
 #: RNV-NAMED-AND-USED, 2026-10-04: a palette written as another one spread
@@ -46,10 +46,10 @@ SPREADS = {'IMAGE_THEME': 'DARK_THEME'}
 HEX = re.compile(r"#[0-9a-fA-F]{3,8}$")
 
 #: hex -> the two constants that share it, and the role each one plays. A
-#: second name for one colour is either a split with a stated role or a
+#: second name for one color is either a split with a stated role or a
 #: defect; these two are splits, ruled 2026-09-06.
 #: #52 A (2026-10-17): each split is keyed by the value of its first name,
-#: read from the colour file, so the test holds the others to it.
+#: read from the color file, so the test holds the others to it.
 SPLITS = {
     C.APP_BTN_PRESSED: {'APP_BTN_PRESSED': 'the pressed plate of the basic button',
                         'APP_CHROME_DARK': 'the dark control trough and menu edge'},
@@ -71,9 +71,9 @@ SPLITS = {
                                                'light palette\'s disabled menu label'},
 }
 
-#: RNV-COLOUR-SYNC, #48 A (2026-10-16). Data colours, the application's own,
-#: that share a hex with a chrome colour. Not a second name for it: an export
-#: keeps its value when the brand moves, and the chrome colour does not.
+#: RNV-COLOR-SYNC, #48 A (2026-10-16). Data colors, the application's own,
+#: that share a hex with a chrome color. Not a second name for it: an export
+#: keeps its value when the brand moves, and the chrome color does not.
 DATA_TWINS = {'HISTORY_EXPORT_PAGE_BG', 'HISTORY_EXPORT_CARD_BG',
               'HISTORY_EXPORT_INK', 'SVG_EXPORT_BG', 'SVG_EXPORT_STROKE'}
 
@@ -81,18 +81,18 @@ DATA_TWINS = {'HISTORY_EXPORT_PAGE_BG', 'HISTORY_EXPORT_CARD_BG',
 def test_every_data_twin_is_the_application_s_own():
     """A twin is exempt from the split rule only because it is data the
     application owns. A twin the map took from the brand would be a second
-    name for a brand colour, which is what that rule is for."""
+    name for a brand color, which is what that rule is for."""
     taken = sorted(n for n in DATA_TWINS if not isinstance(BRAND_MAP.get(n), dict))
     assert not taken, f'these are not the application\'s own in brand_map.json: {taken}'
 
 
 #: The four names this pass introduced, with the value each must hold.
-#: RNV-COLOUR-SYNC, 2026-10-16: the one the register holds, APP_TEXT_DIM_LIGHT (named
+#: RNV-COLOR-SYNC, 2026-10-16: the one the register holds, APP_TEXT_DIM_LIGHT (named
 #: APP_DIM_LIGHT until #51 A, 2026-10-17), by
 #: the register name brand_map.json writes it from, where it was its hex
-#: code; tests/test_colours_in_sync.py holds the value.
+#: code; tests/test_colors_in_sync.py holds the value.
 #: #52 A (2026-10-17): the application's own three by the map holding each as
-#: its own, where they were their hex codes; tests/test_colours_in_sync.py
+#: its own, where they were their hex codes; tests/test_colors_in_sync.py
 #: holds the values against the map.
 APP_OWN = 'app-owned'
 ADDED = {
@@ -242,8 +242,8 @@ def test_a_declared_split_keeps_both_names(hexv):
         assert getattr(C, name) == hexv
 
 
-def test_no_undeclared_second_name_for_one_colour():
-    """The other direction. A colour with two names is a split with a stated
+def test_no_undeclared_second_name_for_one_color():
+    """The other direction. A color with two names is a split with a stated
     role, or a defect. This is what stops a third name appearing for APP_BTN_PRESSED's value
     with nobody having decided that it should."""
     src = SOURCE.read_text(encoding='utf-8-sig')
@@ -275,7 +275,7 @@ def test_the_keys_this_pass_added_exist_in_every_mode(key):
 def test_the_slider_groove_is_read_from_one_key_everywhere():
     """Before this pass the same widget part was painted from three different
     keys in three files -- panel_bg, hover_color and input_bg -- and in dark
-    two of them resolved to the panel's own colour, so the groove did not
+    two of them resolved to the panel's own color, so the groove did not
     exist. One key now, and this asserts nothing has drifted back."""
     offenders = []
     for path in sorted(ROOT.rglob('*.py')):
@@ -301,7 +301,7 @@ def test_the_hover_label_states_the_ruled_dimming():
     """rnv-brand / claude/ruling-interaction-contrast.md: the main button's
     transient states are exempt from the 4.5 floor and the label DIMS on
     purpose. Two files disagreed about whether to say so -- one set the hover
-    colour explicitly, the other let Qt inherit it -- so the ruled behaviour
+    color explicitly, the other let Qt inherit it -- so the ruled behavior
     was half stated and half accidental.
 
     It is one key now, holding what each mode already painted. This test

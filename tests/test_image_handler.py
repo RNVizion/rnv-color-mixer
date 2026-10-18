@@ -9,7 +9,7 @@ this phase covers the load/sample/clear pipeline directly.
 Test fixture strategy
 ---------------------
 Every test gets its own PIL-generated PNG in `tmp_path`. Images are tiny
-(16x16 or 32x32) with solid quadrant colours so we can sample at known
+(16x16 or 32x32) with solid quadrant colors so we can sample at known
 coordinates and assert exact RGB values. No reliance on the project's
 own `resources/` folder.
 """
@@ -27,7 +27,7 @@ from core.image_handler import ImageHandler
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _make_quadrant_png(path: Path, size: int = 32) -> Path:
-    """Generate a PNG with 4 known-colour quadrants for sampling tests.
+    """Generate a PNG with 4 known-color quadrants for sampling tests.
 
     Layout (size=32):
         TL=red(255,0,0)        TR=green(0,255,0)
@@ -53,7 +53,7 @@ def _make_quadrant_png(path: Path, size: int = 32) -> Path:
 
 
 def _make_solid_png(path: Path, color: tuple, size: int = 16) -> Path:
-    """PNG filled with a single colour."""
+    """PNG filled with a single color."""
     from PIL import Image
     Image.new("RGB", (size, size), color).save(path, "PNG")
     return path

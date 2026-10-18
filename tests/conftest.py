@@ -1,7 +1,7 @@
-# RNV-DERIVE-ALPHA, 2026-09-25 -- every colour this application writes
+# RNV-DERIVE-ALPHA, 2026-09-25 -- every color this application writes
 # at an alpha is DERIVED: rgba() inside the three stylesheet templates,
 # #aarrggbb everywhere else, both from a named base and a declared byte.
-# The image scrollbar handle left RETIRED_IMAGE_SCROLLBAR_HANDLE for grey(4),
+# The image scrollbar handle left RETIRED_IMAGE_SCROLLBAR_HANDLE for gray(4),
 # APP_CHROME_DARK, at 150 -- RNV-COLLAPSE-505050, by ruling.
 # tests/test_derived_values.py.
 # RNV-GOLD-HOVER, 2026-09-12 -- every hover on the main surface takes the
@@ -79,7 +79,7 @@ _DEFAULT_ROOT_HINT = _THIS_DIR.parent                    # …/RNV_Color_Mixer
 
 
 def _looks_like_project_root(p: Path) -> bool:
-    """Recognise the project root by entry-point script, subdir layout,
+    """Recognize the project root by entry-point script, subdir layout,
     or known top-level modules (covers all three deployment scenarios)."""
     if (p / "RNV_Color_Mixer.py").exists():
         return True
@@ -364,7 +364,7 @@ def app_window(isolated_home, qtbot, main_module):
 # ═════════════════════════════════════════════════════════════════════════
 
 def pytest_addoption(parser):
-    """Register custom CLI flags. Must live in a conftest.py to be honoured."""
+    """Register custom CLI flags. Must live in a conftest.py to be honored."""
     parser.addoption(
         "--rnv-update-snapshots",
         action="store_true",

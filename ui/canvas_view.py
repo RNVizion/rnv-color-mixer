@@ -150,7 +150,7 @@ class ImageDisplayLabel(QLabel):
         
         The branches asked whether the theme was NAMED Dark, so image
         mode, whose palette is the dark one under its own name, would have
-        taken light's black figures and grey plate. Only light draws light.
+        taken light's black figures and gray plate. Only light draws light.
         """
         return bool(theme) and theme['name'] != 'Light'
 
@@ -301,7 +301,7 @@ class ImageDisplayLabel(QLabel):
                         corner_color = QColor(theme['accent'])
                         # RNV-NAMED-AND-USED (2026-10-04): the labels this
                         # view paints took QColor() built from numbers; each
-                        # is the same colour, by its name in config.
+                        # is the same color, by its name in config.
                         text_color = QColor(config.WHITE)
                     else:
                         _accent = theme['accent'] if theme else config.ThemeManager.DARK_THEME['accent']
