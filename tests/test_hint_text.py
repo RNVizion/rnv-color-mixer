@@ -7,18 +7,18 @@ is a 10px QLabel under each slider, added into the QFrame built by
 `panel_bg`, which paints the QDialog behind that frame. Measuring against the
 dialog would have said light was fine when it was not. The control panel's
 ten descriptions in core/package_d_panel.py sit on its tab pages, measured
-in the running app at #000000 in dark, #1a1a1a in image and #f5f5f5 in
-light. `panel_bg` is #1a1a1a in dark -- the lighter, so the harder, ground
-for a light ink -- and #f5f5f5 in light, so holding the hint on `panel_bg`
-below covers them.
+in the running app at TRUE_BLACK in dark, APP_SURFACE_DARK in image and
+APP_WINDOW_LIGHT in light. `panel_bg` is APP_SURFACE_DARK in dark -- the
+lighter, so the harder, ground for a light ink -- and APP_WINDOW_LIGHT in
+light, so holding the hint on `panel_bg` below covers them.
 
 RNV-MUTED-DESCRIPTIONS, 2026-09-27 (ruling 1): the descriptions were
-`color: gray`, #808080 in every mode, until they joined this key -- the
-muted text all five applications paint, #888888 in dark and image and
-#666666 in light.
+`color: gray`, DATA_CSS_GREY in every mode, until they joined this key -- the
+muted text all five applications paint, APP_HINT_DARK in dark and image and
+APP_HINT_LIGHT in light.
 
-Light was #888888 on #ffffff = 3.5407:1 for 10px text. It is now #666666,
-which clears 4.5 on every light ground in this app.
+Light was RETIRED_LIGHT_HINT on WHITE = 3.5407:1 for 10px text. It is now
+APP_HINT_LIGHT, which clears 4.5 on every light ground in this app.
 
 Dark and image are a smaller miss and are carried below rather than quietly
 fixed: moving them would break the value they share with the muted text in
@@ -26,11 +26,20 @@ three other apps, and that is a ruling rather than a repair.
 """
 from __future__ import annotations
 
+import json
 import pathlib
 
 import pytest
 
+from colour_values import RETIRED_LIGHT_HINT
+from utils import config
 from utils.config import ThemeManager
+
+#: RNV-COLOUR-SYNC, #52 A (2026-10-17). Where each colour comes from, as
+#: brand_map.json says. The values are held by tests/test_colours_in_sync.py,
+#: against the map; what this file holds is the name each one takes.
+BRAND_MAP = json.loads((pathlib.Path(__file__).resolve().parents[1] / "brand_map.json")
+                       .read_text(encoding="utf-8"))["colours"]
 
 TEXT_FLOOR = 4.5
 
@@ -48,7 +57,8 @@ GROUNDS = ("panel_secondary", "panel_bg")
 # (theme, ground key) -> why it may sit below the floor.
 ACCEPTED = {
     ("DARK", "panel_secondary"):
-        "#888888 on #2a2a2a = 4.0490 -- the same value the muted text uses in "
+        f"{config.APP_HINT_DARK} on {config.APP_CARD_DARK} = 4.0490 -- the same value "
+        "the muted text uses in "
         "three other apps; lifting it here alone is a ruling, not a repair",
     ("IMAGE", "panel_secondary"):
         "same pair as DARK -- image mode reuses the dark surfaces",
@@ -125,10 +135,10 @@ def test_the_accepted_entries_are_still_real():
 
 
 def test_light_is_the_one_that_was_fixed():
-    """The specific regression: 10px #888888 on white."""
+    """The specific regression: 10px RETIRED_LIGHT_HINT on white."""
     light = THEMES["LIGHT"]
-    assert light["text_hint"] != "#888888", (
-        "the light hint is back to #888888, which reads 3.5407:1 on this "
+    assert light["text_hint"] != RETIRED_LIGHT_HINT, (
+        f"the light hint is back to {RETIRED_LIGHT_HINT}, which reads 3.5407:1 on this "
         "app's white frame")
     assert contrast(light["text_hint"], light["panel_secondary"]) >= TEXT_FLOOR
 
@@ -139,8 +149,8 @@ def test_light_is_the_one_that_was_fixed():
 def test_the_muted_values_are_the_ones_the_fleet_already_uses():
     """Ruling 1 was conditional: two values are fine if every app splits it by
     mode, and only with values already in use. Both halves, held here."""
-    assert THEMES["DARK"]["text_hint"] == THEMES["IMAGE"]["text_hint"] == "#888888"
-    assert THEMES["LIGHT"]["text_hint"] == "#666666"
+    assert THEMES["DARK"]["text_hint"] == THEMES["IMAGE"]["text_hint"] == config.APP_HINT_DARK
+    assert THEMES["LIGHT"]["text_hint"] == config.APP_HINT_LIGHT
 
 
 def test_the_light_hint_has_its_own_name():
@@ -159,7 +169,11 @@ def test_the_light_hint_has_its_own_name():
     value = next(v for k, v in zip(light.keys, light.values)
                  if isinstance(k, ast.Constant) and k.value == "text_hint")
     assert isinstance(value, ast.Name) and value.id == "APP_HINT_LIGHT", ast.unparse(value)
-    assert config.APP_HINT_LIGHT == config.APP_HANDLE_LIGHT == "#666666"
+    assert config.APP_HINT_LIGHT == config.APP_HANDLE_LIGHT
+    # #52 A, 2026-10-17: the value both hold is the application's own, by the
+    # map; tests/test_colours_in_sync.py holds it there.
+    assert isinstance(BRAND_MAP["APP_HINT_LIGHT"], dict)
+    assert isinstance(BRAND_MAP["APP_HANDLE_LIGHT"], dict)
 
 
 def test_no_label_is_written_in_a_css_grey():

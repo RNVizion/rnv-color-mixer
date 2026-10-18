@@ -104,6 +104,16 @@ from utils.error_handler    import ErrorHandler
 from utils.file_utils       import FileUtils
 from utils import config
 
+# RNV-COLOUR-SYNC, #53 A and #55 B (2026-10-17): the colour values this suite
+# needs that are not the application's colours are named once, in
+# tests/colour_values.py. Loaded by path, as tests/test_colours_in_sync.py
+# loads it, so it is found however this file is run.
+_CV_PATH = next(p for p in (Path(_FLAT) / "tests" / "colour_values.py",
+                            Path(_FLAT) / "colour_values.py") if p.exists())
+_CV_SPEC = importlib.util.spec_from_file_location("colour_values_for_root_suite", _CV_PATH)
+CV = importlib.util.module_from_spec(_CV_SPEC)
+_CV_SPEC.loader.exec_module(CV)
+
 # Optional imports — guarded so tests skip cleanly if a module fails to load
 try:
     from utils.clipboard import ClipboardUtils as ClipboardManager
@@ -171,13 +181,13 @@ ColorHistory.__init__ = _safe_init
 class TestColorMath(unittest.TestCase):
     """color_math.py — color-space conversions and all 5 mixing algorithms."""
 
-    def test_rgb_to_hex_black(self):       self.assertEqual(ColorMath.rgb_to_hex((0,0,0)), "#000000")
-    def test_rgb_to_hex_white(self):       self.assertEqual(ColorMath.rgb_to_hex((255,255,255)), "#ffffff")
-    def test_rgb_to_hex_red(self):         self.assertEqual(ColorMath.rgb_to_hex((255,0,0)), "#ff0000")
-    def test_rgb_to_hex_brand_gold(self):  self.assertEqual(ColorMath.rgb_to_hex((210,188,147)), "#d2bc93")
-    def test_hex_to_rgb_black(self):       self.assertEqual(ColorMath.hex_to_rgb("#000000"), (0,0,0))
-    def test_hex_to_rgb_white(self):       self.assertEqual(ColorMath.hex_to_rgb("#ffffff"), (255,255,255))
-    def test_hex_to_rgb_uppercase(self):   self.assertEqual(ColorMath.hex_to_rgb("#FF0000"), (255,0,0))
+    def test_rgb_to_hex_black(self):       self.assertEqual(ColorMath.rgb_to_hex((0,0,0)), CV.EXAMPLE_BLACK)
+    def test_rgb_to_hex_white(self):       self.assertEqual(ColorMath.rgb_to_hex((255,255,255)), CV.EXAMPLE_WHITE)
+    def test_rgb_to_hex_red(self):         self.assertEqual(ColorMath.rgb_to_hex((255,0,0)), CV.EXAMPLE_PURE_RED)
+    def test_rgb_to_hex_brand_gold(self):  self.assertEqual(ColorMath.rgb_to_hex((210,188,147)), CV.EXAMPLE_TAN)
+    def test_hex_to_rgb_black(self):       self.assertEqual(ColorMath.hex_to_rgb(CV.EXAMPLE_BLACK), (0,0,0))
+    def test_hex_to_rgb_white(self):       self.assertEqual(ColorMath.hex_to_rgb(CV.EXAMPLE_WHITE), (255,255,255))
+    def test_hex_to_rgb_uppercase(self):   self.assertEqual(ColorMath.hex_to_rgb(CV.EXAMPLE_PURE_RED_UPPER), (255,0,0))
 
     def test_roundtrip_rgb_hex(self):
         for c in [(0,0,0),(255,255,255),(128,64,200),(1,2,3),(16,0,255)]:
@@ -841,9 +851,9 @@ class TestConfig(unittest.TestCase):
     def test_light_keys(self):  self._keys(self.tm.LIGHT_THEME, ["window_bg","text_color","main_btn_bg","tooltip_border"])
     def test_image_keys(self):  self._keys(self.tm.IMAGE_THEME, ["window_bg","text_color","border_color","tooltip_border"])
 
-    def test_dark_brand_gold(self):   self.assertEqual(self.tm.DARK_THEME["tooltip_border"],  "#d2bc93")
-    def test_light_brand_gold(self):  self.assertEqual(self.tm.LIGHT_THEME["tooltip_border"], "#8c7337")
-    def test_image_brand_gold(self):  self.assertEqual(self.tm.IMAGE_THEME["tooltip_border"], "#d2bc93")
+    def test_dark_brand_gold(self):   self.assertEqual(self.tm.DARK_THEME["tooltip_border"],  config.BRAND_GOLD)
+    def test_light_brand_gold(self):  self.assertEqual(self.tm.LIGHT_THEME["tooltip_border"], config.BRAND_DARK_GOLD)
+    def test_image_brand_gold(self):  self.assertEqual(self.tm.IMAGE_THEME["tooltip_border"], config.BRAND_GOLD)
 
     def test_cycle_dark_to_light(self):
         self.tm.current_theme="dark"; self.tm.image_mode_available=False
@@ -869,8 +879,8 @@ class TestConfig(unittest.TestCase):
     def test_max_slots_12(self):        self.assertEqual(config.MAX_SLOTS,12)
     def test_package_d_width(self):     self.assertGreater(config.PACKAGE_D_WIDTH,0)
     def test_font_sizes(self):          [self.assertIn(k,config.FONT_SIZES) for k in ["small","normal","large"]]
-    def test_dark_ss_brand_gold(self):  self.assertIn("#d2bc93",config.DARK_STYLESHEET)
-    def test_light_ss_brand_gold(self): self.assertIn("#8c7337",config.LIGHT_STYLESHEET)
+    def test_dark_ss_brand_gold(self):  self.assertIn(config.BRAND_GOLD,config.DARK_STYLESHEET)
+    def test_light_ss_brand_gold(self): self.assertIn(config.BRAND_DARK_GOLD,config.LIGHT_STYLESHEET)
     def test_stylesheets_nonempty(self):
         for ss in [config.DARK_STYLESHEET,config.LIGHT_STYLESHEET,config.IMAGE_STYLESHEET]:
             self.assertGreater(len(ss),100)
@@ -957,7 +967,7 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_no_old_gold_in_stylesheets(self):
         for ss in [config.DARK_STYLESHEET,config.LIGHT_STYLESHEET,config.IMAGE_STYLESHEET]:
-            self.assertNotIn("#BFb19145",ss); self.assertNotIn("#BFB19145",ss)
+            self.assertNotIn(CV.RETIRED_OLD_DARK_GOLD_AT_BF_MIXED,ss); self.assertNotIn(CV.RETIRED_OLD_DARK_GOLD_AT_BF_UPPER,ss)
 
     def test_image_stylesheet_transparent(self):
         self.assertIn("background-color: transparent",config.IMAGE_STYLESHEET)
@@ -1605,12 +1615,12 @@ class TestConfigExtended(unittest.TestCase):
 
     # ── Corrected canvas_bg for LIGHT ────────────────────────────────────────
     def test_light_canvas_bg_is_white(self):
-        self.assertEqual(self.tm.LIGHT_THEME["canvas_bg"],"#ffffff")
+        self.assertEqual(self.tm.LIGHT_THEME["canvas_bg"],config.WHITE)
 
     # ── Scrollbar hover split: dict=gold (dialogs), stylesheet=neutral (main) ─
     def test_light_theme_dict_scrollbar_hover_is_gold(self):
         # Dialogs use the theme dict → must stay gold
-        self.assertEqual(self.tm.LIGHT_THEME["scrollbar_hover"],"#8c7337")
+        self.assertEqual(self.tm.LIGHT_THEME["scrollbar_hover"],config.BRAND_DARK_GOLD)
 
     def test_light_stylesheet_scrollbar_hover_is_neutral(self):
         # Main window uses LIGHT_STYLESHEET → must NOT be gold
@@ -1619,7 +1629,7 @@ class TestConfigExtended(unittest.TestCase):
             r"handle:(?:vertical|horizontal):hover\s*\{[^}]*background-color:\s*([^;]+);",
             config.LIGHT_STYLESHEET)
         for v in hits:
-            self.assertNotIn("b19145",v.lower(),
+            self.assertNotIn(CV.RETIRED_OLD_DARK_GOLD.lstrip("#"),v.lower(),
                 f"LIGHT_STYLESHEET scrollbar hover must not be gold, got: {v}")
 
     # ── get_stylesheet function ───────────────────────────────────────────────
@@ -1631,7 +1641,7 @@ class TestConfigExtended(unittest.TestCase):
     def test_get_stylesheet_light(self):
         self.tm.current_theme="light"
         ss=config.get_stylesheet(self.tm)
-        self.assertIn("f5f5f5",ss)
+        self.assertIn(config.APP_WINDOW_LIGHT,ss)
 
     def test_get_stylesheet_image(self):
         self.tm.current_theme="image"

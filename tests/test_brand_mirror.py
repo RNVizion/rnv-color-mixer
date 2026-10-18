@@ -10,21 +10,31 @@ Ported from rnv-text-transformer, wired to this app's ThemeManager.
 from __future__ import annotations
 
 import ast
+import json
 import pathlib
 
 import pytest
 
+from colour_values import (REGISTER_GOLD_TEXT_GROUND_FLOOR, RETIRED_MAGNIFIER_GRID_PEN,
+                           RETIRED_OLD_DARK_GOLD, RETIRED_OLD_DARK_GOLD_TINT,
+                           RETIRED_OLD_DARK_HOVER)
 from utils import config
+
+#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
+#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: register at the pin; what this file holds is the name each one takes.
+BRAND_MAP = json.loads((pathlib.Path(__file__).resolve().parents[1] / "brand_map.json").read_text(encoding="utf-8"))["colours"]
 
 TM = config.ThemeManager
 PALETTES = {"DARK": TM.DARK_THEME, "LIGHT": TM.LIGHT_THEME, "IMAGE": TM.IMAGE_THEME}
 
 # Values that used to render here and must not return.
 RETIRED = {
-    "#b19145": "old dark gold -- 2.997638 on white, under every floor it claimed",
-    "#c4a458": "a tint of #b19145; orphaned the moment the accent moved",
-    "#dcc9a3": "hand-written dark hover, +10/+13/+16 -- non-uniform, hue-shifting",
-    "#bfb145": "the magnifier grid pen; neither brand gold, invisible as a tuple",
+    RETIRED_OLD_DARK_GOLD: "old dark gold -- 2.997638 on white, under every floor it claimed",
+    RETIRED_OLD_DARK_GOLD_TINT: (f"a tint of {RETIRED_OLD_DARK_GOLD}; "
+                                 "orphaned the moment the accent moved"),
+    RETIRED_OLD_DARK_HOVER: "hand-written dark hover, +10/+13/+16 -- non-uniform, hue-shifting",
+    RETIRED_MAGNIFIER_GRID_PEN: "the magnifier grid pen; neither brand gold, invisible as a tuple",
 }
 
 # RNV-NAMED-AND-USED, 2026-10-04: the pressed fill is dialog_btn_pressed_bg,
@@ -71,14 +81,17 @@ def test_provenance_groups_are_valid():
 
 
 def test_register_values_match_rnv_brand():
-    assert config.BRAND_GOLD == "#d2bc93"
-    assert config.BRAND_DARK_GOLD == "#8c7337"
+    """RNV-COLOUR-SYNC, 2026-10-16. This held the two golds by their hex codes.
+    The golds follow the register's accent names, as ruled (#45 A); the
+    values are written from there and held by tests/test_colours_in_sync.py."""
+    assert BRAND_MAP["BRAND_GOLD"] == "APP.accent"
+    assert BRAND_MAP["BRAND_DARK_GOLD"] == "APP.accent-light-mode"
 
 
 def test_derived_constants_are_actually_derived():
     """A derivative written down as a literal is orphaned the moment the base
-    moves. #c4a458 is what that looks like: a tint of a gold already retired,
-    still rendering, with nothing anywhere to flag it."""
+    moves. RETIRED_OLD_DARK_GOLD_TINT is what that looks like: a tint of a gold
+    already retired, still rendering, with nothing anywhere to flag it."""
     src = pathlib.Path(config.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     literals = set()
@@ -108,8 +121,6 @@ def test_register_constants_are_literals_not_computed():
 def test_the_derivation_steps_are_the_published_ones():
     assert config.BRAND_DARK_GOLD_DEEP == config.lighten(config.BRAND_DARK_GOLD, -14)
     assert config.BRAND_GOLD_HOVER == config.lighten(config.BRAND_GOLD, 13)
-    assert config.BRAND_DARK_GOLD_DEEP == "#7e6529"
-    assert config.BRAND_GOLD_HOVER == "#dfc9a0"
 
 
 def test_lighten_holds_hue():
@@ -162,7 +173,11 @@ def test_hover_moves_away_from_the_ground():
 
 def test_light_text_gold_clears_every_ground_it_draws_on():
     deep = PALETTES["LIGHT"]["accent_ink"]
-    for ground in ("#ffffff", "#f5f5f5", "#eeeeee", "#e8e8e8"):
+    # The grounds by name, so a brand move measures the new ones;
+    # REGISTER_GOLD_TEXT_GROUND_FLOOR is the register's gold text floor, which
+    # the app does not draw.
+    for ground in (config.WHITE, config.APP_WINDOW_LIGHT, config.APP_ITEM_HOVER_LIGHT,
+                   REGISTER_GOLD_TEXT_GROUND_FLOOR):
         ratio = contrast(deep, ground)
         assert ratio >= 4.5, f"{deep} on {ground} = {ratio:.4f}"
 
@@ -174,11 +189,11 @@ def test_dark_reuses_its_accent_for_text():
 
 def test_white_on_the_light_fill_clears():
     """The inversion is deliberate and both values pass at the new gold."""
-    assert contrast("#ffffff", PALETTES["LIGHT"]["accent"]) >= 4.5
+    assert contrast(config.WHITE, PALETTES["LIGHT"]["accent"]) >= 4.5
 
 
 def test_black_on_the_dark_fill_clears():
-    assert contrast("#000000", PALETTES["DARK"]["accent"]) >= 4.5
+    assert contrast(config.TRUE_BLACK, PALETTES["DARK"]["accent"]) >= 4.5
 
 
 # ------------------------------------------------------------ retired values
@@ -239,7 +254,7 @@ def test_the_retired_scan_is_still_looking():
 
 
 def test_the_tuple_form_is_covered_too():
-    """#bfb145 lived as QColor(191, 177, 69, 50) and every hex census reported
-    the repo clean. Search the notation the value actually used."""
+    """RETIRED_MAGNIFIER_GRID_PEN lived as QColor(191, 177, 69, 50) and every hex
+    census reported the repo clean. Search the notation the value actually used."""
     for rel, text in _tracked_sources():
         assert "191, 177, 69" not in text, f"{rel} still holds the off-brand tuple"

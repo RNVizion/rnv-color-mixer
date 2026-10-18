@@ -3,8 +3,8 @@
 RNV-RULINGS-2026-10-13, item 32. Ruled 2026-10-13: "A". It holds item 4,
 ruled 2026-10-11: "Keep this is a core look identity for my brand."
 
-WHAT IS RULED. Text on the gold fill is white on the dark gold, #8c7337,
-and black on the bright gold, #d2bc93. On the dark gold white reads 4.54:1
+WHAT IS RULED. Text on the gold fill is white on the dark gold, BRAND_DARK_GOLD,
+and black on the bright gold, BRAND_GOLD. On the dark gold white reads 4.54:1
 and black 4.62:1: both clear the 4.5 floor, and the arithmetic of which is
 better would pick black. The ink is a decision, not a measurement, and it
 is the brand's look in all five apps. The picker has held it since
@@ -39,6 +39,7 @@ from PyQt6.QtCore import QEventLoop, QTimer
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox, QWidget
 
+from colour_values import EXAMPLE_BLACK, EXAMPLE_BLACK_SHORT, EXAMPLE_WHITE
 from utils.config import BRAND_DARK_GOLD, BRAND_GOLD, TRUE_BLACK, WHITE
 
 @pytest.fixture
@@ -78,9 +79,9 @@ def _prepare(win) -> None:
 #:
 #: RNV-ACCENT-READ-2026-10-16. The golds and their inks are read from this
 #: app's own colour file, where they were written here as hex codes. A guard
-#: that names #8c7337 finds nothing once the brand's accent is another colour,
-#: and fails by finding nothing; read from the colour file, it holds the rule
-#: on whatever the accent is.
+#: that names BRAND_DARK_GOLD's hex code finds nothing once the brand's accent
+#: is another colour, and fails by finding nothing; read from the colour file,
+#: it holds the rule on whatever the accent is.
 GOLD_INK = {BRAND_DARK_GOLD.lower(): WHITE.lower(), BRAND_GOLD.lower(): TRUE_BLACK.lower()}
 GOLD_NAME = {BRAND_DARK_GOLD.lower(): "the dark gold", BRAND_GOLD.lower(): "the bright gold"}
 
@@ -266,18 +267,19 @@ def test_the_reader_is_looking(window, monkeypatch):
         assert set(OPENERS) <= reached, f"{mode}: no window was read from {sorted(set(OPENERS) - reached)}"
     dark, bright = BRAND_DARK_GOLD.lower(), BRAND_GOLD.lower()
     sample = (f"/* a comment {{ }} */ QPushButton:pressed {{ background-color: {dark.upper()}; color: white; }}\n"
-              f"QLineEdit, QSpinBox {{ selection-background-color: {bright}; selection-color: #000; }}\n"
+              f"QLineEdit, QSpinBox {{ selection-background-color: {bright}; "
+              f"selection-color: {EXAMPLE_BLACK_SHORT}; }}\n"
               f"QSlider::handle:horizontal {{ background: {dark}; }}\n"
               f"QComboBox QAbstractItemView {{ selection-background-color: {bright}; }}\n"
-              f"QLabel {{ background-color: {dark}0a; color: #ffffff; }}\n")
+              f"QLabel {{ background-color: {dark}0a; color: {EXAMPLE_WHITE}; }}\n")
     probe = QWidget()
     probe.setStyleSheet(sample)
     try:
         found = [f[2:] for f in _fills(probe, "sample") if f[1] == "QWidget"]
     finally:
         probe.deleteLater()
-    assert found == [("QPushButton:pressed", "fill", dark, "#ffffff"),
-                     ("QLineEdit, QSpinBox", "selection", bright, "#000000"),
+    assert found == [("QPushButton:pressed", "fill", dark, EXAMPLE_WHITE),
+                     ("QLineEdit, QSpinBox", "selection", bright, EXAMPLE_BLACK),
                      ("QSlider::handle:horizontal", "fill", dark, None),
                      ("QComboBox QAbstractItemView", "selection", bright, None)], found
     assert TEXT_FREE.search("QSlider::handle:horizontal") and not TEXT_FREE.search("QPushButton:pressed")

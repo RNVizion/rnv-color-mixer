@@ -1,0 +1,140 @@
+name: Brand sync
+
+# RNV-COLOUR-SYNC, 2026-10-16 (#38 B). Once a day, read rnv-brand's head and
+# write this application's colours from it with tools/sync_colors.py.
+#
+#   No colour this app uses moved  -> nothing is opened. The run ends there.
+#   One did                        -> the tests run on the change, and ONE pull
+#                                     request is opened with the new pin,
+#                                     utils/config.py and COLORS.md. If it is
+#                                     still open the next day, it is updated,
+#                                     not opened again.
+#
+# Merge it, and the next build carries the new colours. Nothing reads the
+# brand while the application runs.
+#
+# Needs one repository setting: Settings > Actions > General > Workflow
+# permissions > "Allow GitHub Actions to create and approve pull requests".
+# rnv-brand is public, so no token beyond the workflow's own.
+#
+# A pull request opened by this workflow's token does not start the other
+# workflows, which is GitHub's rule for that token. So this job runs the two
+# suites itself and says in the pull request whether they were green.
+
+on:
+  schedule:
+    - cron: "22 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: brand-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync colours from rnv-brand / Python 3.13
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      # The sync reads the colour file as the application does, so the
+      # application's own packages, and Qt's system libraries, come first.
+      - name: Install system Qt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 \
+            libxkbcommon0 \
+            libxkbcommon-x11-0 \
+            libdbus-1-3 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0 \
+            libxcb-xkb1 \
+            libfontconfig1
+
+      - name: Pin the brand's head and write the colours from it
+        id: sync
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          # A sync that refuses -- the brand dropped a name this app uses -- fails
+          # the run, so it is seen, rather than passing as "nothing moved".
+          set -o pipefail
+          head=$(git ls-remote https://github.com/RNVizion/rnv-brand HEAD | cut -f1)
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          sed -i -E "s#(rnv-brand @ git\+https://github\.com/RNVizion/rnv-brand(\.git)?@)[0-9a-f]{40}#\1$head#" tests/requirements-dev.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r tests/requirements-dev.txt
+          if ! python -c "import engine.brand"; then
+            echo "::warning::rnv-brand at ${head:0:7} does not import; nothing was synced."
+            echo "moved=no" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python tools/sync_colors.py | tee sync.log
+          if git diff --quiet -- utils/config.py; then
+            echo "No colour this app uses moved at rnv-brand ${head:0:7}. Nothing to open."
+            echo "moved=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the tests on the change
+        if: steps.sync.outputs.moved == 'yes'
+        id: tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if { python -m pytest test_rnv_color_mixer.py -q && python -m pytest tests/ -q; } > tests.log 2>&1; then
+            echo "result=green" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=red" >> "$GITHUB_OUTPUT"
+          fi
+          tail -n 40 tests.log
+
+      - name: Open the pull request, or update the one already open
+        if: steps.sync.outputs.moved == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ steps.sync.outputs.head }}
+          RESULT: ${{ steps.tests.outputs.result }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C brand-sync
+          git add tests/requirements-dev.txt utils/config.py COLORS.md
+          git commit -m "Brand sync: rnv-brand@${HEAD:0:7}"
+          git push --force origin brand-sync
+          {
+            echo "rnv-brand moved a colour this application uses, at ${HEAD:0:7}."
+            echo
+            echo '```'
+            cat sync.log
+            echo '```'
+            echo
+            echo "The tests on this change: **$RESULT** (\`python -m pytest test_rnv_color_mixer.py; python -m pytest tests/\`)."
+            echo
+            echo "Merge to take it; the next build carries it. Image files are not changed."
+          } > body.md
+          if [ "$(gh pr view brand-sync --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
+            gh pr edit brand-sync --title "Brand sync: rnv-brand@${HEAD:0:7}" --body-file body.md
+          else
+            gh pr create --head brand-sync --title "Brand sync: rnv-brand@${HEAD:0:7}" --body-file body.md
+          fi

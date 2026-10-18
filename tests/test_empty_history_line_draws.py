@@ -3,10 +3,10 @@
 RNV-RULINGS-2026-10-05, item 2. Ruled 2026-10-05: "Yes".
 
 WHAT WAS THERE. With no history, the tab shows one line: "No color history
-yet. Mix some colors to get started!". The code gave it CSS gray, #808080,
+yet. Mix some colors to get started!". The code gave it CSS gray, DATA_CSS_GREY,
 and it was never drawn in it: the list's sheet coloured every item
 (`QListWidget::item { color: ... }`), and a sheet wins over an item's own
-colour. The line was drawn like an entry: #dddddd in dark and image, black
+colour. The line was drawn like an entry: APP_TEXT_DARK in dark and image, black
 in light. Shown on 2026-10-04 with a magenta control.
 
 WHAT IS THERE NOW. The History list's item rule sets no colour, so an item's

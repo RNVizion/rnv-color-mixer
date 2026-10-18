@@ -7,12 +7,12 @@ show. "No user presets yet", with User Presets chosen and none saved, was
 given the gold text; the line a category shows when it holds no preset was
 given dark's disabled grey, in every mode. Neither was drawn in it: the
 list's sheet coloured every item (`QListWidget::item { color: ... }`), and a
-sheet wins over an item's own colour. Both were drawn like a preset: #dddddd
+sheet wins over an item's own colour. Both were drawn like a preset: APP_TEXT_DARK
 in dark and image, black in light. Rendered on 2026-10-05.
 
 WHAT IS THERE NOW. The list's item rule sets no colour, as the History
 list's has not since 2026-10-05, and both lines hold text_hint, the muted
-text the History tab's empty line takes: #888888 in dark and image, #666666
+text the History tab's empty line takes: APP_HINT_DARK in dark and image, APP_HINT_LIGHT
 in light.
 
 WHAT THIS GUARD HOLDS.

@@ -1,0 +1,149 @@
+{
+  "about": "Where each colour in utils/config.py comes from. A string is a name in rnv-brand (TABLE.key, or one of its own constants, in engine/brand.py); an object is a value this application owns, with the reason. Edit this file, then run: python tools/sync_colors.py",
+  "app": "RNV Color Mixer",
+  "colour_file": "utils/config.py",
+  "palettes": [
+    {
+      "file": "utils/config.py",
+      "dict": "ThemeManager.DARK_THEME"
+    },
+    {
+      "file": "utils/config.py",
+      "dict": "ThemeManager.LIGHT_THEME"
+    },
+    {
+      "file": "utils/config.py",
+      "dict": "ThemeManager.IMAGE_THEME"
+    }
+  ],
+  "notes": [
+    "DEBUG_OVERLAY_COLORS, the colours of the debug overlay, a development aid kept in its own dictionary."
+  ],
+  "colours": {
+    "DEFAULT_COLOR": {
+      "app": [200, 200, 200],
+      "why": "Data: the colour a new mix starts from."
+    },
+    "INITIAL_COLOR_TUPLE": {
+      "app": [0, 0, 0],
+      "why": "Data: the initial colour, as channels."
+    },
+    "INITIAL_COLOR_HEX": {
+      "app": "#000000",
+      "why": "Data: the initial colour, as hex."
+    },
+    "INITIAL_COLOR_RGB": {
+      "app": "rgb(0,0,0)",
+      "why": "Data: the initial colour, as an rgb() string."
+    },
+    "BRAND_GOLD": "APP.accent",
+    "BRAND_DARK_GOLD": "APP.accent-light-mode",
+    "TRUE_BLACK": "PERMANENT.black",
+    "WHITE": "PERMANENT.white",
+    "APP_SURFACE_DARK": "APP.panel",
+    "APP_BORDER_DARK": "APP.border",
+    "APP_TEXT_DARK": "APP.text",
+    "APP_CANVAS_DARK": "APP.canvas",
+    "APP_CARD_DARK": "APP.card",
+    "APP_PANEL_HOVER_DARK": "APP.panel-hover",
+    "APP_HINT_DARK": {
+      "app": "#888888",
+      "why": "grey(8) on the register's ink grid, which the register states as a rule and does not name. Hint text in dark and image."
+    },
+    "APP_WINDOW_LIGHT": "APP.surface-light-3",
+    "APP_BORDER_LIGHT": {
+      "app": "#cccccc",
+      "why": "grey(12) on the register's ink grid, which the register states as a rule and does not name. Every border in light, the scrollbar handle at rest and the splitter."
+    },
+    "APP_ITEM_HOVER_LIGHT": "APP.hover-light",
+    "APP_HANDLE_LIGHT": {
+      "app": "#666666",
+      "why": "grey(6) on the register's ink grid, which the register states as a rule and does not name. The light slider handle at rest."
+    },
+    "APP_HINT_LIGHT": {
+      "app": "#666666",
+      "why": "grey(6) on the register's ink grid, which the register states as a rule and does not name. Hint and muted text in light."
+    },
+    "APP_HANDLE_EDGE_LIGHT": {
+      "app": "#888888",
+      "why": "grey(8) on the register's ink grid, which the register states as a rule and does not name. The light slider handle's border, and the light menu's disabled label."
+    },
+    "APP_CONTROL_DIM": {
+      "app": "#555555",
+      "why": "grey(5) on the register's ink grid, which the register states as a rule and does not name. The light slider handle when hovered, and the image-mode checkbox border."
+    },
+    "APP_BTN_PRESSED": {
+      "app": "#444444",
+      "why": "grey(4) on the register's ink grid, which the register states as a rule and does not name. The basic button's pressed fill, in all three modes."
+    },
+    "APP_CHROME_DARK": {
+      "app": "#444444",
+      "why": "grey(4) on the register's ink grid, which the register states as a rule and does not name. A control's resting chrome in dark and image: the slider groove, a menu's edge."
+    },
+    "APP_CHROME_LIGHT": {
+      "app": "#e0e0e0",
+      "why": "grey(14) on the ramp. The light slider groove. It shares pressed-light's hex without being a pressed state."
+    },
+    "APP_TEXT_DIM_LIGHT": "APP.text-dim",
+    "APP_MENU_DIM_DARK": {
+      "app": "#666666",
+      "why": "grey(6) on the register's ink grid, which the register states as a rule and does not name. The disabled menu label in dark and image."
+    },
+    "CANVAS_FAILED_BG": {
+      "app": "#ffcccc",
+      "why": "The placeholder shown where the canvas failed to start."
+    },
+    "CANVAS_FAILED_EDGE": {
+      "app": "#ff0000",
+      "why": "That placeholder's border."
+    },
+    "HISTORY_EXPORT_PAGE_BG": {
+      "app": "#f5f5f5",
+      "why": "Data, not chrome: the exported history page's ground. An export does not change with the brand (#48 A)."
+    },
+    "HISTORY_EXPORT_CARD_BG": {
+      "app": "#ffffff",
+      "why": "Data, not chrome: each colour's card on the exported history page."
+    },
+    "HISTORY_EXPORT_INK": {
+      "app": "#333333",
+      "why": "Data, not chrome: the exported history page's heading and swatch edges."
+    },
+    "SVG_EXPORT_BG": {
+      "app": "#ffffff",
+      "why": "Data, not chrome: an exported palette's paper. It does not follow the brand's white (#48 A)."
+    },
+    "SVG_EXPORT_STROKE": {
+      "app": "#000000",
+      "why": "Data, not chrome: the edge of a swatch in an exported palette."
+    },
+    "CANVAS_PREVIEW_EDGE_DARK": {
+      "app": "#e6e6e6",
+      "why": "The edge of the canvas's colour preview in dark."
+    },
+    "CANVAS_LABEL_PLATE_LIGHT": {
+      "app": "#c8c8c8",
+      "why": "The plate behind a dragged selection's size, in light."
+    },
+    "HISTORY_SAMPLE_ORANGE_RED": {
+      "app": "#FF5733",
+      "why": "Data, not chrome: the first sample row the History tab shows when the history module cannot be loaded (#56 A)."
+    },
+    "HISTORY_SAMPLE_GREEN": {
+      "app": "#33FF57",
+      "why": "Data, not chrome: the second sample row of the History tab's fallback (#56 A)."
+    },
+    "HISTORY_SAMPLE_BLUE": {
+      "app": "#3357FF",
+      "why": "Data, not chrome: the third sample row of the History tab's fallback (#56 A)."
+    },
+    "HISTORY_SAMPLE_MAGENTA": {
+      "app": "#FF33F5",
+      "why": "Data, not chrome: the fourth sample row of the History tab's fallback (#56 A)."
+    },
+    "HISTORY_SAMPLE_YELLOW": {
+      "app": "#F5FF33",
+      "why": "Data, not chrome: the fifth sample row of the History tab's fallback (#56 A)."
+    }
+  }
+}

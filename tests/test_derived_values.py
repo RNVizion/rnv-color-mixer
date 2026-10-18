@@ -2,7 +2,7 @@
 
 The three stylesheet templates were made literal-free for HEX on 2026-09-06 --
 tests/test_neutral_ramp.py holds that -- and eleven rgba() literals stayed
-behind, because a hex sweep cannot see them. rgba(26, 26, 26, 191) IS
+behind, because a hex sweep cannot see them. The combo box's ground IS
 APP_SURFACE_DARK at alpha 191; written out, a move of APP_SURFACE_DARK would
 have reached every opaque use and none of these. Each is now
 translucent_rgba(BASE, ALPHA) inside the template. The palettes' three
@@ -18,11 +18,12 @@ QColor -- and the locked suite needs it there (test_image_stylesheet_rgba).
 Everywhere else a derived value is #aarrggbb, which both accept.
 
 WHAT MOVES A PIXEL: ONE THING, BY RULING. The image scrollbar handle leaves
-#505050 for APP_CHROME_DARK -- grey(4), #444444, the GREY_44 of the ruling --
-at the same alpha, 150. The dark handle's rgba(51, 51, 51, 0.7) is respelled
-with the byte Qt makes of 0.7, 178, MEASURED through Qt's stylesheet parser on
-three grounds; the same pixels. Everything else renders byte for byte as
-before, and tests/test_snapshots.py still compares all three sheets whole.
+RETIRED_IMAGE_SCROLLBAR_HANDLE for APP_CHROME_DARK -- grey(4), the GREY_44 of
+the ruling -- at the same alpha, 150. The dark handle's
+RETIRED_DARK_SCROLLBAR_HANDLE_RGBA is respelled with the byte Qt makes of 0.7,
+178, MEASURED through Qt's stylesheet parser on three grounds; the same
+pixels. Everything else renders byte for byte as before, and
+tests/test_snapshots.py still compares all three sheets whole.
 """
 from __future__ import annotations
 
@@ -30,6 +31,11 @@ import ast
 import pathlib
 import re
 
+from colour_values import (EXAMPLE_BLACK, EXAMPLE_DARK_GREY, EXAMPLE_NEAR_BLACK,
+                           EXAMPLE_NEAR_BLACK_AT_BF, EXAMPLE_NEAR_BLACK_AT_BF_RGBA,
+                           EXAMPLE_TAN, INVALID_EIGHT_DIGIT_BASE, INVALID_FIVE_DIGIT,
+                           INVALID_NOT_HEX, RETIRED_IMAGE_SCROLLBAR_HANDLE,
+                           RETIRED_IMAGE_SCROLLBAR_HANDLE_RGBA)
 from utils import config as C
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -40,7 +46,8 @@ HELPERS = ("translucent", "translucent_rgba")
 
 #: constant -> the byte. Each is the alpha its literal already carried; the
 #: dark handle's is the byte Qt MEASURES for 0.7 (0.7 * 255 = 178.5, and Qt
-#: gives 178 -- the same on #1a1a1a, #ffffff and #d2bc93 grounds).
+#: gives 178 -- the same on EXAMPLE_NEAR_BLACK, EXAMPLE_WHITE and EXAMPLE_TAN
+#: grounds).
 ALPHAS = {
     "SCROLLBAR_HANDLE_ALPHA_DARK": 0xB2,
     "SCROLLBAR_HANDLE_ALPHA": 0x96,
@@ -189,9 +196,9 @@ def _sources():
 # ------------------------------------------------------------ guard the guard
 
 def test_the_helpers_compose_alpha_first_and_agree():
-    assert C.translucent("#1a1a1a", 0xBF) == "#bf1a1a1a"
-    assert C.translucent_rgba("#1a1a1a", 0xBF) == "rgba(26, 26, 26, 191)"
-    for base in ("#1a1a1a", "#d2bc93", "#444444"):
+    assert C.translucent(EXAMPLE_NEAR_BLACK, 0xBF) == EXAMPLE_NEAR_BLACK_AT_BF
+    assert C.translucent_rgba(EXAMPLE_NEAR_BLACK, 0xBF) == EXAMPLE_NEAR_BLACK_AT_BF_RGBA
+    for base in (EXAMPLE_NEAR_BLACK, EXAMPLE_TAN, EXAMPLE_DARK_GREY):
         for alpha in (0, 0x64, 0xB2, 255):
             assert (decompose(C.translucent(base, alpha))
                     == decompose(C.translucent_rgba(base, alpha))
@@ -202,12 +209,13 @@ def test_the_helpers_refuse_what_they_cannot_compose():
     for helper in (C.translucent, C.translucent_rgba):
         for bad in (-1, 256, 0.7, True):
             try:
-                helper("#1a1a1a", bad)
+                helper(EXAMPLE_NEAR_BLACK, bad)
             except (ValueError, TypeError):
                 pass
             else:
                 raise AssertionError(f"{helper.__name__} took alpha {bad!r}")
-        for bad in ("#1a1a1", "#1a1a1a1a", "nonsense", "#gggggg"):
+        for bad in (INVALID_FIVE_DIGIT, INVALID_EIGHT_DIGIT_BASE, "nonsense",
+                    INVALID_NOT_HEX):
             try:
                 helper(bad, 0xBF)
             except ValueError:
@@ -304,13 +312,13 @@ def test_nothing_moved_that_was_not_ruled():
 
 
 def test_the_image_scrollbar_handle_is_grey_44_at_150():
-    """RNV-COLLAPSE-505050, closed here 2026-09-25: rgba(80, 80, 80, 150) in
+    """RNV-COLLAPSE-505050, closed here 2026-09-25: RETIRED_IMAGE_SCROLLBAR_HANDLE_RGBA in
     both of IMAGE_STYLESHEET's handles, ruled onto grey(4) on 2026-09-02."""
     handles = re.findall(r"QScrollBar::handle:(?:vertical|horizontal)\s*\{\s*"
                          r"background-color:\s*([^;]+);", C.IMAGE_STYLESHEET)
     assert len(handles) == 2, handles
     for h in handles:
-        assert decompose(h.strip()) == ("#444444", 150) == (
+        assert decompose(h.strip()) == (C.APP_CHROME_DARK, 150) == (
             C.APP_CHROME_DARK, C.SCROLLBAR_HANDLE_ALPHA), h
 
 
@@ -372,7 +380,8 @@ def test_the_collapsed_value_is_gone_in_every_spelling():
         bare = _bare_strings(tree)
         for node in ast.walk(tree):
             if (isinstance(node, ast.Constant) and isinstance(node.value, str)
-                    and id(node) not in bare and "#505050" in colours_in(node.value)):
+                    and id(node) not in bare
+                    and RETIRED_IMAGE_SCROLLBAR_HANDLE in colours_in(node.value)):
                 found.append(f"{rel}:{node.lineno}")
             values = None
             if isinstance(node, (ast.Tuple, ast.List)) and len(node.elts) in (3, 4):
@@ -386,9 +395,10 @@ def test_the_collapsed_value_is_gone_in_every_spelling():
                              if isinstance(v, ast.Constant) and type(v.value) is int)
                 if ints == (80, 80, 80):
                     found.append(f"{rel}:{node.lineno}  (80, 80, 80)")
-    assert not found, "#505050 is still here:\n  " + "\n  ".join(found)
-    assert "#505050" not in colours_in(C.IMAGE_STYLESHEET)
-    assert colours_in("rgba(80, 80, 80, 150)") == {"#505050"}, "the decoder is blind"
+    assert not found, f"{RETIRED_IMAGE_SCROLLBAR_HANDLE} is still here:\n  " + "\n  ".join(found)
+    assert RETIRED_IMAGE_SCROLLBAR_HANDLE not in colours_in(C.IMAGE_STYLESHEET)
+    assert colours_in(RETIRED_IMAGE_SCROLLBAR_HANDLE_RGBA) == {RETIRED_IMAGE_SCROLLBAR_HANDLE}, \
+        "the decoder is blind"
 
 # RNV-DERIVE-ALPHA
 
@@ -484,13 +494,14 @@ def test_the_integer_sweep_reads_both_notations():
     probe = ast.parse("A = (0, 0, 0, 50)\n"
                       "class K:\n    B = QColor(68, 68, 68)\n"
                       "def f():\n    c = (0, 0, 0)\n")
-    assert sorted(_int_spelled(probe)) == [("A", "#000000", 50), ("B", "#444444", 255)]
+    assert sorted(_int_spelled(probe)) == [("A", EXAMPLE_BLACK, 50), ("B", EXAMPLE_DARK_GREY, 255)]
 
 
 def test_every_tuple_constant_is_derived_by_name():
     """RNV-TUPLE-ROUND, 2026-09-26. A colour spelled in integers is a colour
-    every string sweep in the fleet was blind to, and #505050 sat in two of
-    them for three weeks after it was ruled away. Each constant here is now
+    every string sweep in the fleet was blind to, and
+    RETIRED_IMAGE_SCROLLBAR_HANDLE sat in two of them for three weeks after it
+    was ruled away. Each constant here is now
     its helper called on a named base and a named alpha, and it evaluates to
     exactly that pair -- held BY NAME, so a register move passes through."""
     tree = ast.parse((ROOT / TUPLE_HOME).read_text(encoding="utf-8-sig"))
@@ -568,7 +579,7 @@ def test_the_unread_palette_keys_stay_removed():
     painted nothing: checkbox_bg, derived at 0xE6 and 0xC8, and
     checkbox_border, label_bg and label_border -- the last three spelled in
     LIGHT_THEME with the CSS names gray, white and black, which a hex census
-    cannot see. A render set all twelve entries to #ff00ff. No pixel changed
+    cannot see. A render set all twelve entries to EXAMPLE_MAGENTA. No pixel changed
     in 105 captures of the main window, the control panel and the About
     dialog in all three modes, and no text changed in 1,020 stylesheet and
     palette entries, while a control that moved DARK's canvas_bg changed 1
@@ -728,7 +739,8 @@ def _lower8_values():
 def test_eight_digit_hex_is_lower_case(qapp):
     """RNV-LOWER-EIGHT, 2026-09-25. The register writes hex in lower case --
     Notation, ruled 2026-08-15, Brand Book decision #19 -- and on 2026-09-25
-    Chris ruled that eight digits are hex too: #ed1a1a1a, never #ED1A1A1A.
+    Chris ruled that eight digits are hex too: EXAMPLE_NEAR_BLACK_AT_ED, never
+    INVALID_UPPER_EIGHT_DIGIT.
     Qt reads either case. This application's helper wrote lower case from
     the start; this holds it there.
 

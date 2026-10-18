@@ -73,12 +73,15 @@ jobs:
         # RNV-NAMED-AND-USED 2026-10-04: re-baselined. Ruled: the
         # same-keys test may change so that a palette holds no value
         # its mode never reads. One test moved; the digest is its file's.
+        # RNV-COLOUR-SYNC 2026-10-17 (#55 B): re-baselined. Ruled: the
+        # suite reads its colours by name, from the colour file or from
+        # tests/colour_values.py. The digest is its file's.
         run: |
           python -c "
           import hashlib
           with open('test_rnv_color_mixer.py', 'rb') as f:
               digest = hashlib.sha256(f.read()).hexdigest()
-          expected = 'e00c2424a8c64affdaf67547e59c633e7958427ad26f0186253ae599fb992edb'
+          expected = '01083d8d16ccb31f83e55b314ddf9d91885eb6e72eae1e365edbecf1209d3129'
           if digest != expected:
               print(f'LOCKED FILE INTEGRITY VIOLATION')
               print(f'  expected: {expected}')

@@ -38,6 +38,8 @@ from PyQt6.QtCore import pyqtBoundSignal
 
 # Bootstrap (sys.path + virtual packages) is done by tests/conftest.py
 from core.color_slot import ColorSlot
+from colour_values import (DATA_TYPED_ORANGE, EXAMPLE_BROWN_DIGITS, EXAMPLE_PALE_BLUE_DIGITS,
+                           INVALID_ONE_LETTER, INVALID_SEVEN_DIGIT, INVALID_TWO_DIGIT)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -213,7 +215,7 @@ class TestColorSlotDataRoundTrip:
         data = slot.get_color_data()
         assert data["color"] == (128, 64, 32)
         assert data["weight"] == 45
-        assert data["hex"].lower().lstrip("#") == "804020"
+        assert data["hex"].lower().lstrip("#") == EXAMPLE_BROWN_DIGITS
 
         # Load into a fresh slot — both must end up identical
         target = ColorSlot(index=1)
@@ -262,7 +264,7 @@ class TestColorSlotHexEntry:
     def test_valid_hex_entry_updates_color_on_enter(self, slot):
         """`_on_hex_entered` calls set_color which goes through the full
         update path including signal emission."""
-        slot.hex_entry.setText("#ff8040")
+        slot.hex_entry.setText(DATA_TYPED_ORANGE)
         slot._on_hex_entered()
         assert slot.get_color() == (255, 128, 64)
 
@@ -272,7 +274,8 @@ class TestColorSlotHexEntry:
         contract for the live-preview behaviour."""
         starting_color = slot.get_color()
         # Various invalid forms a user might be in the middle of typing
-        for bogus in ("", "#", "#z", "#12", "not-a-color", "#1234567"):
+        for bogus in ("", "#", INVALID_ONE_LETTER, INVALID_TWO_DIGIT, "not-a-color",
+                      INVALID_SEVEN_DIGIT):
             slot.hex_entry.setText(bogus)
             slot._on_hex_changed()
         assert slot.get_color() == starting_color
@@ -329,7 +332,7 @@ class TestColorSlotCopyHex:
         slot.set_color((171, 205, 239))
         slot._copy_hex_to_clipboard()
         clipboard_text = QApplication.clipboard().text()
-        assert clipboard_text.lower().lstrip("#") == "abcdef"
+        assert clipboard_text.lower().lstrip("#") == EXAMPLE_PALE_BLUE_DIGITS
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -17,21 +17,33 @@ import re
 
 import pytest
 
+#: RNV-COLOUR-SYNC, #50 A (2026-10-17). The register's floor for gold text,
+#: GOLD_TEXT_GROUND_FLOOR in rnv-brand's engine/brand.py: a boundary, not a
+#: colour this application draws. Named in tests/colour_values.py since #53 A
+#: (2026-10-17); test_the_gold_text_floor_is_the_register_s holds it to the
+#: register, and so does tests/test_colour_values.py.
+from colour_values import (DATA_CSS_BLACK, DATA_CSS_GREY, DATA_CSS_WHITE,
+                           REGISTER_GOLD_TEXT_GROUND_FLOOR)
 from utils import config
 
 TEXT_FLOOR = 4.5
 HEX = re.compile(r"^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$")
-NAMED = {"white": "#ffffff", "black": "#000000", "gray": "#808080",
-         "grey": "#808080"}
+NAMED = {"white": DATA_CSS_WHITE, "black": DATA_CSS_BLACK, "gray": DATA_CSS_GREY,
+         "grey": DATA_CSS_GREY}
 
 # (theme, foreground, background) -> why it may sit below the floor.
 ACCEPTED = {
     # The main-window button scheme is a deliberate inversion: the hover ground
     # goes near-black while the label stays black, and the pressed state flips
     # the label to white. Both are intentional and predate this pass.
-    ("LIGHT", "#000000", "#333333"): "main button hover -- deliberate inversion",
-    ("DARK", "#000000", "#444444"): "main button pressed -- deliberate inversion",
-    ("IMAGE", "#000000", "#444444"): "main button pressed -- deliberate inversion",
+    # RNV-COLOUR-SYNC, 2026-10-16: each pair by the constants the sheets draw
+    # it with, where it was written as their hex codes.
+    ("LIGHT", config.TRUE_BLACK, config.APP_BTN_HOVER_INVERSE):
+        "main button hover -- deliberate inversion",
+    ("DARK", config.TRUE_BLACK, config.APP_BTN_PRESSED):
+        "main button pressed -- deliberate inversion",
+    ("IMAGE", config.TRUE_BLACK, config.APP_BTN_PRESSED):
+        "main button pressed -- deliberate inversion",
 }
 
 
@@ -213,11 +225,18 @@ def test_the_audit_finds_something_to_audit(theme):
 
 
 # The two button schemes, as the other four aligned apps render them.
-# (bg, fg) for rest, hover, pressed.
+# (bg, fg) for rest, hover, pressed. RNV-COLOUR-SYNC, 2026-10-16: by the
+# constants the sheets draw them with, where they were written as hex codes.
 MAIN_SCHEME = {
-    "DARK":  (("#1a1a1a", "#dddddd"), ("#333333", "#dddddd"), ("#444444", "#000000")),
-    "LIGHT": (("#ffffff", "#000000"), ("#333333", "#000000"), ("#444444", "#ffffff")),
-    "IMAGE": (("#1a1a1a", "#dddddd"), ("#333333", "#dddddd"), ("#444444", "#000000")),
+    "DARK":  ((config.APP_SURFACE_DARK, config.APP_TEXT_DARK),
+              (config.APP_BORDER_DARK, config.APP_TEXT_DARK),
+              (config.APP_BTN_PRESSED, config.TRUE_BLACK)),
+    "LIGHT": ((config.WHITE, config.TRUE_BLACK),
+              (config.APP_BTN_HOVER_INVERSE, config.TRUE_BLACK),
+              (config.APP_BTN_PRESSED, config.WHITE)),
+    "IMAGE": ((config.APP_SURFACE_DARK, config.APP_TEXT_DARK),
+              (config.APP_BORDER_DARK, config.APP_TEXT_DARK),
+              (config.APP_BTN_PRESSED, config.TRUE_BLACK)),
 }
 
 
@@ -269,14 +288,26 @@ def test_four_gold_values_in_the_whole_app():
 
 
 def test_gold_text_never_lands_below_the_coverage_floor():
-    """Below #e8e8e8 gold does not carry text. That is a ruling, not a gap --
-    so assert nothing tries."""
+    """Below REGISTER_GOLD_TEXT_GROUND_FLOOR gold does not carry text. That is a
+    ruling, not a gap -- so assert nothing tries."""
     deep = config.ThemeManager.LIGHT_THEME["accent_ink"]
     for _, fg, bg in _pairs("LIGHT"):
         if fg != deep.lower():
             continue
-        assert _luminance(bg) <= _luminance("#ffffff"), bg
+        # #50 A: measured against the floor. It was measured against white,
+        # which nothing exceeds, so this line could not fail.
+        assert _luminance(bg) >= _luminance(REGISTER_GOLD_TEXT_GROUND_FLOOR), (
+            f"the deep gold carries text on {bg}, below the register's floor "
+            f"{REGISTER_GOLD_TEXT_GROUND_FLOOR}")
         assert contrast(fg, bg) >= TEXT_FLOOR, f"{fg} on {bg}"
+
+
+def test_the_gold_text_floor_is_the_register_s():
+    """RNV-COLOUR-SYNC, #50 A (2026-10-17). The floor above is the register's
+    boundary, written as the register publishes it. This holds it to the
+    register wherever rnv-brand is installed, as CI installs it."""
+    brand = pytest.importorskip("engine.brand", reason="rnv-brand not importable")
+    assert REGISTER_GOLD_TEXT_GROUND_FLOOR == brand.GOLD_TEXT_GROUND_FLOOR.lower()
 
 # ── Escape sequences (RNV-ESCAPE-SEQUENCES, 2026-09-08) ────────────
 # The docstring of _rules() was made raw. It contains \{ , which is

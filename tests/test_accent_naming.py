@@ -90,7 +90,10 @@ def test_accent_ink_is_a_brand_gold(name):
 def test_accent_text_is_the_ink_drawn_on_gold(name):
     """accent_text is black or white -- never a gold. This is the assertion
     that fails loudly if the two names are ever swapped back."""
-    assert PALETTES[name]["accent_text"].lower() in {"#000000", "#ffffff"}, \
+    # RNV-COLOUR-SYNC, 2026-10-16: black and white by name, where they were
+    # written as their hex codes.
+    inks = {config.TRUE_BLACK.lower(), config.WHITE.lower()}
+    assert PALETTES[name]["accent_text"].lower() in inks, \
         PALETTES[name]["accent_text"]
 
 
@@ -159,7 +162,7 @@ def test_the_rename_did_not_change_what_light_renders():
     light = PALETTES["LIGHT"]
     assert light["accent"] == config.BRAND_DARK_GOLD
     assert light["accent_ink"] == config.BRAND_DARK_GOLD_DEEP
-    assert light["accent_text"] == "#ffffff"
+    assert light["accent_text"] == config.WHITE
 
 
 def test_the_rename_did_not_change_what_dark_renders():
@@ -167,4 +170,4 @@ def test_the_rename_did_not_change_what_dark_renders():
         palette = PALETTES[name]
         assert palette["accent"] == config.BRAND_GOLD
         assert palette["accent_ink"] == config.BRAND_GOLD
-        assert palette["accent_text"] == "#000000"
+        assert palette["accent_text"] == config.TRUE_BLACK

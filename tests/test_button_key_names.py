@@ -39,26 +39,28 @@ DIALOG = {
     "image": ("dialog_btn_hover_bg", "dialog_btn_pressed_bg"),
 }
 
+#: RNV-COLOUR-SYNC, 2026-10-16: each key by the constant it paints, where it
+#: was written as that constant's hex code, so a brand move needs no edit here.
 PINNED_MAIN = {
-    "dark": {"main_btn_bg": "#1a1a1a", "main_btn_text": "#dddddd",
-             "main_btn_hover_bg": "#333333",
-             "main_btn_pressed_text": "#000000"},
-    "light": {"main_btn_bg": "#ffffff", "main_btn_text": "#000000",
-              "main_btn_hover_bg": "#333333",
-              "main_btn_pressed_text": "#ffffff"},
-    "image": {"main_btn_bg": "#1a1a1a", "main_btn_text": "#dddddd",
-              "main_btn_hover_bg": "#333333",
-              "main_btn_pressed_text": "#000000"},
+    "dark": {"main_btn_bg": "APP_SURFACE_DARK", "main_btn_text": "APP_TEXT_DARK",
+             "main_btn_hover_bg": "APP_BORDER_DARK",
+             "main_btn_pressed_text": "TRUE_BLACK"},
+    "light": {"main_btn_bg": "WHITE", "main_btn_text": "TRUE_BLACK",
+              "main_btn_hover_bg": "APP_BTN_HOVER_INVERSE",
+              "main_btn_pressed_text": "WHITE"},
+    "image": {"main_btn_bg": "APP_SURFACE_DARK", "main_btn_text": "APP_TEXT_DARK",
+              "main_btn_hover_bg": "APP_BORDER_DARK",
+              "main_btn_pressed_text": "TRUE_BLACK"},
 }
 
 #: What the three dialogs painted before the rename, key for key.
 PINNED_DIALOG = {
-    "dark": {"dialog_btn_hover_bg": "#333333",
-             "dialog_btn_pressed_bg": "#d2bc93"},
-    "light": {"dialog_btn_bg": "#ffffff",
-              "dialog_btn_pressed_bg": "#8c7337"},
-    "image": {"dialog_btn_hover_bg": "#333333",
-              "dialog_btn_pressed_bg": "#d2bc93"},
+    "dark": {"dialog_btn_hover_bg": "APP_BORDER_DARK",
+             "dialog_btn_pressed_bg": "BRAND_GOLD_PRESSED"},
+    "light": {"dialog_btn_bg": "WHITE",
+              "dialog_btn_pressed_bg": "BRAND_DARK_GOLD_PRESSED"},
+    "image": {"dialog_btn_hover_bg": "APP_BORDER_DARK",
+              "dialog_btn_pressed_bg": "BRAND_GOLD_PRESSED"},
 }
 
 SKIP = {".git", "build", "dist", ".venv", "__pycache__"}
@@ -73,6 +75,12 @@ MARKERS = ("RNV-BUTTON-NAMING-GUARD", "RNV-BUTTON-NAMING-TOOL-DO-NOT-SWEEP")
 DIALOG_FILES = ("ui/about_dialog.py", "core/color_fine_tune.py",
                 "core/package_d_panel.py")
 MAIN_FILES = ("ui/ui_handler.py", "core/color_slot.py")
+
+
+def _values(pins):
+    """Each key's constant, as the value it holds."""
+    from utils import config
+    return {key: getattr(config, name) for key, name in pins.items()}
 
 
 def _palettes():
@@ -143,7 +151,8 @@ def test_all_three_palettes_carry_both_families():
 
 
 def test_the_rename_moved_no_value():
-    for mode, pins in PINNED_MAIN.items():
+    for mode, names in PINNED_MAIN.items():
+        pins = _values(names)
         actual = {k: _palettes()[mode].get(k) for k in pins}
         assert actual == pins, (
             f"the {mode} main button values changed.\n"
@@ -152,7 +161,8 @@ def test_the_rename_moved_no_value():
 
 
 def test_the_dialog_family_holds_what_the_dialogs_already_painted():
-    for mode, pins in PINNED_DIALOG.items():
+    for mode, names in PINNED_DIALOG.items():
+        pins = _values(names)
         actual = {k: _palettes()[mode].get(k) for k in pins}
         assert actual == pins, (
             f"the {mode} dialog button values are not what those dialogs "
@@ -183,8 +193,8 @@ def test_the_gold_press_belongs_to_the_dialog_family_too():
 
     This is the finding that made the rename worth doing here. Reading
     button_pressed_bg out of the palette suggested the MAIN button pressed to
-    gold; it does not -- the main window's pressed plate is #444444, written
-    into the QSS blocks in utils/config.py as APP_BTN_PRESSED. The gold was
+    gold; it does not -- the main window's pressed plate is APP_BTN_PRESSED,
+    written into the QSS blocks in utils/config.py. The gold was
     always the dialog's. The name now says so.
     """
     config = (ROOT / "utils" / "config.py").read_text(encoding="utf-8-sig")

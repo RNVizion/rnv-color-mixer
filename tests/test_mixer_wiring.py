@@ -8,7 +8,7 @@ Installed 2026-09-06. What it pins:
   * the SPLITS: each value in that table carries two constants, because each
     plays two roles, and the guard states which name goes with which role.
     Written as a count of two when this file was installed, which stopped
-    being true the moment #eeeeee was declared and nobody noticed -- a
+    being true the moment APP_ITEM_HOVER_LIGHT's value was declared and nobody noticed -- a
     parametrized test now names every entry, so the table is its own record
     and this line does not have to be;
   * `slider_groove` is the ONLY key any QSlider groove reads, in every file;
@@ -23,6 +23,7 @@ reason -- which is what `test_this_guard_can_see_the_palettes` is for.
 from __future__ import annotations
 
 import ast
+import json
 import re
 from pathlib import Path
 
@@ -32,6 +33,12 @@ from utils import config as C
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'utils/config.py'
+
+#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
+#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: register at the pin; what this file holds is the name each one takes.
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+
 PALETTES = ['DARK_THEME', 'LIGHT_THEME', 'IMAGE_THEME']
 #: RNV-NAMED-AND-USED, 2026-10-04: a palette written as another one spread
 #: under its own name -> the palette it spreads.
@@ -41,32 +48,58 @@ HEX = re.compile(r"#[0-9a-fA-F]{3,8}$")
 #: hex -> the two constants that share it, and the role each one plays. A
 #: second name for one colour is either a split with a stated role or a
 #: defect; these two are splits, ruled 2026-09-06.
+#: #52 A (2026-10-17): each split is keyed by the value of its first name,
+#: read from the colour file, so the test holds the others to it.
 SPLITS = {
-    '#444444': {'APP_BTN_PRESSED': 'the pressed plate of the basic button',
-                'APP_CHROME_DARK': 'the dark control trough and menu edge'},
-    '#666666': {'APP_HANDLE_LIGHT': 'the light slider handle at rest',
-                'APP_MENU_DIM_DARK': 'the disabled menu label in dark and image',
-                # RNV-MUTED-DESCRIPTIONS, 2026-09-27: hint and muted text,
-                # which had borrowed the handle's name.
-                'APP_HINT_LIGHT': 'hint and muted text in light'},
-    # RNV-NAMED-AND-USED, 2026-10-04: #eeeeee was declared here as a split, the
-    # light register plate and a dark slider handle's hover. Nothing painted the
-    # handle's name, so it went, and the plate's hex has one name again.
+    C.APP_BTN_PRESSED: {'APP_BTN_PRESSED': 'the pressed plate of the basic button',
+                        'APP_CHROME_DARK': 'the dark control trough and menu edge'},
+    C.APP_HANDLE_LIGHT: {'APP_HANDLE_LIGHT': 'the light slider handle at rest',
+                         'APP_MENU_DIM_DARK': 'the disabled menu label in dark and image',
+                         # RNV-MUTED-DESCRIPTIONS, 2026-09-27: hint and muted text,
+                         # which had borrowed the handle's name.
+                         'APP_HINT_LIGHT': 'hint and muted text in light'},
+    # RNV-NAMED-AND-USED, 2026-10-04: APP_ITEM_HOVER_LIGHT's value was declared
+    # here as a split, the light register plate and a dark slider handle's hover.
+    # Nothing painted the handle's name, so it went, and the plate's hex has one
+    # name again.
     # RNV-GOLD-HOVER, 2026-09-12. The light handle edge held a step no other
     # application used and nothing else in this one, and it lost its scrollbar
     # role to the gold. It now takes the step this file already calls hint and
-    # muted text. Two roles, one value, both stated: as the #666666 split above.
-    '#888888': {'APP_HINT_DARK': 'hint and muted text in dark and image',
-                'APP_HANDLE_EDGE_LIGHT': 'the light slider handle edge, and the '
-                                         'light palette\'s disabled menu label'},
+    # muted text. Two roles, one value, both stated: as the APP_HANDLE_LIGHT split above.
+    C.APP_HINT_DARK: {'APP_HINT_DARK': 'hint and muted text in dark and image',
+                      'APP_HANDLE_EDGE_LIGHT': 'the light slider handle edge, and the '
+                                               'light palette\'s disabled menu label'},
 }
 
+#: RNV-COLOUR-SYNC, #48 A (2026-10-16). Data colours, the application's own,
+#: that share a hex with a chrome colour. Not a second name for it: an export
+#: keeps its value when the brand moves, and the chrome colour does not.
+DATA_TWINS = {'HISTORY_EXPORT_PAGE_BG', 'HISTORY_EXPORT_CARD_BG',
+              'HISTORY_EXPORT_INK', 'SVG_EXPORT_BG', 'SVG_EXPORT_STROKE'}
+
+
+def test_every_data_twin_is_the_application_s_own():
+    """A twin is exempt from the split rule only because it is data the
+    application owns. A twin the map took from the brand would be a second
+    name for a brand colour, which is what that rule is for."""
+    taken = sorted(n for n in DATA_TWINS if not isinstance(BRAND_MAP.get(n), dict))
+    assert not taken, f'these are not the application\'s own in brand_map.json: {taken}'
+
+
 #: The four names this pass introduced, with the value each must hold.
+#: RNV-COLOUR-SYNC, 2026-10-16: the one the register holds, APP_TEXT_DIM_LIGHT (named
+#: APP_DIM_LIGHT until #51 A, 2026-10-17), by
+#: the register name brand_map.json writes it from, where it was its hex
+#: code; tests/test_colours_in_sync.py holds the value.
+#: #52 A (2026-10-17): the application's own three by the map holding each as
+#: its own, where they were their hex codes; tests/test_colours_in_sync.py
+#: holds the values against the map.
+APP_OWN = 'app-owned'
 ADDED = {
-    'APP_CHROME_DARK': '#444444',
-    'APP_CHROME_LIGHT': '#e0e0e0',
-    'APP_DIM_LIGHT': '#aaaaaa',
-    'APP_MENU_DIM_DARK': '#666666',
+    'APP_CHROME_DARK': APP_OWN,
+    'APP_CHROME_LIGHT': APP_OWN,
+    'APP_TEXT_DIM_LIGHT': 'APP.text-dim',
+    'APP_MENU_DIM_DARK': APP_OWN,
 }
 
 
@@ -187,7 +220,12 @@ def test_every_name_a_palette_uses_is_defined_above_it():
 
 @pytest.mark.parametrize('name,value', sorted(ADDED.items()))
 def test_the_names_this_pass_added_hold_what_they_say(name, value):
-    assert getattr(C, name) == value
+    # A name the register holds, by its register name; the application's own,
+    # by the map holding it as its own (#52 A).
+    assert hasattr(C, name), f'utils.config has no {name}'
+    entry = BRAND_MAP[name]
+    held = entry if isinstance(entry, str) else APP_OWN if isinstance(entry, dict) else None
+    assert held == value
 
 
 # ---------------------------------------------------------------- the splits
@@ -206,7 +244,7 @@ def test_a_declared_split_keeps_both_names(hexv):
 
 def test_no_undeclared_second_name_for_one_colour():
     """The other direction. A colour with two names is a split with a stated
-    role, or a defect. This is what stops a third name appearing for #444444
+    role, or a defect. This is what stops a third name appearing for APP_BTN_PRESSED's value
     with nobody having decided that it should."""
     src = SOURCE.read_text(encoding='utf-8-sig')
     pat = re.compile(r"^([A-Z][A-Z0-9_]+)\s*:\s*Final\[str\]\s*=\s*"
@@ -215,6 +253,7 @@ def test_no_undeclared_second_name_for_one_colour():
     for name, hexv in pat.findall(src):
         by_hex.setdefault(hexv.lower(), []).append(name)
     for hexv, names in sorted(by_hex.items()):
+        names = [n for n in names if n not in DATA_TWINS]
         if len(names) < 2:
             continue
         declared = set(SPLITS.get(hexv, {}))
@@ -279,7 +318,7 @@ def test_the_hover_label_states_the_ruled_dimming():
 def test_the_light_button_hover_uses_the_alias_that_exists_for_it():
     """APP_BTN_HOVER_INVERSE was defined for exactly this and the light palette
     wrote the value out by hand instead. Assigned from APP_BORDER_DARK rather
-    than repeating #333333, so the two cannot drift apart."""
+    than repeating APP_BORDER_DARK's value, so the two cannot drift apart."""
     d = dict(_entries(_palette_dicts()['LIGHT_THEME']))
     # RNV-NAMED-AND-USED, 2026-10-04: the main button's hover alone. The light
     # palette held a dialog hover at the same alias and no light sheet read it:
@@ -288,4 +327,4 @@ def test_the_light_button_hover_uses_the_alias_that_exists_for_it():
         v = d[key]
         assert isinstance(v, ast.Name) and v.id == 'APP_BTN_HOVER_INVERSE', (
             f'LIGHT {key} does not read APP_BTN_HOVER_INVERSE')
-    assert C.APP_BTN_HOVER_INVERSE == C.APP_BORDER_DARK == '#333333'
+    assert C.APP_BTN_HOVER_INVERSE == C.APP_BORDER_DARK

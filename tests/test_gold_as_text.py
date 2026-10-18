@@ -5,8 +5,8 @@ white on the dark gold, black on the bright gold. RNV-RULINGS-2026-10-13,
 item 32.
 
 WHY THIS EXISTS. The gold family has two members that look interchangeable and
-are not. BRAND_DARK_GOLD #8c7337 fills and bounds correctly on light surfaces
-and FAILS as text on them; BRAND_DARK_GOLD_DEEP #7e6529 is the derivative that
+are not. BRAND_DARK_GOLD fills and bounds correctly on light surfaces
+and FAILS as text on them; BRAND_DARK_GOLD_DEEP is the derivative that
 exists for text, and the palettes name it `accent_ink` -- "Accent when it
 carries text". In DARK MODE THE TWO ARE THE SAME VALUE, so every check written
 where they coincide is blind to the case where they diverge, and that is
@@ -34,7 +34,7 @@ READING THE MODE. A block written inside `if self._is_dark:` and bound with
 `_d = ThemeManager.DARK_THEME` is dark-only, and scoring it against the light
 palette invents a pairing that never renders. Declarations are restricted to
 the mode their variable came from. The first version of this sweep, without
-that, reported five impossible failures including gold on #333333 at 2.78.
+that, reported five impossible failures including gold on APP_BORDER_DARK at 2.78.
 """
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ BGDECL = re.compile(r'background-color\s*:\s*([^;\n]+)')
 LOOKUP = re.compile(r"^\{\s*([A-Za-z_][A-Za-z_0-9]*)\s*\[\s*['\"]([a-z_0-9]+)['\"]\s*\]\s*\}$")
 #: `{t.get('tab_selected_bg', bg)}` is a lookup wearing a fallback. Reading it
 #: as unresolvable made the sweep guess the ground from the palette and score
-#: rnv-color-mixer's selected tab at 4.1670 when it actually sits on #ffffff
+#: rnv-color-mixer's selected tab at 4.1670 when it actually sits on WHITE
 #: and clears at 4.5429 -- a failure that does not exist.
 GETLOOKUP = re.compile(
     r"^\{\s*([A-Za-z_][A-Za-z_0-9]*)\s*\.get\(\s*['\"]([a-z_0-9]+)['\"]\s*(?:,.*)?\)\s*\}$",
@@ -113,7 +113,8 @@ def _contrast(a: str, b: str) -> float:
 
 
 #: Names that contain GOLD and are not a gold. GOLD_TEXT_GROUND_FLOOR is the
-#: light GROUND the gold family is calibrated against -- #e8e8e8 -- and a
+#: light GROUND the gold family is calibrated against --
+#: REGISTER_GOLD_TEXT_GROUND_FLOOR -- and a
 #: name-based sweep swept it into the family, after which every disabled
 #: control drawn on it was reported as gold-on-gold at 1.8960. Those pairs are
 #: real and already exempt as WCAG-exempt disabled text; they are not gold.
@@ -351,7 +352,7 @@ def _fill_sweep():
                         #: in dark. The resolver does not read conditionals, so
                         #: the label came back None, fell through to the
                         #: container rule below, and the sweep reported black
-                        #: text as #dddddd at 1.36 in two files.
+                        #: text as APP_TEXT_DARK at 1.36 in two files.
                         #:
                         #: Inheriting is only right where the rule declares
                         #: NOTHING. Where it declares something unreadable, the
@@ -421,8 +422,8 @@ def _sweep():
                         # top-level widget in the SAME stylesheet. Reading that
                         # is the difference between measuring what renders and
                         # measuring a guess: rnv-text-transformer's exported
-                        # h1 inherits #ffffff from `body` and clears at 4.5429,
-                        # and a palette guess of #f5f5f5 scored it 4.1670 and
+                        # h1 inherits WHITE from `body` and clears at 4.5429,
+                        # and a palette guess of APP_WINDOW_LIGHT scored it 4.1670 and
                         # called it a failure.
                         bg = _enclosing_ground(text, palette, binds)
                     if bg is None:

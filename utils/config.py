@@ -6,6 +6,13 @@ window and widget dimensions, file paths, font management, and the
 ThemeManager system supporting Dark, Light, and Image modes with
 cached QPalette objects for fast theme switching.
 """
+# RNV-COLOUR-SYNC (2026-10-16). Every colour value below whose line ends
+# "# brand: <name>" or "# app-owned" is written by tools/sync_colors.py from
+# brand_map.json: a brand name's value from rnv-brand at the commit pinned in
+# tests/requirements-dev.txt, an app-owned value from the map, with its reason.
+# To change one, change the map and run `python tools/sync_colors.py`. A value
+# edited here is put back by the next sync, and tests/test_colours_in_sync.py
+# fails until then. COLORS.md is the chart of them.
 
 import os
 import base64
@@ -40,16 +47,16 @@ DEFAULT_WINDOW_SIZE = (1130, 610)  # Updated to accommodate HSV label
 MINIMUM_WINDOW_SIZE = (1130, 610)  # Minimum size to maintain layout with HSV
 
 # Color settings
-DEFAULT_COLOR = (200, 200, 200)
+DEFAULT_COLOR = (200, 200, 200)  # app-owned
 DEFAULT_WEIGHT = 0
 DEFAULT_SAMPLE_WEIGHT = 50
 
 # Initial state — the color shown before the user mixes anything.
 # Centralised here so a single change updates preview swatch, hex label,
 # rgb label, and any other display that starts at "no color yet".
-INITIAL_COLOR_TUPLE = (0, 0, 0)
-INITIAL_COLOR_HEX   = "#000000"
-INITIAL_COLOR_RGB   = "rgb(0,0,0)"
+INITIAL_COLOR_TUPLE = (0, 0, 0)  # app-owned
+INITIAL_COLOR_HEX   = "#000000"  # app-owned
+INITIAL_COLOR_RGB   = "rgb(0,0,0)"  # app-owned
 
 # Debug overlay colors — diagnostic identifiers for the F12 overlay system.
 # Red = main app window overlay, Blue = slots panel overlay.
@@ -189,8 +196,8 @@ def translucent_rgba(hex_color: str, alpha: int) -> str:
     return f"rgba({r}, {g}, {b}, {_alpha_byte(alpha)})"
 
 
-BRAND_GOLD: Final[str] = "#d2bc93"                       # registered
-BRAND_DARK_GOLD: Final[str] = "#8c7337"             # registered
+BRAND_GOLD: Final[str] = "#d2bc93"  # brand: APP.accent
+BRAND_DARK_GOLD: Final[str] = "#8c7337"  # brand: APP.accent-light-mode
 
 # Derived. Steps published in rnv-brand engine/brand.py, rev 17.
 BRAND_DARK_GOLD_DEEP: Final[str] = lighten(BRAND_DARK_GOLD, -14)   # #7e6529
@@ -236,25 +243,25 @@ GOLD_PROVENANCE: Final[dict[str, str]] = {
 # stylesheets byte-for-byte against frozen references; if those pass without
 # regeneration, nothing moved.
 
-TRUE_BLACK: Final[str] = "#000000"
+TRUE_BLACK: Final[str] = "#000000"  # brand: PERMANENT.black
 """Window and scroll-area ground in dark; primary text in light; the label on
 a pressed control in dark; the selection foreground in every mode."""
 
-WHITE: Final[str] = "#ffffff"
+WHITE: Final[str] = "#ffffff"  # brand: PERMANENT.white
 """Control surface in light -- button, input, combo, scroll area -- and the
 label on a pressed control in light."""
 
 # ---- dark and image ----
-APP_SURFACE_DARK: Final[str] = "#1a1a1a"
+APP_SURFACE_DARK: Final[str] = "#1a1a1a"  # brand: APP.panel
 """Control surface in dark and image: button, input, combo, status bar, and
 the slider groove."""
 
-APP_BORDER_DARK: Final[str] = "#333333"
+APP_BORDER_DARK: Final[str] = "#333333"  # brand: APP.border
 """Every border in dark and image. Also the hover ground and the splitter
 handle -- in dark the hover fill deliberately equals the border step, so a
 hovered control reads as its own outline filling in."""
 
-APP_TEXT_DARK: Final[str] = "#dddddd"
+APP_TEXT_DARK: Final[str] = "#dddddd"  # brand: APP.text
 """Primary text in dark and image. Also the slider handle, which takes the
 brightest step in the ramp rather than a colour of its own."""
 
@@ -263,7 +270,7 @@ brightest step in the ramp rather than a colour of its own."""
 # takes the accent. It went, and with it the one coincidence it made, a
 # second name on APP_ITEM_HOVER_LIGHT's #eeeeee.
 
-APP_CANVAS_DARK: Final[str] = "#0a0a0a"
+APP_CANVAS_DARK: Final[str] = "#0a0a0a"  # brand: APP.canvas
 """engine/brand.py APP["canvas"]. The ground BELOW the panel in dark and image:
 the mixing canvas, and the selected tab, which sits flush with it.
 
@@ -290,7 +297,7 @@ like a light-ground rule and was not -- the register's canvas inverts to
 MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py alongside the
 other register values, so a move upstream is caught here."""
 
-APP_CARD_DARK: Final[str] = "#2a2a2a"
+APP_CARD_DARK: Final[str] = "#2a2a2a"  # brand: APP.card
 """engine/brand.py APP["card"]. The raised secondary surface in dark and
 image: panel_secondary in the About dialog and the fine-tune panel, and the
 ground of the custom tooltip.
@@ -298,7 +305,7 @@ ground of the custom tooltip.
 MIRRORED, not app-owned -- it is pinned in tests/test_app_mirror.py alongside
 the other register values, so a move upstream is caught here."""
 
-APP_PANEL_HOVER_DARK: Final[str] = "#3a3a3a"
+APP_PANEL_HOVER_DARK: Final[str] = "#3a3a3a"  # brand: APP.panel-hover
 """engine/brand.py APP["panel-hover"]. Panel hover in dark and image, and the
 n=+2 rung of the dark surface ladder.
 
@@ -315,19 +322,19 @@ each other. The ladder was complete the whole time:
 
 MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 
-APP_HINT_DARK: Final[str] = "#888888"
+APP_HINT_DARK: Final[str] = "#888888"  # app-owned
 """Hint text in dark and image. grey(8) on the published ink grid, and the
 same step the other four apps use for muted text."""
 
 # ---- light ----
-APP_WINDOW_LIGHT: Final[str] = "#f5f5f5"
+APP_WINDOW_LIGHT: Final[str] = "#f5f5f5"  # brand: APP.surface-light-3
 """Window ground in light, the status bar, and the scrollbar track."""
 
-APP_BORDER_LIGHT: Final[str] = "#cccccc"
+APP_BORDER_LIGHT: Final[str] = "#cccccc"  # app-owned
 """Every border in light. Also the scrollbar handle at rest and the splitter
 handle, on the same reasoning as APP_BORDER_DARK."""
 
-APP_ITEM_HOVER_LIGHT: Final[str] = "#eeeeee"
+APP_ITEM_HOVER_LIGHT: Final[str] = "#eeeeee"  # brand: APP.hover-light
 """engine/brand.py APP["hover-light"]. grey(14). The light interaction plate:
 the combo-box item under the cursor and the panel hover. The LIST hover, not
 the button hover -- those are different schemes, see APP_BTN_HOVER_INVERSE.
@@ -347,10 +354,10 @@ what carries the ownership, not the spelling.
 
 MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 
-APP_HANDLE_LIGHT: Final[str] = "#666666"
+APP_HANDLE_LIGHT: Final[str] = "#666666"  # app-owned
 """Slider handle at rest, light."""
 
-APP_HINT_LIGHT: Final[str] = "#666666"
+APP_HINT_LIGHT: Final[str] = "#666666"  # app-owned
 """grey(6). Hint and muted text in light -- the step the other four apps
 use for muted text in light, as APP_HINT_DARK is in dark.
 
@@ -359,7 +366,7 @@ APP_HANDLE_LIGHT, the same hex doing another job. When the control panel's
 ten descriptions joined the fine-tune hint on this key, text would have
 moved every time the slider handle did."""
 
-APP_HANDLE_EDGE_LIGHT: Final[str] = "#888888"
+APP_HANDLE_EDGE_LIGHT: Final[str] = "#888888"  # app-owned
 """The emphasised edge of a light handle: the slider handle's border.
 
 RNV-GOLD-HOVER, 2026-09-12: the light scrollbar handle on hover used to read
@@ -369,7 +376,7 @@ The value was #999999, a step this constant held alone in the whole fleet;
 against the white menu ground #888888 lifts disabled menu text from 2.85 to
 3.54."""
 
-APP_CONTROL_DIM: Final[str] = "#555555"
+APP_CONTROL_DIM: Final[str] = "#555555"  # app-owned
 """Two unrelated jobs on one step: the light slider handle when hovered, and
 the image-mode checkbox indicator border. Worth knowing that dark mode draws
 that same checkbox border with APP_BORDER_DARK while rnv-color-picker and
@@ -383,14 +390,14 @@ purpose: the scheme inverts on hover, and the label stays put. Assigned from
 APP_BORDER_DARK rather than repeating the value so the two cannot drift
 apart."""
 
-APP_BTN_PRESSED: Final[str] = "#444444"
+APP_BTN_PRESSED: Final[str] = "#444444"  # app-owned
 """The basic button's pressed fill, identical in all three modes. The label
 flips instead -- TRUE_BLACK on dark, WHITE on light."""
 
 # ---- RNV-MIXER-WIRING (2026-09-06): four names for values the palettes
 # ---- already carried as literals. Nothing here is a new colour.
 
-APP_CHROME_DARK: Final[str] = "#444444"
+APP_CHROME_DARK: Final[str] = "#444444"  # app-owned
 """grey(4). The structural grey of a control in dark and image: the slider
 groove, and the border and separator of a menu -- and, from 2026-09-25, the
 image-mode scrollbar handle at SCROLLBAR_HANDLE_ALPHA. That handle was
@@ -404,7 +411,7 @@ interaction state for a piece of chrome on the strength of a shared byte --
 the same reasoning this file gives for APP_MENU_DIM_DARK sharing grey(6)
 with APP_HANDLE_LIGHT."""
 
-APP_CHROME_LIGHT: Final[str] = "#e0e0e0"
+APP_CHROME_LIGHT: Final[str] = "#e0e0e0"  # app-owned
 """The same job in light: the slider groove. Darker than the #f5f5f5 panel, so
 the groove reads as recessed rather than raised -- which is why it is this
 value and not input_bg's #ffffff.
@@ -413,12 +420,16 @@ Soft on its own at 1.21:1 against the panel; the groove's 1px APP_BORDER_LIGHT
 edge does most of the defining. That is the appearance the light fine-tune
 slider already had, and this pass gives it to the other two sliders as well."""
 
-APP_DIM_LIGHT: Final[str] = "#aaaaaa"
+APP_TEXT_DIM_LIGHT: Final[str] = "#aaaaaa"  # brand: APP.text-dim
 """grey(10). Disabled text in light. The mirror of APP_CONTROL_DIM's grey(5)
 by the ink grid's own rule -- invert(n) = 15 - n, and 5 + 10 = 15 -- which is
-why the pair is exact and nobody planned it."""
+why the pair is exact and nobody planned it.
 
-APP_MENU_DIM_DARK: Final[str] = "#666666"
+RENAMED 2026-10-17 (#51 A) from APP_DIM_LIGHT. It colours text, and it is the
+register's text-dim, which the picker, icon builder and palette manager
+call APP_TEXT_DIM; this application adds the mode, as APP_TEXT_DARK does."""
+
+APP_MENU_DIM_DARK: Final[str] = "#666666"  # app-owned
 """grey(6). The disabled menu label in dark and image.
 
 SPLIT, NOT RENAMED. APP_HANDLE_LIGHT is the same hex and keeps its own job.
@@ -451,7 +462,7 @@ NEUTRAL_PROVENANCE: Final[dict[str, str]] = {
     "APP_BTN_HOVER_INVERSE": "alias",
     "APP_CHROME_DARK": "step",
     "APP_CHROME_LIGHT": "step",
-    "APP_DIM_LIGHT": "step",
+    "APP_TEXT_DIM_LIGHT": "step",
     "APP_MENU_DIM_DARK": "step",
 }
 
@@ -535,42 +546,76 @@ its own name."""
 # had: NO PIXEL MOVES. One whose value is a colour this file already names
 # is LINKED to that name and moves with it; one with a value of its own
 # holds it, and is this application's alone.
+#
+# RNV-COLOUR-SYNC (2026-10-16), #48 A: the export colours below are DATA, not
+# chrome, and the application's own, so a brand change never alters an
+# exported file. They were linked to WHITE, TRUE_BLACK and two neutrals until
+# then; each holds the value it had.
 
-CANVAS_FAILED_BG: Final[str] = "#ffcccc"
+CANVAS_FAILED_BG: Final[str] = "#ffcccc"  # app-owned
 """The placeholder shown where the canvas failed to start. App-owned."""
 
-CANVAS_FAILED_EDGE: Final[str] = "#ff0000"
+CANVAS_FAILED_EDGE: Final[str] = "#ff0000"  # app-owned
 """Its border. Was the CSS name `red`, which is this value. App-owned."""
 
-HISTORY_EXPORT_PAGE_BG: Final[str] = APP_WINDOW_LIGHT
-"""The exported history page's ground. Was #f5f5f5: linked."""
+HISTORY_EXPORT_PAGE_BG: Final[str] = "#f5f5f5"  # app-owned
+"""The exported history page's ground. Was #f5f5f5: linked to APP_WINDOW_LIGHT
+until 16 October, the application's own since (#48 A)."""
 
-HISTORY_EXPORT_CARD_BG: Final[str] = WHITE
-"""Each colour's card on that page. Was the CSS name `white`: linked."""
+HISTORY_EXPORT_CARD_BG: Final[str] = "#ffffff"  # app-owned
+"""Each colour's card on that page. Was the CSS name `white`: linked to WHITE
+until 16 October, the application's own since (#48 A)."""
 
-HISTORY_EXPORT_INK: Final[str] = APP_BORDER_DARK
+HISTORY_EXPORT_INK: Final[str] = "#333333"  # app-owned
 """The page's heading and the edge of each swatch. Was #333, twice, which
-is this value in three digits: linked."""
+is this value in three digits: linked to APP_BORDER_DARK until 16 October,
+the application's own since (#48 A)."""
 
-SVG_EXPORT_BG: Final[str] = WHITE
+SVG_EXPORT_BG: Final[str] = "#ffffff"  # app-owned
 """Paper for an exported palette: the SVG file and the image sheet. The
 name rnv-color-picker and rnv-color-palette-manager give the same job.
-Was #ffffff in one and the CSS name `white` in the other: linked."""
+Was #ffffff in one and the CSS name `white` in the other: linked to WHITE
+until 16 October, the application's own since (#48 A), as it is in those
+two."""
 
-SVG_EXPORT_STROKE: Final[str] = TRUE_BLACK
-"""The edge of a swatch in the exported SVG. Was #000000: linked."""
+SVG_EXPORT_STROKE: Final[str] = "#000000"  # app-owned
+"""The edge of a swatch in the exported SVG. Was #000000: linked to
+TRUE_BLACK until 16 October, the application's own since (#48 A)."""
 
-CANVAS_PREVIEW_EDGE_DARK: Final[str] = "#e6e6e6"
+CANVAS_PREVIEW_EDGE_DARK: Final[str] = "#e6e6e6"  # app-owned
 """The edge of the canvas's colour preview in dark. Was QColor(230, 230,
 230). In light the edge is TRUE_BLACK. App-owned."""
 
-CANVAS_LABEL_PLATE_LIGHT: Final[str] = "#c8c8c8"
+CANVAS_LABEL_PLATE_LIGHT: Final[str] = "#c8c8c8"  # app-owned
 """The plate behind a dragged selection's size in light, at
 CANVAS_LABEL_ALPHA. Was QColor(200, 200, 200, 180), which was never drawn:
 the canvas asked a theme manager of its own for the mode, and a new one
 always answers dark. RNV-RULINGS-2026-10-05, item 3: the canvas follows the
 mode, so light draws it. In dark and image the plate is TRUE_BLACK.
 App-owned."""
+
+# RNV-COLOUR-SYNC (2026-10-17), #56 A: colours the application's own code
+# still wrote out, named here at the value and in the case they had, so
+# no pixel and no line of shown text moves. Each is DATA, the
+# application's own, and a brand move never touches it.
+
+HISTORY_SAMPLE_ORANGE_RED: Final[str] = "#FF5733"  # app-owned
+"""The first of five sample rows the History tab shows when the history
+module cannot be loaded (core/package_d_panel.py,
+_populate_history_placeholder). Data, not chrome: each row shows its
+colour and its hex, in the upper case written here. App-owned."""
+
+HISTORY_SAMPLE_GREEN: Final[str] = "#33FF57"  # app-owned
+"""The second sample row of the History tab's fallback. App-owned."""
+
+HISTORY_SAMPLE_BLUE: Final[str] = "#3357FF"  # app-owned
+"""The third sample row of the History tab's fallback. App-owned."""
+
+HISTORY_SAMPLE_MAGENTA: Final[str] = "#FF33F5"  # app-owned
+"""The fourth sample row of the History tab's fallback. App-owned."""
+
+HISTORY_SAMPLE_YELLOW: Final[str] = "#F5FF33"  # app-owned
+"""The fifth sample row of the History tab's fallback. App-owned."""
 
 
 class ThemeManager:
@@ -668,7 +713,7 @@ class ThemeManager:
         'slot_border_width': 1,
         'tooltip_bg': WHITE,
         'tooltip_border': BRAND_DARK_GOLD,
-        'text_disabled': APP_DIM_LIGHT,
+        'text_disabled': APP_TEXT_DIM_LIGHT,
         'accent': BRAND_DARK_GOLD,
         'accent_ink': BRAND_DARK_GOLD_DEEP,
         'accent_hover': BRAND_DARK_GOLD_HOVER,

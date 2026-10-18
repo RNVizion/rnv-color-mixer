@@ -203,6 +203,8 @@ rnv-color-mixer/
 ├── .coveragerc              Coverage.py configuration
 ├── pyproject.toml           Project metadata & packaging config
 ├── requirements.txt         Runtime dependencies
+├── brand_map.json           Where each colour comes from: rnv-brand or the app
+├── COLORS.md                This app's colour chart, written by the sync
 ├── tests/                   Test suite and its dependencies
 ├── py.typed                 PEP 561 type-hint marker
 ├── RNV_Color_Mixer.spec     PyInstaller build specification
@@ -211,7 +213,8 @@ rnv-color-mixer/
 ├── clean_python_cache.bat   Cache cleaner (Windows)
 ├── clean_python_cache.sh    Cache cleaner (macOS / Linux)
 ├── KNOWN_ISSUES.md          Documented platform-specific test skips
-├── .github/workflows/       GitHub Actions CI (Linux + Windows)
+├── tools/                   sync_colors.py: writes the colours in utils/config.py, and COLORS.md
+├── .github/workflows/       GitHub Actions CI (Linux + Windows), and the daily brand sync
 ├── tests/                   Suite 2 — pytest test files
 ├── snapshots/               Reference data for byte-locked tests
 ├── core/                    Color science, palettes, data models

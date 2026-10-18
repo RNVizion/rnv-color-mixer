@@ -2,21 +2,25 @@
 
 WHAT THIS PASS DID. This app already NAMED these values -- the 2026-08-29 pass
 did that. What it could not do was classify them, because the register had not
-ruled. rnv-brand rev 22 registered APP["canvas"] #0a0a0a and
-APP["panel-hover"] #3a3a3a; rev 23 registered APP["hover-light"] #eeeeee. So
-the change is provenance, and the docstrings that argued the other way.
+ruled. rnv-brand rev 22 registered APP["canvas"], APP_CANVAS_DARK, and
+APP["panel-hover"], APP_PANEL_HOVER_DARK; rev 23 registered
+APP["hover-light"], APP_ITEM_HOVER_LIGHT. So the change is provenance, and
+the docstrings that argued the other way.
 
     BRAND_BLACK + n * 0x10,  n in -1..+2
-    #0a0a0a canvas   #1a1a1a panel   #2a2a2a card   #3a3a3a panel-hover
+    APP_CANVAS_DARK canvas   APP_SURFACE_DARK panel   APP_CARD_DARK card
+    APP_PANEL_HOVER_DARK panel-hover
 
 WHY THE LADDER LOOKED INCOMPLETE. The register had called it "two-thirds
-specified" because APP["border"] #333333 is not #3a3a3a, treating the border as
-a missing rung. It is not a rung: #333333 is grey(3) on the INK grid, which
-governs inks and EDGES. Two families compared to each other.
+specified" because APP["border"], APP_BORDER_DARK, is not APP_PANEL_HOVER_DARK,
+treating the border as a missing rung. It is not a rung: APP_BORDER_DARK is
+grey(3) on the INK grid, which governs inks and EDGES. Two families compared
+to each other.
 
 THE COINCIDENCE THAT WENT. Until RNV-NAMED-AND-USED, 2026-10-04, a second
-name held #eeeeee here: the dark slider handle's hover, grey(14) on the ink
-grid, kept apart from APP["hover-light"] by a table and three tests in this
+name held APP_ITEM_HOVER_LIGHT's value here: the dark slider handle's hover,
+grey(14) on the ink grid, kept apart from APP["hover-light"] by a table and
+three tests in this
 file. No sheet painted that name -- a hovered handle takes the accent -- so
 it went, and the plate's hex has one name again. With nothing left to keep
 apart, the table and its tests went with it.
@@ -24,28 +28,37 @@ apart, the table and its tests went with it.
 from __future__ import annotations
 
 import ast
+import json
 import pathlib
 
 import pytest
 
+from colour_values import REGISTER_GOLD_TEXT_GROUND_FLOOR
 from utils import config
 from utils.config import ThemeManager
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / 'utils' / 'config.py'
 
+#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
+#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: register at the pin; what this file holds is the name each one takes.
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+
 GRID_STEP = 0x11
 LADDER_STEP = 0x10
 TEXT_FLOOR = 4.5
 
-#: Constant -> (register dict, key, the value both hold). This app names its
-#: neutrals by role AND mode because it registers a light set beside the dark
-#: one, so the APP_<KEY> convention the other apps resolve by does not apply --
-#: the map is explicit, exactly as tests/test_app_mirror.py does it.
+#: Constant -> the APP key it mirrors. This app names its neutrals by role AND
+#: mode because it registers a light set beside the dark one, so the APP_<KEY>
+#: convention the other apps resolve by does not apply -- the map is explicit,
+#: exactly as tests/test_app_mirror.py does it. RNV-COLOUR-SYNC, 2026-10-16:
+#: the value both held was written here too; it is written from the register
+#: now.
 NEW = {
-    'APP_CANVAS_DARK': ('canvas', '#0a0a0a'),
-    'APP_PANEL_HOVER_DARK': ('panel-hover', '#3a3a3a'),
-    'APP_ITEM_HOVER_LIGHT': ('hover-light', '#eeeeee'),
+    'APP_CANVAS_DARK': 'canvas',
+    'APP_PANEL_HOVER_DARK': 'panel-hover',
+    'APP_ITEM_HOVER_LIGHT': 'hover-light',
 }
 
 #: dict NAME -> the live palette.
@@ -54,7 +67,7 @@ PALETTES = {'DARK_THEME': ThemeManager.DARK_THEME,
             'IMAGE_THEME': ThemeManager.IMAGE_THEME}
 
 #: The value the plate is NOT, and the reason the distinction is worth a test.
-FLOOR = '#e8e8e8'
+FLOOR = REGISTER_GOLD_TEXT_GROUND_FLOOR
 
 
 def grey(n: int) -> str:
@@ -106,10 +119,15 @@ def test_everything_this_file_reads_still_exists():
 
 def test_the_reclassified_constants_still_hold_their_values():
     """This pass changes what is SAID about three constants. If it moved one of
-    them, that would be the worst possible outcome of a provenance pass."""
-    drift = {n: getattr(config, n) for n, (_, v) in NEW.items()
-             if getattr(config, n) != v}
-    assert not drift, f'values moved during a reclassification: {drift}'
+    them, that would be the worst possible outcome of a provenance pass.
+
+    RNV-COLOUR-SYNC, 2026-10-16: it held each value written out. It holds now
+    that brand_map.json takes each from its APP key; the value is written from
+    there, and tests/test_colours_in_sync.py holds it."""
+    drift = {n: BRAND_MAP.get(n) for n, key in NEW.items()
+             if BRAND_MAP.get(n) != f'APP.{key}'}
+    assert not drift, (
+        f'brand_map.json does not take these from their APP keys: {drift}')
 
 
 def test_the_reclassified_constants_match_rnv_brand():
@@ -119,7 +137,7 @@ def test_the_reclassified_constants_match_rnv_brand():
         'engine.brand',
         reason='rnv-brand not importable here; the local pin is doing the work')
     drift = []
-    for name, (key, _) in NEW.items():
+    for name, key in NEW.items():
         theirs, mine = brand.APP[key], getattr(config, name)
         if mine.lower() != theirs.lower():
             drift.append(f'{name}: ours {mine}, theirs APP[{key!r}] {theirs}')
@@ -135,7 +153,7 @@ def test_all_three_are_pinned_and_mirrored():
     for name in NEW:
         assert f"'{name}':" in source, (
             f'{name} is not in tests/test_app_mirror.py. It is declared '
-            f'mirrored in its docstring; without a PINNED and a MIRRORS entry '
+            f'mirrored in its docstring; without a MIRRORS entry '
             f'that claim is decorative.')
 
 
@@ -162,7 +180,7 @@ def test_the_border_is_an_edge_and_not_a_rung():
 
 
 def test_the_canvas_is_not_the_web_ground():
-    """One byte apart, deliberately. The docstring used to say #0a0a0a was
+    """One byte apart, deliberately. The docstring used to say APP_CANVAS_DARK was
     app-owned BECAUSE the register's canvas was WEB_BLACK. The first half is
     now wrong and the second half was always the part that mattered."""
     r, g, b = (int(config.APP_CANVAS_DARK.lstrip('#')[i:i + 2], 16)
@@ -175,7 +193,7 @@ def test_the_canvas_is_not_the_web_ground():
 # ------------------------------------------------------------------- the plate
 
 def test_the_plate_is_a_step_on_the_ink_grid():
-    assert config.APP_ITEM_HOVER_LIGHT == grey(14) == '#eeeeee'
+    assert config.APP_ITEM_HOVER_LIGHT == grey(14)
 
 
 def test_the_plate_is_not_the_gold_text_floor():

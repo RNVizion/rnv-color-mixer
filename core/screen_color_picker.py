@@ -47,7 +47,7 @@ except ImportError:
 # follows its base like every other composite in the application.
 from utils.config import (BRAND_GOLD, TRUE_BLACK, translucent,
                           SCREEN_OVERLAY_ALPHA, SCREEN_GRID_ALPHA,
-                          SCREEN_INFO_ALPHA)
+                          SCREEN_INFO_ALPHA, INITIAL_COLOR_HEX)
 
 _OVERLAY_COLOR = QColor(translucent(TRUE_BLACK, SCREEN_OVERLAY_ALPHA))
 _GOLD_BRAND = QColor(BRAND_GOLD)
@@ -114,7 +114,7 @@ class ScreenColorPicker(QWidget, SignalMixin):
         self.cursor_pos = QPoint(0, 0)
         
         # PHASE 2: Pre-computed display strings (updated on color change)
-        self._hex_text: str = "#000000"
+        self._hex_text: str = INITIAL_COLOR_HEX
         self._rgb_text: str = "RGB: 0, 0, 0"
         self._current_color_qcolor = QColor(0, 0, 0)
         

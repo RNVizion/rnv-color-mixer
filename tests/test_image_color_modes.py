@@ -20,6 +20,9 @@ from pathlib import Path
 from PIL import Image
 from PyQt6.QtWidgets import QMessageBox
 
+from colour_values import (DATA_CLIPBOARD_ORANGE_PADDED, DATA_CLIPBOARD_ORANGE_RGB,
+                           DATA_CLIPBOARD_ORANGE_SHORT)
+
 
 def _make_test_image_in_mode(path: Path, mode: str, size=64):
     """Save a test image in the specified PIL color mode."""
@@ -408,7 +411,7 @@ class TestClipboardColorParsing:
     def test_parse_short_hex(self, qtbot):
         from clipboard import ClipboardUtils
         clip = ClipboardUtils()
-        clip.copy_text("#F80")  # Short hex form
+        clip.copy_text(DATA_CLIPBOARD_ORANGE_SHORT)  # Short hex form
         result = clip.try_parse_color_from_clipboard()
         # Either parses or returns None — both fine
         assert result is None or (
@@ -418,7 +421,7 @@ class TestClipboardColorParsing:
     def test_parse_rgb_function_form(self, qtbot):
         from clipboard import ClipboardUtils
         clip = ClipboardUtils()
-        clip.copy_text("rgb(255, 128, 64)")
+        clip.copy_text(DATA_CLIPBOARD_ORANGE_RGB)
         result = clip.try_parse_color_from_clipboard()
         assert result is None or (
             isinstance(result, tuple) and len(result) == 3
@@ -427,7 +430,7 @@ class TestClipboardColorParsing:
     def test_parse_with_whitespace_padding(self, qtbot):
         from clipboard import ClipboardUtils
         clip = ClipboardUtils()
-        clip.copy_text("   #FF8040   ")
+        clip.copy_text(DATA_CLIPBOARD_ORANGE_PADDED)
         result = clip.try_parse_color_from_clipboard()
         assert result is None or (
             isinstance(result, tuple) and len(result) == 3

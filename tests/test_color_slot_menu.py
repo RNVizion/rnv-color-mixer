@@ -22,6 +22,8 @@ from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QContextMenuEvent
 from PyQt6.QtWidgets import QMenu, QColorDialog
 
+from colour_values import EXAMPLE_ORANGE_UPPER
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. ColorSlot — quick adjustment methods
@@ -181,7 +183,7 @@ class TestColorSlotActionMethods:
         # Hex format: #RRGGBB (uppercase or lowercase, with or without #)
         # 255=0xFF, 128=0x80, 64=0x40
         # Accept either case
-        assert text.lstrip("#").upper() == "FF8040", (
+        assert text.lstrip("#").upper() == EXAMPLE_ORANGE_UPPER.lstrip("#"), (
             f"clipboard text mismatch: got {text!r}, "
             f"expected hex of (255, 128, 64) i.e. 'FF8040'"
         )

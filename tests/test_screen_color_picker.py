@@ -27,6 +27,7 @@ from PyQt6.QtCore import Qt, QPoint, QRect
 from PyQt6.QtGui import QPixmap, QColor
 
 from screen_color_picker import ScreenColorPicker
+from colour_values import EXAMPLE_ORANGE_UPPER, EXAMPLE_ZERO_PADDED_BLUE
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -241,7 +242,7 @@ class TestColorStringUpdates:
         picker.current_color = (255, 128, 64)
         picker._update_color_strings()
 
-        assert picker._hex_text == "#FF8040"
+        assert picker._hex_text == EXAMPLE_ORANGE_UPPER
         assert picker._rgb_text == "RGB: 255, 128, 64"
         assert picker._current_color_qcolor.red() == 255
         assert picker._current_color_qcolor.green() == 128
@@ -255,7 +256,7 @@ class TestColorStringUpdates:
         picker._update_color_strings()
 
         # Hex should zero-pad each channel to 2 digits
-        assert picker._hex_text == "#0500FA"
+        assert picker._hex_text == EXAMPLE_ZERO_PADDED_BLUE
 
 
 # ═══════════════════════════════════════════════════════════════════════════

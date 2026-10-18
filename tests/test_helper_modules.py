@@ -23,6 +23,8 @@ import pytest
 from pathlib import Path
 from PyQt6.QtGui import QPixmap, QColor
 
+from colour_values import DATA_CLIPBOARD_ORANGE, EXAMPLE_PURE_GREEN_UPPER, EXAMPLE_PURE_RED_UPPER
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. clipboard.py
@@ -71,7 +73,7 @@ class TestClipboard:
         """Set clipboard to a hex string, then parse."""
         from clipboard import ClipboardUtils
         clip = ClipboardUtils()
-        clip.copy_text("#FF8040")
+        clip.copy_text(DATA_CLIPBOARD_ORANGE)
         result = clip.try_parse_color_from_clipboard()
         # Either parses to (255, 128, 64) or returns None — both fine
         assert result is None or (
@@ -102,10 +104,10 @@ class TestClipboard:
         text = QApplication.clipboard().text()
         # Should contain hex of red (FF0000) and green (00FF00)
         text_upper = text.upper()
-        assert "FF0000" in text_upper, (
+        assert EXAMPLE_PURE_RED_UPPER.lstrip("#") in text_upper, (
             f"clipboard text missing red hex; got: {text!r}"
         )
-        assert "00FF00" in text_upper, (
+        assert EXAMPLE_PURE_GREEN_UPPER.lstrip("#") in text_upper, (
             f"clipboard text missing green hex; got: {text!r}"
         )
 

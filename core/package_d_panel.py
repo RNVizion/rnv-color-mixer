@@ -1593,8 +1593,12 @@ class PackageDPanel(QDialog):
         
         Uses setUpdatesEnabled for batch updates.
         """
+        # RNV-COLOUR-SYNC, #56 A (2026-10-17): sample data, named in the
+        # colour file as the application's own.
         placeholder_colors = [
-            "#FF5733", "#33FF57", "#3357FF", "#FF33F5", "#F5FF33"
+            config.HISTORY_SAMPLE_ORANGE_RED, config.HISTORY_SAMPLE_GREEN,
+            config.HISTORY_SAMPLE_BLUE, config.HISTORY_SAMPLE_MAGENTA,
+            config.HISTORY_SAMPLE_YELLOW,
         ]
         
         # Disable updates during batch operation

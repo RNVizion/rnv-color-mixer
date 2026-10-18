@@ -25,6 +25,8 @@ import tempfile
 from pathlib import Path
 from PyQt6.QtWidgets import QMessageBox, QFileDialog
 
+from colour_values import EXAMPLE_PURE_BLUE_DIGITS, EXAMPLE_PURE_GREEN_UPPER
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. file_utils.py — dialog wrappers + backup/dir helpers
@@ -609,8 +611,8 @@ class TestColorHistoryLoadExport:
 
         assert out.exists(), "HTML export did not write file"
         text = out.read_text()
-        # Hex of (0, 255, 0) is #00FF00 (case-insensitive)
-        assert "00FF00" in text.upper(), (
+        # Hex of (0, 255, 0) is EXAMPLE_PURE_GREEN_UPPER (case-insensitive)
+        assert EXAMPLE_PURE_GREEN_UPPER.lstrip("#") in text.upper(), (
             f"HTML export does not contain hex '00FF00' for (0, 255, 0); "
             f"first 200 chars: {text[:200]!r}"
         )
@@ -630,7 +632,7 @@ class TestColorHistoryLoadExport:
         text = out.read_text()
         # Should mention the color in some form (hex 0000FF or rgb 0,0,255)
         text_upper = text.upper()
-        has_hex = "0000FF" in text_upper
+        has_hex = EXAMPLE_PURE_BLUE_DIGITS in text_upper
         has_rgb = "0, 0, 255" in text or "(0, 0, 255)" in text
         assert has_hex or has_rgb, (
             f"TXT export does not contain (0,0,255) in any format; "

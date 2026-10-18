@@ -12,6 +12,7 @@ refused to write unless they matched entry for entry.
 from __future__ import annotations
 
 import ast
+import json
 import pathlib
 
 from utils import config
@@ -25,15 +26,18 @@ PALETTES = {"DARK_THEME": DARK, "IMAGE_THEME": IMAGE}
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "utils" / "config.py"
 
-SUBSTITUTE = {
-    "#000000": "TRUE_BLACK",
-    "#0a0a0a": "APP_CANVAS_DARK",
-    "#1a1a1a": "APP_SURFACE_DARK",
-    "#2a2a2a": "APP_CARD_DARK",
-    "#333333": "APP_BORDER_DARK",
-    "#3a3a3a": "APP_PANEL_HOVER_DARK",
-    "#888888": "APP_HINT_DARK",
-}
+#: RNV-COLOUR-SYNC, 2026-10-16. Where each colour comes from, as brand_map.json
+#: says. The values are held by tests/test_colours_in_sync.py, against the
+#: register at the pin; what this file holds is the name each one takes.
+BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["colours"]
+
+#: RNV-COLOUR-SYNC, 2026-10-16: the register's values read from their
+#: constants, where they were written out, so the sweep looks for what the
+#: register holds today. APP_HINT_DARK, the application's own, is read from
+#: its constant the same way since #52 A, 2026-10-17.
+SUBSTITUTE = {getattr(config, name): name for name in (
+    "TRUE_BLACK", "APP_CANVAS_DARK", "APP_SURFACE_DARK", "APP_CARD_DARK",
+    "APP_BORDER_DARK", "APP_PANEL_HOVER_DARK", "APP_HINT_DARK")}
 NEW_NAMES = ("APP_CANVAS_DARK", "APP_CARD_DARK", "APP_PANEL_HOVER_DARK",
              "APP_HINT_DARK")
 
@@ -61,10 +65,16 @@ def test_the_names_this_file_reads_exist():
 
 
 def test_the_new_names_hold_the_values_they_were_created_for():
-    assert config.APP_CANVAS_DARK == "#0a0a0a"
-    assert config.APP_CARD_DARK == "#2a2a2a"
-    assert config.APP_PANEL_HOVER_DARK == "#3a3a3a"
-    assert config.APP_HINT_DARK == "#888888"
+    """RNV-COLOUR-SYNC, 2026-10-16: the three the register holds were held here
+    by their hex codes. brand_map.json takes each from its APP key now, and
+    tests/test_colours_in_sync.py holds the value. APP_HINT_DARK is the
+    application's own and keeps its value."""
+    assert BRAND_MAP["APP_CANVAS_DARK"] == "APP.canvas"
+    assert BRAND_MAP["APP_CARD_DARK"] == "APP.card"
+    assert BRAND_MAP["APP_PANEL_HOVER_DARK"] == "APP.panel-hover"
+    # #52 A, 2026-10-17: by the map holding it as the application's own, where
+    # it was its hex code; tests/test_colours_in_sync.py holds the value.
+    assert isinstance(BRAND_MAP["APP_HINT_DARK"], dict)
 
 
 # ------------------------------------------------------------ the substitution
@@ -99,10 +109,10 @@ def test_every_dark_name_resolves_to_the_value_it_replaced():
 
 
 def test_no_light_name_leaked_into_a_dark_palette():
-    """The trap the allowlist exists for. DARK['menu_disabled'] is #666666 and
-    the only constant holding #666666 is APP_HANDLE_LIGHT -- a value-keyed
-    substitution across every constant would have written a light name into the
-    dark palette, true by value and false by name."""
+    """The trap the allowlist exists for. DARK['menu_disabled'] is
+    APP_MENU_DIM_DARK, and a light constant, APP_HANDLE_LIGHT, holds its value
+    -- a value-keyed substitution across every constant would have written a
+    light name into the dark palette, true by value and false by name."""
     leaked = []
     for dict_name, node in _dicts(PALETTES).items():
         for key, value in zip(node.keys, node.values):
@@ -115,8 +125,13 @@ def test_no_light_name_leaked_into_a_dark_palette():
 def test_menu_disabled_is_still_the_literal_that_proves_the_point():
     """Guard the guard for the test above: it can only catch a leak while the
     value that would leak is still there to leak."""
-    assert DARK.get("menu_disabled") == "#666666", (
+    assert DARK.get("menu_disabled") == config.APP_MENU_DIM_DARK, (
         "menu_disabled moved; the allowlist reasoning above needs re-checking")
+    # #52 A, 2026-10-17: the point, by name: the dark value is one a light
+    # constant holds too, so a value-keyed substitution could leak it.
+    assert config.APP_MENU_DIM_DARK == config.APP_HANDLE_LIGHT, (
+        "menu_disabled no longer shares a light constant's value; the allowlist "
+        "reasoning above needs re-checking")
 
 
 def test_the_light_palette_names_its_own_greys():
@@ -134,9 +149,9 @@ def test_the_light_palette_names_its_own_greys():
     neither mode, so the only way to pass was to name nothing.
 
     So the successor asserts the positive. The two greys the old test was
-    holding back -- #aaaaaa and #e0e0e0 -- now have names, and every name the
-    light palette reads is a light one, an anchor, or the one dark name it
-    borrows on purpose.
+    holding back -- APP_TEXT_DIM_LIGHT and APP_CHROME_LIGHT -- now have names,
+    and every name the light palette reads is a light one, an anchor, or the
+    one dark name it borrows on purpose.
     """
     #: TRUE_BLACK and WHITE belong to no mode. APP_BTN_HOVER_INVERSE is the
     #: dark border step used in light DELIBERATELY -- the basic button's
@@ -164,8 +179,12 @@ def test_the_two_held_back_greys_now_have_light_names():
     """The other half: the old test's subject, asserted as done rather than as
     forbidden. An allowlist that permits everything and a wiring that names
     nothing look identical from the outside, so this states what landed."""
-    assert config.APP_DIM_LIGHT == "#aaaaaa"
-    assert config.APP_CHROME_LIGHT == "#e0e0e0"
+    # RNV-COLOUR-SYNC, 2026-10-16: APP_TEXT_DIM_LIGHT, the register's text-dim, was
+    # held here by its hex code; tests/test_colours_in_sync.py holds it.
+    # Named APP_DIM_LIGHT until 2026-10-17 (#51 A).
+    # #52 A, 2026-10-17: by the map holding it as the application's own, where
+    # it was its hex code; tests/test_colours_in_sync.py holds the value.
+    assert isinstance(BRAND_MAP["APP_CHROME_LIGHT"], dict)
     resolved = ThemeManager.LIGHT_THEME
-    assert resolved["text_disabled"] == config.APP_DIM_LIGHT
+    assert resolved["text_disabled"] == config.APP_TEXT_DIM_LIGHT
     assert resolved["slider_groove"] == config.APP_CHROME_LIGHT
