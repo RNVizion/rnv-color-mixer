@@ -15,7 +15,7 @@ import ast
 import json
 import pathlib
 
-from utils import config
+from utils import colors
 from utils.config import ThemeManager
 
 DARK = ThemeManager.DARK_THEME
@@ -24,7 +24,7 @@ LIGHT = ThemeManager.LIGHT_THEME
 PALETTES = {"DARK_THEME": DARK, "IMAGE_THEME": IMAGE}
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SRC = ROOT / "utils" / "config.py"
+SRC = ROOT / "utils" / "colors.py"
 
 #: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
 #: says. The values are held by tests/test_colors_in_sync.py, against the
@@ -35,7 +35,7 @@ BRAND_MAP = json.loads((ROOT / "brand_map.json").read_text(encoding="utf-8"))["c
 #: constants, where they were written out, so the sweep looks for what the
 #: register holds today. APP_HINT_DARK, the application's own, is read from
 #: its constant the same way since #52 A, 2026-10-17.
-SUBSTITUTE = {getattr(config, name): name for name in (
+SUBSTITUTE = {getattr(colors, name): name for name in (
     "TRUE_BLACK", "APP_CANVAS_DARK", "APP_SURFACE_DARK", "APP_CARD_DARK",
     "APP_BORDER_DARK", "APP_PANEL_HOVER_DARK", "APP_HINT_DARK")}
 NEW_NAMES = ("APP_CANVAS_DARK", "APP_CARD_DARK", "APP_PANEL_HOVER_DARK",
@@ -59,8 +59,8 @@ def _dicts(names):
 
 def test_the_names_this_file_reads_exist():
     for name in NEW_NAMES:
-        assert hasattr(config, name), f"utils.config has no {name}"
-        assert name in config.NEUTRAL_PROVENANCE, f"{name} has no provenance"
+        assert hasattr(colors, name), f"utils.colors has no {name}"
+        assert name in colors.NEUTRAL_PROVENANCE, f"{name} has no provenance"
     assert _dicts(PALETTES)
 
 
@@ -125,11 +125,11 @@ def test_no_light_name_leaked_into_a_dark_palette():
 def test_menu_disabled_is_still_the_literal_that_proves_the_point():
     """Guard the guard for the test above: it can only catch a leak while the
     value that would leak is still there to leak."""
-    assert DARK.get("menu_disabled") == config.APP_MENU_DIM_DARK, (
+    assert DARK.get("menu_disabled") == colors.APP_MENU_DIM_DARK, (
         "menu_disabled moved; the allowlist reasoning above needs re-checking")
     # #52 A, 2026-10-17: the point, by name: the dark value is one a light
     # constant holds too, so a value-keyed substitution could leak it.
-    assert config.APP_MENU_DIM_DARK == config.APP_HANDLE_LIGHT, (
+    assert colors.APP_MENU_DIM_DARK == colors.APP_HANDLE_LIGHT, (
         "menu_disabled no longer shares a light constant's value; the allowlist "
         "reasoning above needs re-checking")
 
@@ -155,7 +155,7 @@ def test_the_light_palette_names_its_own_grays():
     """
     #: TRUE_BLACK and WHITE belong to no mode. APP_BTN_HOVER_INVERSE is the
     #: dark border step used in light DELIBERATELY -- the basic button's
-    #: scheme inverts on hover, and utils/config.py assigns the alias from
+    #: scheme inverts on hover, and utils/colors.py assigns the alias from
     #: APP_BORDER_DARK rather than repeating the value so the two cannot drift.
     ALLOWED_IN_LIGHT = {"TRUE_BLACK", "WHITE", "APP_BTN_HOVER_INVERSE"}
 
@@ -186,5 +186,5 @@ def test_the_two_held_back_grays_now_have_light_names():
     # it was its hex code; tests/test_colors_in_sync.py holds the value.
     assert isinstance(BRAND_MAP["APP_CHROME_LIGHT"], dict)
     resolved = ThemeManager.LIGHT_THEME
-    assert resolved["text_disabled"] == config.APP_TEXT_DIM_LIGHT
-    assert resolved["slider_groove"] == config.APP_CHROME_LIGHT
+    assert resolved["text_disabled"] == colors.APP_TEXT_DIM_LIGHT
+    assert resolved["slider_groove"] == colors.APP_CHROME_LIGHT

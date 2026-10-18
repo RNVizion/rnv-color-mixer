@@ -41,7 +41,7 @@ import pathlib
 
 import pytest
 
-from utils import config as colors
+from utils import colors
 from utils.config import ThemeManager
 
 DARK = ThemeManager.DARK_THEME
@@ -49,7 +49,7 @@ LIGHT = ThemeManager.LIGHT_THEME
 IMAGE = ThemeManager.IMAGE_THEME
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SRC = ROOT / 'utils' / 'config.py'
+SRC = ROOT / 'utils' / 'colors.py'
 
 #: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
 #: says. The values are held by tests/test_colors_in_sync.py, against the
@@ -60,7 +60,7 @@ GRID_STEP = 0x11
 
 #: The register's neutrals this app names. RNV-COLOR-SYNC, 2026-10-16: this
 #: was PINNED, each name with its value written beside it; the values are
-#: written into utils/config.py from the register now, and held there.
+#: written into utils/colors.py from the register now, and held there.
 NEUTRALS = ('TRUE_BLACK', 'WHITE', 'APP_SURFACE_DARK', 'APP_BORDER_DARK',
             'APP_TEXT_DARK', 'APP_CARD_DARK', 'APP_CANVAS_DARK',
             'APP_PANEL_HOVER_DARK', 'APP_ITEM_HOVER_LIGHT')
@@ -104,7 +104,7 @@ def _dict_node(name: str) -> ast.Dict:
             target = node.targets[0] if isinstance(node, ast.Assign) else node.target
             if getattr(target, 'id', None) == name and isinstance(node.value, ast.Dict):
                 return node.value
-    raise AssertionError(f'{name} is not a dict literal in utils/config.py')
+    raise AssertionError(f'{name} is not a dict literal in utils/colors.py')
 
 
 def _entry(node: ast.Dict, key: str) -> ast.AST | None:
@@ -124,7 +124,7 @@ def test_the_keys_this_file_reads_still_exist():
     for key in LIGHT_SURFACE_KEYS:
         assert key in LIGHT, f'LIGHT has no {key}'
     for name in NEUTRALS:
-        assert hasattr(colors, name), f'utils.config has no {name}'
+        assert hasattr(colors, name), f'utils.colors has no {name}'
 
 
 # ------------------------------------------------------------------- the value

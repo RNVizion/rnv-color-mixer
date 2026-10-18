@@ -20,6 +20,7 @@ import re
 import pytest
 
 from utils import config
+from utils import colors
 
 HEX6 = re.compile(r"#[0-9a-fA-F]{6}\b")
 TEMPLATES = ("DARK_STYLESHEET", "LIGHT_STYLESHEET", "IMAGE_STYLESHEET")
@@ -27,6 +28,12 @@ TEMPLATES = ("DARK_STYLESHEET", "LIGHT_STYLESHEET", "IMAGE_STYLESHEET")
 
 def _source() -> str:
     return pathlib.Path(config.__file__).read_text(encoding="utf-8")
+
+
+def _colors_source() -> str:
+    """The neutrals' own file, utils/colors.py since #63 A (2026-10-18). The
+    templates that read them are in utils/config.py: _source() above."""
+    return pathlib.Path(colors.__file__).read_text(encoding="utf-8")
 
 
 def _template_bodies() -> dict[str, str]:
@@ -60,12 +67,13 @@ def test_no_hex_literal_survives_in_the_template(name):
     found = sorted(set(HEX6.findall(body)))
     assert not found, (
         f"{name} carries hex literals again: {found}. Every rendered hex needs "
-        f"a constant key -- add one to the APP NEUTRALS block and interpolate it.")
+        f"a constant key -- add one to the APP NEUTRALS block in utils/colors.py "
+        f"and interpolate it.")
 
 
 def test_provenance_names_exactly_the_neutral_constants():
-    for name in config.NEUTRAL_PROVENANCE:
-        assert hasattr(config, name), (
+    for name in colors.NEUTRAL_PROVENANCE:
+        assert hasattr(colors, name), (
             f"NEUTRAL_PROVENANCE names {name}, which does not exist. An entry "
             f"that outlives its constant is a classification of nothing.")
 
@@ -74,27 +82,27 @@ def test_the_alias_is_assigned_from_its_base_not_repeated():
     """APP_BTN_HOVER_INVERSE exists so light-mode hover borrows the dark border
     step. Written as its own literal it would stop borrowing the moment
     APP_BORDER_DARK moved, and both would still render."""
-    tree = ast.parse(_source())
+    tree = ast.parse(_colors_source())
     literals = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if isinstance(node.value, ast.Constant):
                 literals.add(node.target.id)
-    for name, kind in config.NEUTRAL_PROVENANCE.items():
+    for name, kind in colors.NEUTRAL_PROVENANCE.items():
         if kind == "alias":
             assert name not in literals, (
                 f"{name} is classified alias but is written as a literal")
-    assert config.APP_BTN_HOVER_INVERSE == config.APP_BORDER_DARK
+    assert colors.APP_BTN_HOVER_INVERSE == colors.APP_BORDER_DARK
 
 
 def test_anchors_are_literals_not_computed():
-    tree = ast.parse(_source())
+    tree = ast.parse(_colors_source())
     computed = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if isinstance(node.value, ast.Call):
                 computed.add(node.target.id)
-    for name, kind in config.NEUTRAL_PROVENANCE.items():
+    for name, kind in colors.NEUTRAL_PROVENANCE.items():
         if kind == "anchor":
             assert name not in computed, f"{name} is an anchor but is computed"
 
@@ -126,9 +134,9 @@ def test_every_neutral_constant_is_actually_rendered():
                               config.ThemeManager.LIGHT_THEME,
                               config.ThemeManager.IMAGE_THEME)
                 for v in theme.values()}
-    orphans = [n for n in config.NEUTRAL_PROVENANCE
-               if getattr(config, n).lower() not in rendered
-               and getattr(config, n).lower() not in in_dicts]
+    orphans = [n for n in colors.NEUTRAL_PROVENANCE
+               if getattr(colors, n).lower() not in rendered
+               and getattr(colors, n).lower() not in in_dicts]
     assert not orphans, f"neutral constants that render nowhere: {orphans}"
 
 
@@ -142,10 +150,10 @@ def test_both_rendering_paths_are_still_carrying_something():
                               config.ThemeManager.LIGHT_THEME,
                               config.ThemeManager.IMAGE_THEME)
                 for v in theme.values()}
-    from_templates = [n for n in config.NEUTRAL_PROVENANCE
-                      if getattr(config, n).lower() in rendered]
-    from_dicts = [n for n in config.NEUTRAL_PROVENANCE
-                  if getattr(config, n).lower() in in_dicts]
+    from_templates = [n for n in colors.NEUTRAL_PROVENANCE
+                      if getattr(colors, n).lower() in rendered]
+    from_dicts = [n for n in colors.NEUTRAL_PROVENANCE
+                  if getattr(colors, n).lower() in in_dicts]
     assert len(from_templates) >= 10, f"only {len(from_templates)} reach a template"
     assert len(from_dicts) >= 10, f"only {len(from_dicts)} reach a theme dict"
 
@@ -154,8 +162,8 @@ def test_the_neutrals_are_pure_grays():
     """Every neutral in all five desktop apps is R = G = B. A neutral that
     picks up a cast is a color wearing a neutral's name."""
     bad = []
-    for name in config.NEUTRAL_PROVENANCE:
-        h = getattr(config, name).lstrip("#")
+    for name in colors.NEUTRAL_PROVENANCE:
+        h = getattr(colors, name).lstrip("#")
         if not (h[0:2] == h[2:4] == h[4:6]):
             bad.append(f"{name}=#{h}")
     assert not bad, f"neutrals that are not pure grays: {bad}"

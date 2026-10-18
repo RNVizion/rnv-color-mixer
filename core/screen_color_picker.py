@@ -45,7 +45,7 @@ except ImportError:
 # Colors - created once, used forever. Each translucent one is DERIVED: a
 # named color at a named alpha (RNV-TUPLE-ROUND, 2026-09-26), so it
 # follows its base like every other composite in the application.
-from utils.config import (BRAND_GOLD, TRUE_BLACK, translucent,
+from utils.colors import (BRAND_GOLD, TRUE_BLACK, translucent,
                           SCREEN_OVERLAY_ALPHA, SCREEN_GRID_ALPHA,
                           SCREEN_INFO_ALPHA, INITIAL_COLOR_HEX)
 

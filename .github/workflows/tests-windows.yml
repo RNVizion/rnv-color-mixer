@@ -49,7 +49,7 @@ jobs:
         # drift detection). Use Python rather than PowerShell's
         # Get-FileHash so the verification logic is identical across OSes.
         run: |
-          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='9a9379bc7f3b6dd2e0970a44d3c2633c9e34d4f97f988283be8222d41525026e'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
+          python -c "import hashlib; f=open('test_rnv_color_mixer.py','rb'); d=hashlib.sha256(f.read()).hexdigest(); f.close(); e='ec45a92e92ffa1179b36bf4fe9a37727983b2fb31b7b704448e9fb1c4a75ad1b'; (print(f'OK: {d}') if d==e else (print(f'MISMATCH: got {d}, expected {e}') or exit(1)))"
 
       - name: Run locked unittest suite
         # RESTORED 2026-09-10 — nothing is deselected here any more.

@@ -48,6 +48,7 @@ from PyQt6.QtGui import QColor, QImage, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 from utils import config
+from utils import colors
 
 pytestmark = pytest.mark.integration
 
@@ -163,11 +164,11 @@ def test_the_fill_is_the_accent_at_the_named_alpha():
     CANVAS_SELECTION_ALPHA, and dark's when there is no theme to ask."""
     from ui.canvas_view import ImageDisplayLabel
     manager = config.ThemeManager
-    assert config.CANVAS_SELECTION_ALPHA == 0x32 == config.SCREEN_GRID_ALPHA
+    assert colors.CANVAS_SELECTION_ALPHA == 0x32 == colors.SCREEN_GRID_ALPHA
     for palette in THEMES.values():
         theme = getattr(manager, palette)
         fill = ImageDisplayLabel._selection_fill(theme)
-        assert fill == config.translucent(theme["accent"], config.CANVAS_SELECTION_ALPHA), (palette, fill)
+        assert fill == colors.translucent(theme["accent"], colors.CANVAS_SELECTION_ALPHA), (palette, fill)
         assert fill == "#32" + theme["accent"][1:].lower(), (palette, fill)
     assert ImageDisplayLabel._selection_fill(None) == ImageDisplayLabel._selection_fill(manager.DARK_THEME)
     assert ImageDisplayLabel._selection_fill(manager.LIGHT_THEME) != ImageDisplayLabel._selection_fill(manager.DARK_THEME), \
@@ -181,10 +182,10 @@ def test_a_dragged_selection_is_see_through_gold(app_window):
         image = _dragging(app_window)
         assert _near(image.pixelColor(5, 5), GROUND, 0), f"{mode}: the image itself is not what the test laid down"
         inside = image.pixelColor(*INSIDE)
-        want = _over(GROUND, accent, config.CANVAS_SELECTION_ALPHA)
+        want = _over(GROUND, accent, colors.CANVAS_SELECTION_ALPHA)
         assert _near(inside, want), (
             f"{mode}: inside the selection the canvas draws {_rgb(inside)}, not the image under "
-            f"{accent} at alpha {config.CANVAS_SELECTION_ALPHA}, which is {want}")
+            f"{accent} at alpha {colors.CANVAS_SELECTION_ALPHA}, which is {want}")
         solid = QColor(accent)
         assert not _near(inside, _rgb(solid), 12), f"{mode}: the selection is filled solid: the image cannot be seen"
         assert not _near(inside, GROUND, 6), f"{mode}: the selection has no fill at all"
@@ -198,14 +199,14 @@ def test_the_size_label_is_drawn_for_the_mode(app_window):
     edges, and are only asked to stand clear of it on the right side."""
     for mode in _every_mode(app_window):
         accent = getattr(config.ThemeManager, THEMES[mode])["accent"]
-        under = _over(GROUND, accent, config.CANVAS_SELECTION_ALPHA)
+        under = _over(GROUND, accent, colors.CANVAS_SELECTION_ALPHA)
         darkest, plate, lightest = _plate_and_figures(_dragging(app_window), LABEL)
         if mode == "light":
-            want = _over(under, config.CANVAS_LABEL_PLATE_LIGHT, config.CANVAS_LABEL_ALPHA)
+            want = _over(under, colors.CANVAS_LABEL_PLATE_LIGHT, colors.CANVAS_LABEL_ALPHA)
             assert abs(plate - _lum(QColor(*want))) < 0.03, f"light: the size is not on the light plate {want}"
             assert plate - darkest > 0.2, "light: the size is not in dark figures"
         else:
-            want = _over(under, config.TRUE_BLACK, config.CANVAS_LABEL_ALPHA)
+            want = _over(under, colors.TRUE_BLACK, colors.CANVAS_LABEL_ALPHA)
             assert abs(plate - _lum(QColor(*want))) < 0.03, f"{mode}: the size is not on the dark plate {want}"
             assert lightest - plate > 0.3, f"{mode}: the size is not in light figures"
 
@@ -215,11 +216,11 @@ def test_the_preview_is_drawn_for_the_mode(app_window):
     corner = (SIZE[0] // 2 - half + 3, SIZE[1] // 2 - half + 3)      # on its plate, outside the color square
     for mode in _every_mode(app_window):
         plate = _previewing(app_window).pixelColor(*corner)
-        ink = config.WHITE if mode == "light" else config.TRUE_BLACK
-        want = _over(GROUND, ink, config.CANVAS_PREVIEW_ALPHA)
+        ink = colors.WHITE if mode == "light" else colors.TRUE_BLACK
+        want = _over(GROUND, ink, colors.CANVAS_PREVIEW_ALPHA)
         assert _near(plate, want), (
             f"{mode}: the preview's plate is {_rgb(plate)}, not {ink} at alpha "
-            f"{config.CANVAS_PREVIEW_ALPHA} over the image, which is {want}")
+            f"{colors.CANVAS_PREVIEW_ALPHA} over the image, which is {want}")
 
 
 def test_the_crosshair_is_the_dark_gold_in_every_mode(app_window):
@@ -228,7 +229,7 @@ def test_the_crosshair_is_the_dark_gold_in_every_mode(app_window):
     ones the crosshair always drew: two arms, ten pixels each way from the
     center and one pixel wide, each pixel of them the pen's color, and the
     image untouched all round them."""
-    want = QColor(config.BRAND_DARK_GOLD).name()
+    want = QColor(colors.BRAND_DARK_GOLD).name()
     center = (200, 150)
     for mode in _every_mode(app_window):
         label = _label(app_window)

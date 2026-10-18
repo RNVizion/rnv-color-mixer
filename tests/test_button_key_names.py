@@ -9,10 +9,10 @@ rnv-icon-builder. One name, two schemes, decided by which repository you had
 open. These tests are what stop it drifting back.
 
 Worth knowing about this application specifically: the main window's buttons
-are painted by the QSS blocks in utils/config.py from module constants, not
-from these palette keys at all. The keys are read by ColorSlot and by the UI
-handler in the main window, and by three dialogs. The dialogs now read a
-family of their own.
+are painted by the QSS blocks in utils/config.py from the constants in
+utils/colors.py, not from these palette keys at all. The keys are read by
+ColorSlot and by the UI handler in the main window, and by three dialogs.
+The dialogs now read a family of their own.
 """
 from __future__ import annotations
 
@@ -79,8 +79,8 @@ MAIN_FILES = ("ui/ui_handler.py", "core/color_slot.py")
 
 def _values(pins):
     """Each key's constant, as the value it holds."""
-    from utils import config
-    return {key: getattr(config, name) for key, name in pins.items()}
+    from utils import colors
+    return {key: getattr(colors, name) for key, name in pins.items()}
 
 
 def _palettes():

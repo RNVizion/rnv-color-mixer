@@ -81,7 +81,7 @@ jobs:
           import hashlib
           with open('test_rnv_color_mixer.py', 'rb') as f:
               digest = hashlib.sha256(f.read()).hexdigest()
-          expected = '9a9379bc7f3b6dd2e0970a44d3c2633c9e34d4f97f988283be8222d41525026e'
+          expected = 'ec45a92e92ffa1179b36bf4fe9a37727983b2fb31b7b704448e9fb1c4a75ad1b'
           if digest != expected:
               print(f'LOCKED FILE INTEGRITY VIOLATION')
               print(f'  expected: {expected}')

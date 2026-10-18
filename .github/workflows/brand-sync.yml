@@ -6,7 +6,7 @@ name: Brand sync
 #   No color this app uses moved  -> nothing is opened. The run ends there.
 #   One did                        -> the tests run on the change, and ONE pull
 #                                     request is opened with the new pin,
-#                                     utils/config.py and COLORS.md. If it is
+#                                     utils/colors.py and COLORS.md. If it is
 #                                     still open the next day, it is updated,
 #                                     not opened again.
 #
@@ -89,7 +89,7 @@ jobs:
             exit 0
           fi
           python tools/sync_colors.py | tee sync.log
-          if git diff --quiet -- utils/config.py; then
+          if git diff --quiet -- utils/colors.py; then
             echo "No color this app uses moved at rnv-brand ${head:0:7}. Nothing to open."
             echo "moved=no" >> "$GITHUB_OUTPUT"
           else
@@ -119,7 +119,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -C brand-sync
-          git add tests/requirements-dev.txt utils/config.py COLORS.md
+          git add tests/requirements-dev.txt utils/colors.py COLORS.md
           git commit -m "Brand sync: rnv-brand@${HEAD:0:7}"
           git push --force origin brand-sync
           {

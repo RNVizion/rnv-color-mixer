@@ -15,10 +15,12 @@ Installed 2026-09-06. What it pins:
   * `main_btn_hover_text` states the ruled dimming rather than inheriting it;
   * every name a palette uses is assigned ABOVE the palette that uses it.
 
-The palettes here are CLASS ATTRIBUTES of ThemeManager, not module-level
-dicts, so everything below descends into the ClassDef. A sweep written for the
-other four applications finds nothing in this one and passes for the wrong
-reason -- which is what `test_this_guard_can_see_the_palettes` is for.
+The palettes were CLASS ATTRIBUTES of ThemeManager, which a sweep written for
+the other four applications did not see. #63 A (2026-10-18) moved them with
+every other color to module level in utils/colors.py, and ThemeManager keeps
+the same three names, pointing at them. A sweep that looks in the wrong place
+finds nothing and passes for the wrong reason -- which is what
+`test_this_guard_can_see_the_palettes` is for.
 """
 from __future__ import annotations
 
@@ -29,10 +31,10 @@ from pathlib import Path
 
 import pytest
 
-from utils import config as C
+from utils import colors as C
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / 'utils/config.py'
+SOURCE = ROOT / 'utils/colors.py'
 
 #: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
 #: says. The values are held by tests/test_colors_in_sync.py, against the
@@ -103,17 +105,9 @@ ADDED = {
 }
 
 
-def _class_body():
-    mod = ast.parse(SOURCE.read_text(encoding='utf-8-sig'))
-    for node in mod.body:
-        if isinstance(node, ast.ClassDef) and node.name == 'ThemeManager':
-            return node
-    raise AssertionError('ThemeManager is no longer a class in utils/config.py')
-
-
 def _palette_dicts():
     out = {}
-    for node in _class_body().body:
+    for node in ast.parse(SOURCE.read_text(encoding='utf-8-sig')).body:
         target = value = None
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             target, value = node.target.id, node.value
@@ -152,12 +146,12 @@ def _keys(palette):
 # ------------------------------------------------------------- guard the guard
 
 def test_this_guard_can_see_the_palettes():
-    """These palettes are class attributes. A sweep written for the other four
-    applications looks at module level, finds nothing, and passes on an empty
-    set -- so the first thing to assert is that the sweep has a subject."""
+    """A sweep that looks in the wrong place finds nothing and passes on an
+    empty set -- so the first thing to assert is that the sweep has a subject:
+    the three palettes, at module level in utils/colors.py since #63 A."""
     found = _palette_dicts()
     assert set(found) == set(PALETTES), (
-        f'palettes not found as dict literals inside ThemeManager: '
+        f'palettes not found as dict literals at module level in utils/colors.py: '
         f'{set(PALETTES) - set(found)}')
     for name, d in found.items():
         if name in SPREADS:
@@ -172,6 +166,17 @@ def test_this_guard_can_see_the_palettes():
         assert len(list(_entries(d))) > 20, (
             f'{name} has {len(list(_entries(d)))} entries; the sweep below '
             f'would pass on almost nothing')
+
+
+def test_theme_manager_serves_these_palettes():
+    """#63 A (2026-10-18): ThemeManager kept its three names when the palettes
+    moved to utils/colors.py. Each must be the dict utils/colors.py defines,
+    not a copy: a copy would be a second place the values live, which is
+    what the move was for."""
+    from utils.config import ThemeManager
+    for palette in PALETTES:
+        assert getattr(ThemeManager, palette) is getattr(C, palette), (
+            f'ThemeManager.{palette} is not the dict utils/colors.py defines')
 
 
 # --------------------------------------------------------------- the wiring
@@ -222,7 +227,7 @@ def test_every_name_a_palette_uses_is_defined_above_it():
 def test_the_names_this_pass_added_hold_what_they_say(name, value):
     # A name the register holds, by its register name; the application's own,
     # by the map holding it as its own (#52 A).
-    assert hasattr(C, name), f'utils.config has no {name}'
+    assert hasattr(C, name), f'utils.colors has no {name}'
     entry = BRAND_MAP[name]
     held = entry if isinstance(entry, str) else APP_OWN if isinstance(entry, dict) else None
     assert held == value
@@ -308,7 +313,7 @@ def test_the_hover_label_states_the_ruled_dimming():
     asserts the value did NOT change: hover keeps the resting label."""
     for palette in PALETTES:
         d = dict(_entries(_palette_dicts()[palette]))
-        resolved = getattr(C.ThemeManager, palette)
+        resolved = getattr(C, palette)
         assert resolved['main_btn_hover_text'] == resolved['main_btn_text'], (
             f'{palette}: the hover label is no longer the resting label. That '
             f'is a change to a RULED transition -- see '

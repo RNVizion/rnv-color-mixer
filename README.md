@@ -213,7 +213,7 @@ rnv-color-mixer/
 ├── clean_python_cache.bat   Cache cleaner (Windows)
 ├── clean_python_cache.sh    Cache cleaner (macOS / Linux)
 ├── KNOWN_ISSUES.md          Documented platform-specific test skips
-├── tools/                   sync_colors.py: writes the colors in utils/config.py, and COLORS.md
+├── tools/                   sync_colors.py: writes the colors in utils/colors.py, and COLORS.md
 ├── .github/workflows/       GitHub Actions CI (Linux + Windows), and the daily brand sync
 ├── tests/                   Suite 2 — pytest test files
 ├── snapshots/               Reference data for byte-locked tests
@@ -279,10 +279,10 @@ on every CI run, preventing accidental modification.
 
 ## Architecture Highlights
 
-**Centralized config (`utils/config.py`)** — every color in the app comes
-from one file. Theme dicts (`DARK_THEME_COLORS`, `LIGHT_THEME_COLORS`,
-`IMAGE_MODE_COLORS`) are referenced by key throughout the codebase. Any
-hardcoded color elsewhere is a bug.
+**Centralized colors (`utils/colors.py`)** — every color in the app comes
+from one file. Theme dicts (`DARK_THEME`, `LIGHT_THEME`, `IMAGE_THEME`,
+served by `ThemeManager`) are referenced by key throughout the codebase.
+Any hardcoded color elsewhere is a bug.
 
 **Signal lifecycle management (`utils/signal_manager.py`)** — every Qt
 signal connection is tracked via `SignalConnectionManager` and disconnected

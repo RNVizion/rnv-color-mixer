@@ -18,6 +18,7 @@ import re
 import pytest
 
 from utils import config
+from utils import colors
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 PALETTES = {
@@ -81,8 +82,8 @@ def test_every_palette_carries_both_role_keys(name):
 def test_accent_ink_is_a_brand_gold(name):
     """accent_ink is the gold. If it ever holds black or white, the swap
     ran in the wrong direction."""
-    golds = {getattr(config, n).lower() for n in dir(config)
-             if n.startswith("BRAND_") and isinstance(getattr(config, n), str)}
+    golds = {getattr(colors, n).lower() for n in dir(colors)
+             if n.startswith("BRAND_") and isinstance(getattr(colors, n), str)}
     assert PALETTES[name]["accent_ink"].lower() in golds, PALETTES[name]["accent_ink"]
 
 
@@ -92,7 +93,7 @@ def test_accent_text_is_the_ink_drawn_on_gold(name):
     that fails loudly if the two names are ever swapped back."""
     # RNV-COLOR-SYNC, 2026-10-16: black and white by name, where they were
     # written as their hex codes.
-    inks = {config.TRUE_BLACK.lower(), config.WHITE.lower()}
+    inks = {colors.TRUE_BLACK.lower(), colors.WHITE.lower()}
     assert PALETTES[name]["accent_text"].lower() in inks, \
         PALETTES[name]["accent_text"]
 
@@ -128,7 +129,7 @@ def test_that_sweep_is_actually_looking():
     assert len(walked) > 40, f"the sweep only found {len(walked)} files"
 
     # Every file the rename touched must still be inside the sweep.
-    for required in ("utils/config.py", "core/package_d_panel.py",
+    for required in ("utils/colors.py", "utils/config.py", "core/package_d_panel.py",
                      "core/color_slot.py", "ui/ui_handler.py",
                      "core/color_fine_tune.py", "ui/about_dialog.py"):
         assert required in walked, f"{required} is not being swept"
@@ -160,14 +161,14 @@ def test_the_mention_exemption_is_not_dead():
 def test_the_rename_did_not_change_what_light_renders():
     """The whole point: a rename, not a revalue."""
     light = PALETTES["LIGHT"]
-    assert light["accent"] == config.BRAND_DARK_GOLD
-    assert light["accent_ink"] == config.BRAND_DARK_GOLD_DEEP
-    assert light["accent_text"] == config.WHITE
+    assert light["accent"] == colors.BRAND_DARK_GOLD
+    assert light["accent_ink"] == colors.BRAND_DARK_GOLD_DEEP
+    assert light["accent_text"] == colors.WHITE
 
 
 def test_the_rename_did_not_change_what_dark_renders():
     for name in ("DARK", "IMAGE"):
         palette = PALETTES[name]
-        assert palette["accent"] == config.BRAND_GOLD
-        assert palette["accent_ink"] == config.BRAND_GOLD
-        assert palette["accent_text"] == config.TRUE_BLACK
+        assert palette["accent"] == colors.BRAND_GOLD
+        assert palette["accent_ink"] == colors.BRAND_GOLD
+        assert palette["accent_text"] == colors.TRUE_BLACK

@@ -34,11 +34,11 @@ import pathlib
 import pytest
 
 from color_values import REGISTER_GOLD_TEXT_GROUND_FLOOR
-from utils import config
+from utils import colors
 from utils.config import ThemeManager
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SRC = ROOT / 'utils' / 'config.py'
+SRC = ROOT / 'utils' / 'colors.py'
 
 #: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
 #: says. The values are held by tests/test_colors_in_sync.py, against the
@@ -94,7 +94,7 @@ def _palette_node(name: str) -> ast.Dict:
             target = node.targets[0] if isinstance(node, ast.Assign) else node.target
             if getattr(target, 'id', None) == name and isinstance(node.value, ast.Dict):
                 return node.value
-    raise AssertionError(f'{name} is not a dict literal in utils/config.py')
+    raise AssertionError(f'{name} is not a dict literal in utils/colors.py')
 
 
 def _entry(node: ast.Dict, key: str):
@@ -110,7 +110,7 @@ def test_everything_this_file_reads_still_exists():
     """Renaming a constant must fail loudly here rather than let the rest of
     this file pass quietly over nothing."""
     for name in NEW:
-        assert hasattr(config, name), f'utils.config has no {name}'
+        assert hasattr(colors, name), f'utils.colors has no {name}'
     for dict_name, live in PALETTES.items():
         assert live, f'{dict_name} is empty'
 
@@ -138,7 +138,7 @@ def test_the_reclassified_constants_match_rnv_brand():
         reason='rnv-brand not importable here; the local pin is doing the work')
     drift = []
     for name, key in NEW.items():
-        theirs, mine = brand.APP[key], getattr(config, name)
+        theirs, mine = brand.APP[key], getattr(colors, name)
         if mine.lower() != theirs.lower():
             drift.append(f'{name}: ours {mine}, theirs APP[{key!r}] {theirs}')
     assert not drift, 'drift from rnv-brand:\n  ' + '\n  '.join(drift)
@@ -162,47 +162,47 @@ def test_all_three_are_pinned_and_mirrored():
 def test_the_dark_rungs_are_exact_steps_on_the_ladder():
     """BRAND_BLACK + n * 0x10. Two of these were app-owned on the argument that
     the ladder might not be real. It is, and this is what says so."""
-    base = int(config.APP_SURFACE_DARK.lstrip('#'), 16)
+    base = int(colors.APP_SURFACE_DARK.lstrip('#'), 16)
     for n, name in ((-1, 'APP_CANVAS_DARK'), (0, 'APP_SURFACE_DARK'),
                     (1, 'APP_CARD_DARK'), (2, 'APP_PANEL_HOVER_DARK')):
         want = base + n * (LADDER_STEP * 0x010101)
-        assert int(getattr(config, name).lstrip('#'), 16) == want, (
-            f'{name} is {getattr(config, name)}, not rung n={n} of '
+        assert int(getattr(colors, name).lstrip('#'), 16) == want, (
+            f'{name} is {getattr(colors, name)}, not rung n={n} of '
             f'APP_SURFACE_DARK + n*0x10')
 
 
 def test_the_border_is_an_edge_and_not_a_rung():
     """The distinction that made the ladder look incomplete for a week."""
-    assert config.APP_BORDER_DARK == gray(3)
-    base = int(config.APP_SURFACE_DARK.lstrip('#'), 16)
+    assert colors.APP_BORDER_DARK == gray(3)
+    base = int(colors.APP_SURFACE_DARK.lstrip('#'), 16)
     rungs = {base + n * (LADDER_STEP * 0x010101) for n in range(-1, 3)}
-    assert int(config.APP_BORDER_DARK.lstrip('#'), 16) not in rungs
+    assert int(colors.APP_BORDER_DARK.lstrip('#'), 16) not in rungs
 
 
 def test_the_canvas_is_not_the_web_ground():
     """One byte apart, deliberately. The docstring used to say APP_CANVAS_DARK was
     app-owned BECAUSE the register's canvas was WEB_BLACK. The first half is
     now wrong and the second half was always the part that mattered."""
-    r, g, b = (int(config.APP_CANVAS_DARK.lstrip('#')[i:i + 2], 16)
+    r, g, b = (int(colors.APP_CANVAS_DARK.lstrip('#')[i:i + 2], 16)
                for i in (0, 2, 4))
-    assert r == g == b, f'{config.APP_CANVAS_DARK} is not a pure gray'
+    assert r == g == b, f'{colors.APP_CANVAS_DARK} is not a pure gray'
     brand = pytest.importorskip('engine.brand', reason='rnv-brand not importable')
-    assert config.APP_CANVAS_DARK.lower() != brand.WEB_BLACK.lower()
+    assert colors.APP_CANVAS_DARK.lower() != brand.WEB_BLACK.lower()
 
 
 # ------------------------------------------------------------------- the plate
 
 def test_the_plate_is_a_step_on_the_ink_grid():
-    assert config.APP_ITEM_HOVER_LIGHT == gray(14)
+    assert colors.APP_ITEM_HOVER_LIGHT == gray(14)
 
 
 def test_the_plate_is_not_the_gold_text_floor():
     """Both clear the 4.5 floor. Only one clears it by enough to survive the
     gold moving, and the other is the value the gold is calibrated against."""
-    gold = config.BRAND_DARK_GOLD_DEEP
-    here = _contrast(gold, config.APP_ITEM_HOVER_LIGHT)
+    gold = colors.BRAND_DARK_GOLD_DEEP
+    here = _contrast(gold, colors.APP_ITEM_HOVER_LIGHT)
     edge = _contrast(gold, FLOOR)
-    assert config.APP_ITEM_HOVER_LIGHT.lower() != FLOOR
+    assert colors.APP_ITEM_HOVER_LIGHT.lower() != FLOOR
     assert here - TEXT_FLOOR >= 0.2, (
         f'the plate clears the floor by only {here - TEXT_FLOOR:.4f}. The '
         f'register moved APP["hover-light"] here for margin, not for a pass.')
@@ -220,4 +220,4 @@ def test_the_light_panel_hover_names_the_plate():
     assert isinstance(value, ast.Name) and value.id == 'APP_ITEM_HOVER_LIGHT', (
         f'LIGHT_THEME["panel_hover"] is '
         f'{ast.unparse(value) if value else "missing"}, not the plate constant')
-    assert ThemeManager.LIGHT_THEME['panel_hover'] == config.APP_ITEM_HOVER_LIGHT
+    assert ThemeManager.LIGHT_THEME['panel_hover'] == colors.APP_ITEM_HOVER_LIGHT

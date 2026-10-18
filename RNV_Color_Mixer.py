@@ -40,6 +40,10 @@ from utils.logger import Logger, header, separator
 logger = Logger("ColorMixer")
 
 from utils import config
+from utils.colors import (
+    CANVAS_FAILED_BG, CANVAS_FAILED_EDGE, DEBUG_OVERLAY_COLORS, DEFAULT_COLOR, INITIAL_COLOR_HEX,
+    INITIAL_COLOR_RGB, INITIAL_COLOR_TUPLE, SVG_EXPORT_BG, TRUE_BLACK, WHITE,
+)
 
 # Print application banner FIRST (before any imports log messages)
 app_info = config.get_app_info()
@@ -442,9 +446,9 @@ class ColorMixerApp(QMainWindow):
             self.theme_button: QPushButton | None = None
 
             # State
-            self.current_mixed_color = config.INITIAL_COLOR_TUPLE
-            self.current_hex = config.INITIAL_COLOR_HEX
-            self.current_rgb = config.INITIAL_COLOR_RGB
+            self.current_mixed_color = INITIAL_COLOR_TUPLE
+            self.current_hex = INITIAL_COLOR_HEX
+            self.current_rgb = INITIAL_COLOR_RGB
             
             # Debouncing timer for color mixing (prevents excessive calculations during slider drag)
             self._mix_debounce_timer = QTimer(self)
@@ -571,7 +575,7 @@ class ColorMixerApp(QMainWindow):
             slots_data = []
             for slot in self.slots:
                 slot_info = {
-                    'color': list(slot.get_color()) if slot.get_color() else list(config.DEFAULT_COLOR),
+                    'color': list(slot.get_color()) if slot.get_color() else list(DEFAULT_COLOR),
                     'weight': slot.get_weight(),
                     'label': getattr(slot, 'label_text', f"Color {len(slots_data)+1}")
                 }
@@ -616,7 +620,7 @@ class ColorMixerApp(QMainWindow):
             slots_data = session_data.get('slots', [])
             for i, slot_info in enumerate(slots_data):
                 if i < len(self.slots):
-                    color = tuple(slot_info.get('color', config.DEFAULT_COLOR))
+                    color = tuple(slot_info.get('color', DEFAULT_COLOR))
                     weight = slot_info.get('weight', 0)
                     self.slots[i].set_color(color)
                     self.slots[i].set_weight(weight)
@@ -1061,7 +1065,7 @@ class ColorMixerApp(QMainWindow):
         self.preview_label = QLabel()
         initial_size = self._calculate_preview_size()
         self.preview_label.setFixedSize(initial_size, initial_size)
-        self.preview_label.setStyleSheet(f"border: 2px solid {config.ThemeManager.DARK_THEME['border_color']}; background-color: {config.INITIAL_COLOR_HEX}; border-radius: 8px;")
+        self.preview_label.setStyleSheet(f"border: 2px solid {config.ThemeManager.DARK_THEME['border_color']}; background-color: {INITIAL_COLOR_HEX}; border-radius: 8px;")
         
         from PyQt6.QtWidgets import QSizePolicy
         self.preview_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -1077,14 +1081,14 @@ class ColorMixerApp(QMainWindow):
         values_layout.setContentsMargins(0, 10, 0, 5)  # Added 5px bottom margin
         values_layout.setSpacing(5)
         
-        self.hex_label = QLabel(config.INITIAL_COLOR_HEX)
+        self.hex_label = QLabel(INITIAL_COLOR_HEX)
         self.hex_label.setStyleSheet(f"font-weight: bold; font-size: {config.FONT_SIZES['large']}px; background-color: transparent;")
         self.hex_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hex_label.setMinimumHeight(25)  # Prevent compression
         self.hex_label.setAutoFillBackground(False)
         values_layout.addWidget(self.hex_label)
         
-        self.rgb_label = QLabel(config.INITIAL_COLOR_RGB)
+        self.rgb_label = QLabel(INITIAL_COLOR_RGB)
         self.rgb_label.setStyleSheet(f"font-size: {config.FONT_SIZES['medium']}px; background-color: transparent;")
         self.rgb_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.rgb_label.setMinimumHeight(20)  # Prevent compression
@@ -1156,7 +1160,7 @@ class ColorMixerApp(QMainWindow):
             placeholder.setMinimumSize(400, 200)
             # RNV-NAMED-AND-USED (2026-10-04): was #ffcccc and the CSS name red.
             placeholder.setStyleSheet(
-                f"background-color: {config.CANVAS_FAILED_BG}; border: 2px solid {config.CANVAS_FAILED_EDGE};")
+                f"background-color: {CANVAS_FAILED_BG}; border: 2px solid {CANVAS_FAILED_EDGE};")
             parent_layout.addWidget(placeholder, 3)
 
     def _build_status_bar(self) -> None:
@@ -1234,8 +1238,8 @@ class ColorMixerApp(QMainWindow):
         def toggle() -> None:
             # Create overlays if they don't exist
             if not hasattr(self, 'debug_overlay_main') or self.debug_overlay_main is None:
-                self.debug_overlay_main = DebugOverlay(self.central_widget, "App Window", config.DEBUG_OVERLAY_COLORS['app_window'])
-                self.debug_overlay_slots = DebugOverlay(self.slots_scroll_area.viewport(), "Slots Panel", config.DEBUG_OVERLAY_COLORS['slots_panel'])
+                self.debug_overlay_main = DebugOverlay(self.central_widget, "App Window", DEBUG_OVERLAY_COLORS['app_window'])
+                self.debug_overlay_slots = DebugOverlay(self.slots_scroll_area.viewport(), "Slots Panel", DEBUG_OVERLAY_COLORS['slots_panel'])
                 self.debug_overlay_main.show()
                 self.debug_overlay_slots.show()
                 self.status_updated.emit("Debug overlays enabled")
@@ -1759,7 +1763,7 @@ class ColorMixerApp(QMainWindow):
             # Restore slot data
             for slot_data in slots_data:
                 index = slot_data.get('index', 0)
-                color = tuple(slot_data.get('color', config.DEFAULT_COLOR))
+                color = tuple(slot_data.get('color', DEFAULT_COLOR))
                 weight = slot_data.get('weight', 0)
                 
                 if index < len(self.slots):
@@ -1768,7 +1772,7 @@ class ColorMixerApp(QMainWindow):
             
             # Clear any extra slots (if session had fewer slots)
             for i in range(len(slots_data), len(self.slots)):
-                self.slots[i].set_color(config.DEFAULT_COLOR)
+                self.slots[i].set_color(DEFAULT_COLOR)
                 self.slots[i].set_weight(0)
             
             # Restore settings (optional)
@@ -1976,11 +1980,11 @@ class ColorMixerApp(QMainWindow):
                 # Create overlays if they don't exist
                 if not hasattr(self, 'debug_overlay_main') or self.debug_overlay_main is None:
                     self.debug_overlay_main = DebugOverlay(
-                        self.central_widget, "App Window", config.DEBUG_OVERLAY_COLORS['app_window']
+                        self.central_widget, "App Window", DEBUG_OVERLAY_COLORS['app_window']
                     )
                 if not hasattr(self, 'debug_overlay_slots') or self.debug_overlay_slots is None:
                     self.debug_overlay_slots = DebugOverlay(
-                        self.slots_scroll_area.viewport(), "Slots Panel", config.DEBUG_OVERLAY_COLORS['slots_panel']
+                        self.slots_scroll_area.viewport(), "Slots Panel", DEBUG_OVERLAY_COLORS['slots_panel']
                     )
                 
                 # Show overlays (with fade animation if enabled)
@@ -2416,10 +2420,10 @@ class ColorMixerApp(QMainWindow):
             colors_weights = [(s.get_color(), s.get_weight()) for s in self.slots if s.get_weight() > 0]
             
             if not colors_weights:
-                self.current_mixed_color = config.INITIAL_COLOR_TUPLE
-                self.current_hex = config.INITIAL_COLOR_HEX
-                self.current_rgb = config.INITIAL_COLOR_RGB
-                self._update_preview(config.INITIAL_COLOR_TUPLE)
+                self.current_mixed_color = INITIAL_COLOR_TUPLE
+                self.current_hex = INITIAL_COLOR_HEX
+                self.current_rgb = INITIAL_COLOR_RGB
+                self._update_preview(INITIAL_COLOR_TUPLE)
                 if self.canvas_view:
                     self.canvas_view.hide_preview()
                 return
@@ -2475,7 +2479,7 @@ class ColorMixerApp(QMainWindow):
         """Update preview safely with RGB/HSV values based on settings."""
         def update() -> None:
             if not color:
-                color_to_use = config.INITIAL_COLOR_TUPLE
+                color_to_use = INITIAL_COLOR_TUPLE
             else:
                 color_to_use = color
             
@@ -2669,7 +2673,7 @@ class ColorMixerApp(QMainWindow):
             center_x, center_y = config.SWATCH_OUTPUT_SIZE[0] // 2, config.SWATCH_OUTPUT_SIZE[1] // 2
             brightness = sum(color_rgb) / 3
             # RNV-NAMED-AND-USED (2026-10-04): were the CSS names white and black.
-            text_color = config.WHITE if brightness < 128 else config.TRUE_BLACK
+            text_color = WHITE if brightness < 128 else TRUE_BLACK
             
             draw.text((center_x, center_y), self.current_hex, fill=text_color, anchor="mm", font=font)
             
@@ -2735,7 +2739,7 @@ class ColorMixerApp(QMainWindow):
                 
             from PIL import Image, ImageDraw
             
-            img = Image.new("RGB", (800, 600), config.SVG_EXPORT_BG)
+            img = Image.new("RGB", (800, 600), SVG_EXPORT_BG)
             draw = ImageDraw.Draw(img)
             
             x, y = 50, 50

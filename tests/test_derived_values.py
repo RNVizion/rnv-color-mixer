@@ -37,9 +37,13 @@ from color_values import (EXAMPLE_BLACK, EXAMPLE_DARK_GRAY, EXAMPLE_NEAR_BLACK,
                            INVALID_NOT_HEX, RETIRED_IMAGE_SCROLLBAR_HANDLE,
                            RETIRED_IMAGE_SCROLLBAR_HANDLE_RGBA)
 from utils import config as C
+from utils import colors
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "utils" / "config.py"
+#: The palettes, the helpers and the overlay's colors: utils/colors.py since
+#: #63 A (2026-10-18). The templates stay in SRC.
+COLORS_SRC = ROOT / "utils" / "colors.py"
 PALETTES = ("DARK_THEME", "LIGHT_THEME", "IMAGE_THEME")
 TEMPLATES = ("DARK_STYLESHEET", "LIGHT_STYLESHEET", "IMAGE_STYLESHEET")
 HELPERS = ("translucent", "translucent_rgba")
@@ -134,11 +138,13 @@ def _module() -> ast.Module:
     return ast.parse(SRC.read_text(encoding="utf-8-sig"))
 
 
+def _colors_module() -> ast.Module:
+    return ast.parse(COLORS_SRC.read_text(encoding="utf-8-sig"))
+
+
 def _palette_nodes() -> dict[str, ast.Dict]:
-    cls = next(n for n in _module().body
-               if isinstance(n, ast.ClassDef) and n.name == "ThemeManager")
     out = {}
-    for node in cls.body:
+    for node in _colors_module().body:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             t = node.targets[0] if isinstance(node, ast.Assign) else node.target
             if getattr(t, "id", None) in PALETTES and isinstance(node.value, ast.Dict):
@@ -196,17 +202,17 @@ def _sources():
 # ------------------------------------------------------------ guard the guard
 
 def test_the_helpers_compose_alpha_first_and_agree():
-    assert C.translucent(EXAMPLE_NEAR_BLACK, 0xBF) == EXAMPLE_NEAR_BLACK_AT_BF
-    assert C.translucent_rgba(EXAMPLE_NEAR_BLACK, 0xBF) == EXAMPLE_NEAR_BLACK_AT_BF_RGBA
+    assert colors.translucent(EXAMPLE_NEAR_BLACK, 0xBF) == EXAMPLE_NEAR_BLACK_AT_BF
+    assert colors.translucent_rgba(EXAMPLE_NEAR_BLACK, 0xBF) == EXAMPLE_NEAR_BLACK_AT_BF_RGBA
     for base in (EXAMPLE_NEAR_BLACK, EXAMPLE_TAN, EXAMPLE_DARK_GRAY):
         for alpha in (0, 0x64, 0xB2, 255):
-            assert (decompose(C.translucent(base, alpha))
-                    == decompose(C.translucent_rgba(base, alpha))
+            assert (decompose(colors.translucent(base, alpha))
+                    == decompose(colors.translucent_rgba(base, alpha))
                     == (base, alpha))
 
 
 def test_the_helpers_refuse_what_they_cannot_compose():
-    for helper in (C.translucent, C.translucent_rgba):
+    for helper in (colors.translucent, colors.translucent_rgba):
         for bad in (-1, 256, 0.7, True):
             try:
                 helper(EXAMPLE_NEAR_BLACK, bad)
@@ -226,8 +232,8 @@ def test_the_helpers_refuse_what_they_cannot_compose():
 
 def test_the_alphas_are_the_declared_bytes():
     for name, byte in ALPHAS.items():
-        assert hasattr(C, name), f"utils.config has no {name}"
-        value = getattr(C, name)
+        assert hasattr(colors, name), f"utils.colors has no {name}"
+        value = getattr(colors, name)
         assert type(value) is int, f"{name} is {value!r}, not an int byte"
         assert value == byte, f"{name} is {value:#x}, declared {byte:#x}"
 
@@ -262,8 +268,8 @@ def test_every_derived_value_names_constants_that_exist():
             bad.append(f"{where}: {ast.unparse(call)} is not (BASE, ALPHA) by name")
             continue
         base, alpha = names
-        if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(getattr(C, base, ""))):
-            bad.append(f"{where}: {base} is not a six-digit color in utils.config")
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(getattr(colors, base, ""))):
+            bad.append(f"{where}: {base} is not a six-digit color in utils.colors")
         if alpha not in ALPHAS:
             bad.append(f"{where}: {alpha} is not a declared composite alpha")
     assert not bad, "derived values that do not derive:\n  " + "\n  ".join(bad)
@@ -280,6 +286,10 @@ def test_rgba_is_spelled_only_inside_the_templates():
     stray = [f"line {n.lineno}" for n in ast.walk(tree)
              if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "translucent_rgba"
              and id(n) not in inside]
+    # The helper and the colors are in utils/colors.py since #63 A
+    # (2026-10-18), and no template is: a call there is outside them all.
+    stray += [f"utils/colors.py line {n.lineno}" for n in ast.walk(_colors_module())
+              if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "translucent_rgba"]
     assert not stray, f"translucent_rgba() outside a stylesheet template: {stray}"
     locked = (ROOT / "test_rnv_color_mixer.py").read_text(encoding="utf-8-sig")
     assert 'self.assertIn("rgba(",config.IMAGE_STYLESHEET)' in locked
@@ -293,7 +303,7 @@ def test_every_template_value_decomposes_to_what_it_is_made_of():
         rendered = getattr(C, template)
         found = sorted((("#%02x%02x%02x" % (int(r), int(g), int(b))), int(a))
                        for r, g, b, a in _RGBA.findall(rendered))
-        want = sorted((getattr(C, base).lower(), getattr(C, alpha))
+        want = sorted((getattr(colors, base).lower(), getattr(colors, alpha))
                       for base, alpha in made_of)
         assert found == want, f"{template}: rendered {found}, made of {want}"
 
@@ -318,8 +328,8 @@ def test_the_image_scrollbar_handle_is_gray_44_at_150():
                          r"background-color:\s*([^;]+);", C.IMAGE_STYLESHEET)
     assert len(handles) == 2, handles
     for h in handles:
-        assert decompose(h.strip()) == (C.APP_CHROME_DARK, 150) == (
-            C.APP_CHROME_DARK, C.SCROLLBAR_HANDLE_ALPHA), h
+        assert decompose(h.strip()) == (colors.APP_CHROME_DARK, 150) == (
+            colors.APP_CHROME_DARK, colors.SCROLLBAR_HANDLE_ALPHA), h
 
 
 def test_no_composed_literal_is_left_in_the_application():
@@ -327,7 +337,7 @@ def test_no_composed_literal_is_left_in_the_application():
     named color at an alpha. Docstrings are mentions; alpha 0 is not a
     color; a base no constant names has no row; and the debug overlay is
     diagnostic, outside the brand by rule."""
-    named = {v.lower() for n, v in vars(C).items()
+    named = {v.lower() for n, v in vars(colors).items()
              if n.isupper() and isinstance(v, str)
              and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
     strays, files = [], 0
@@ -362,7 +372,7 @@ def test_no_composed_literal_is_left_in_the_application():
 def test_the_debug_overlay_stays_outside_the_brand():
     """The exclusion rule, asserted: DEBUG_OVERLAY_COLORS holds literals, and
     no brand constant or helper call appears in it."""
-    node = next(n for n in _module().body if isinstance(n, (ast.Assign, ast.AnnAssign))
+    node = next(n for n in _colors_module().body if isinstance(n, (ast.Assign, ast.AnnAssign))
                 and getattr(n.targets[0] if isinstance(n, ast.Assign) else n.target,
                             "id", None) == "DEBUG_OVERLAY_COLORS")
     bound = [ast.unparse(v) for v in node.value.values
@@ -370,7 +380,7 @@ def test_the_debug_overlay_stays_outside_the_brand():
     assert not bound, f"the debug overlay follows the application's values: {bound}"
     # ... and nothing rebinds it after the literal: the dict is written before
     # any brand constant exists, so a later assignment is the only way in
-    assert C.DEBUG_OVERLAY_COLORS == ast.literal_eval(node.value), (
+    assert colors.DEBUG_OVERLAY_COLORS == ast.literal_eval(node.value), (
         "DEBUG_OVERLAY_COLORS is changed after it is written")
 
 
@@ -410,7 +420,7 @@ import importlib as _importlib
 #: Where the derived constants live, and where their bases and alphas live.
 TUPLE_HOME = 'core/screen_color_picker.py'
 TUPLE_HOME_MODULE = 'core.screen_color_picker'
-TUPLE_BASES_MODULE = 'utils.config'
+TUPLE_BASES_MODULE = 'utils.colors'
 #: Each derived constant, by NAME: (helper, base, alpha or None). A register
 #: move passes straight through; a value re-made from something else fails.
 TUPLES_MADE_OF = {'_OVERLAY_COLOR': ('translucent', 'TRUE_BLACK', 'SCREEN_OVERLAY_ALPHA'), '_GOLD_TRANSPARENT': ('translucent', 'BRAND_GOLD', 'SCREEN_GRID_ALPHA'), '_INFO_BG': ('translucent', 'TRUE_BLACK', 'SCREEN_INFO_ALPHA')}
@@ -593,9 +603,10 @@ def test_the_unread_palette_keys_stay_removed():
         back = [k for k in REMOVED_KEYS if k in getattr(C.ThemeManager, palette)]
         assert not back, f"{palette} declares {back} again"
     for name in REMOVED_ALPHAS:
-        assert not hasattr(C, name), f"utils.config declares {name} again"
+        for module in (colors, C):
+            assert not hasattr(module, name), f"{module.__name__} declares {name} again"
     sources = list(_sources())
-    assert any(rel.as_posix() == "utils/config.py" for rel, _ in sources), (
+    assert any(rel.as_posix() == "utils/colors.py" for rel, _ in sources), (
         "the sweep cannot see the palettes, so it proves nothing")
     named = [f"{rel}:{node.lineno}  {node.value}" for rel, tree in sources
              for node in ast.walk(tree)
@@ -631,7 +642,7 @@ def test_the_harmony_description_derives_its_wash(qapp):
     code = "\n".join(ast.unparse(s) for s in body)
     calls = [ast.unparse(c) for s in body for c in ast.walk(s)
              if isinstance(c, ast.Call) and getattr(c.func, "attr", None) == "translucent"]
-    assert calls == ["config.translucent(accent, config.HARMONY_DESCRIPTION_ALPHA)"], calls
+    assert calls == ["colors.translucent(accent, colors.HARMONY_DESCRIPTION_ALPHA)"], calls
     assert "rgba(" not in code and "[1:3]" not in code, "the wash is built by hand again"
     for is_dark, palette in ((True, "DARK_THEME"), (False, "LIGHT_THEME")):
         panel = SimpleNamespace(_is_dark=is_dark, harmony_description=QLabel())
@@ -639,7 +650,7 @@ def test_the_harmony_description_derives_its_wash(qapp):
         sheet = panel.harmony_description.styleSheet()
         wash = re.search(r"background-color:\s*([^;]+);", sheet).group(1).strip()
         ink = getattr(C.ThemeManager, palette)["accent_ink"].lower()
-        assert decompose(wash) == (ink, C.HARMONY_DESCRIPTION_ALPHA), (palette, sheet)
+        assert decompose(wash) == (ink, colors.HARMONY_DESCRIPTION_ALPHA), (palette, sheet)
 
 
 
@@ -757,13 +768,13 @@ def test_eight_digit_hex_is_lower_case(qapp):
         f"only {len(built)} eight-digit values found; the sweep has gone blind")
     upper = [f"{where} = {value}" for where, value in built
              if not re.fullmatch(r"#[0-9a-f]{8}", value)]
-    named = sorted({v for v in vars(C).values()
+    named = sorted({v for v in vars(colors).values()
                     if isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)})
     assert len(named) >= LOWER8_NAMED, f"only {len(named)} named colors found; the sweep has gone blind"
     for base in named:
         for spelling in (base.lower(), base.upper(), base[1:].upper()):
             for alpha in (0, 0x19, 0xED, 0xFF):
-                value = C.translucent(spelling, alpha)
+                value = colors.translucent(spelling, alpha)
                 if value != "#%02x%s" % (alpha, base[1:].lower()):
                     upper.append(f"translucent({spelling!r}, {alpha:#04x}) = {value}")
     written, files = [], 0

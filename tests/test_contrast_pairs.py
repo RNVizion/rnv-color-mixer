@@ -25,6 +25,7 @@ import pytest
 from color_values import (DATA_CSS_BLACK, DATA_CSS_GRAY, DATA_CSS_WHITE,
                            REGISTER_GOLD_TEXT_GROUND_FLOOR)
 from utils import config
+from utils import colors
 
 TEXT_FLOOR = 4.5
 HEX = re.compile(r"^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$")
@@ -38,11 +39,11 @@ ACCEPTED = {
     # the label to white. Both are intentional and predate this pass.
     # RNV-COLOR-SYNC, 2026-10-16: each pair by the constants the sheets draw
     # it with, where it was written as their hex codes.
-    ("LIGHT", config.TRUE_BLACK, config.APP_BTN_HOVER_INVERSE):
+    ("LIGHT", colors.TRUE_BLACK, colors.APP_BTN_HOVER_INVERSE):
         "main button hover -- deliberate inversion",
-    ("DARK", config.TRUE_BLACK, config.APP_BTN_PRESSED):
+    ("DARK", colors.TRUE_BLACK, colors.APP_BTN_PRESSED):
         "main button pressed -- deliberate inversion",
-    ("IMAGE", config.TRUE_BLACK, config.APP_BTN_PRESSED):
+    ("IMAGE", colors.TRUE_BLACK, colors.APP_BTN_PRESSED):
         "main button pressed -- deliberate inversion",
 }
 
@@ -228,15 +229,15 @@ def test_the_audit_finds_something_to_audit(theme):
 # (bg, fg) for rest, hover, pressed. RNV-COLOR-SYNC, 2026-10-16: by the
 # constants the sheets draw them with, where they were written as hex codes.
 MAIN_SCHEME = {
-    "DARK":  ((config.APP_SURFACE_DARK, config.APP_TEXT_DARK),
-              (config.APP_BORDER_DARK, config.APP_TEXT_DARK),
-              (config.APP_BTN_PRESSED, config.TRUE_BLACK)),
-    "LIGHT": ((config.WHITE, config.TRUE_BLACK),
-              (config.APP_BTN_HOVER_INVERSE, config.TRUE_BLACK),
-              (config.APP_BTN_PRESSED, config.WHITE)),
-    "IMAGE": ((config.APP_SURFACE_DARK, config.APP_TEXT_DARK),
-              (config.APP_BORDER_DARK, config.APP_TEXT_DARK),
-              (config.APP_BTN_PRESSED, config.TRUE_BLACK)),
+    "DARK":  ((colors.APP_SURFACE_DARK, colors.APP_TEXT_DARK),
+              (colors.APP_BORDER_DARK, colors.APP_TEXT_DARK),
+              (colors.APP_BTN_PRESSED, colors.TRUE_BLACK)),
+    "LIGHT": ((colors.WHITE, colors.TRUE_BLACK),
+              (colors.APP_BTN_HOVER_INVERSE, colors.TRUE_BLACK),
+              (colors.APP_BTN_PRESSED, colors.WHITE)),
+    "IMAGE": ((colors.APP_SURFACE_DARK, colors.APP_TEXT_DARK),
+              (colors.APP_BORDER_DARK, colors.APP_TEXT_DARK),
+              (colors.APP_BTN_PRESSED, colors.TRUE_BLACK)),
 }
 
 
@@ -271,19 +272,19 @@ def test_dialog_button_pressed_fills_with_the_ACCENT_not_the_derivative():
     # RNV-NAMED-AND-USED, 2026-10-04: read from dialog_btn_pressed_bg, the key
     # a dialog fills from. This read a main-window key that no sheet used.
     light = config.ThemeManager.LIGHT_THEME
-    assert light["dialog_btn_pressed_bg"] == light["accent"] == config.BRAND_DARK_GOLD
-    assert light["accent_ink"] == config.BRAND_DARK_GOLD_DEEP
+    assert light["dialog_btn_pressed_bg"] == light["accent"] == colors.BRAND_DARK_GOLD
+    assert light["accent_ink"] == colors.BRAND_DARK_GOLD_DEEP
     assert light["accent_ink"] != light["accent"], (
         "light must spend its derivative on TEXT and keep the accent as the fill")
     for name in ("DARK", "IMAGE"):
         palette = getattr(config.ThemeManager, name + "_THEME")
-        assert palette["dialog_btn_pressed_bg"] == palette["accent"] == config.BRAND_GOLD
+        assert palette["dialog_btn_pressed_bg"] == palette["accent"] == colors.BRAND_GOLD
 
 
 def test_four_gold_values_in_the_whole_app():
     """Two registered, two derived. Two rendered per mode."""
-    values = {getattr(config, n).lower() for n in dir(config)
-              if n.startswith("BRAND_") and isinstance(getattr(config, n), str)}
+    values = {getattr(colors, n).lower() for n in dir(colors)
+              if n.startswith("BRAND_") and isinstance(getattr(colors, n), str)}
     assert len(values) == 4, f"expected 4 gold values, found {len(values)}: {sorted(values)}"
 
 

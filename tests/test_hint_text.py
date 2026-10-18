@@ -32,7 +32,7 @@ import pathlib
 import pytest
 
 from color_values import RETIRED_LIGHT_HINT
-from utils import config
+from utils import colors
 from utils.config import ThemeManager
 
 #: RNV-COLOR-SYNC, #52 A (2026-10-17). Where each color comes from, as
@@ -57,7 +57,7 @@ GROUNDS = ("panel_secondary", "panel_bg")
 # (theme, ground key) -> why it may sit below the floor.
 ACCEPTED = {
     ("DARK", "panel_secondary"):
-        f"{config.APP_HINT_DARK} on {config.APP_CARD_DARK} = 4.0490 -- the same value "
+        f"{colors.APP_HINT_DARK} on {colors.APP_CARD_DARK} = 4.0490 -- the same value "
         "the muted text uses in "
         "three other apps; lifting it here alone is a ruling, not a repair",
     ("IMAGE", "panel_secondary"):
@@ -92,7 +92,8 @@ def test_the_hint_key_has_exactly_its_two_consumers():
     for path in root.rglob("*.py"):
         if any(p in path.parts for p in ("tests", ".git", "__pycache__")):
             continue
-        if path.name.startswith("test_") or path.name == "config.py":
+        # The palettes, which define the key, are in utils/colors.py (#63 A).
+        if path.name.startswith("test_") or path.name == "colors.py":
             continue
         # A delivery script sitting at the root mentions the key it moves.
         # Sweeping it makes the guard fail on the very run that installs it --
@@ -149,8 +150,8 @@ def test_light_is_the_one_that_was_fixed():
 def test_the_muted_values_are_the_ones_the_fleet_already_uses():
     """Ruling 1 was conditional: two values are fine if every app splits it by
     mode, and only with values already in use. Both halves, held here."""
-    assert THEMES["DARK"]["text_hint"] == THEMES["IMAGE"]["text_hint"] == config.APP_HINT_DARK
-    assert THEMES["LIGHT"]["text_hint"] == config.APP_HINT_LIGHT
+    assert THEMES["DARK"]["text_hint"] == THEMES["IMAGE"]["text_hint"] == colors.APP_HINT_DARK
+    assert THEMES["LIGHT"]["text_hint"] == colors.APP_HINT_LIGHT
 
 
 def test_the_light_hint_has_its_own_name():
@@ -158,18 +159,16 @@ def test_the_light_hint_has_its_own_name():
     another job, and wired through it, text would move with the handle."""
     import ast
     import pathlib
-    from utils import config
-    src = pathlib.Path(config.__file__).read_text(encoding="utf-8-sig")
-    cls = next(n for n in ast.parse(src).body
-               if isinstance(n, ast.ClassDef) and n.name == "ThemeManager")
-    light = next(n.value for n in cls.body
+    from utils import colors
+    src = pathlib.Path(colors.__file__).read_text(encoding="utf-8-sig")
+    light = next(n.value for n in ast.parse(src).body
                  if isinstance(n, (ast.Assign, ast.AnnAssign))
                  and getattr(n.targets[0] if isinstance(n, ast.Assign) else n.target,
                              "id", None) == "LIGHT_THEME")
     value = next(v for k, v in zip(light.keys, light.values)
                  if isinstance(k, ast.Constant) and k.value == "text_hint")
     assert isinstance(value, ast.Name) and value.id == "APP_HINT_LIGHT", ast.unparse(value)
-    assert config.APP_HINT_LIGHT == config.APP_HANDLE_LIGHT
+    assert colors.APP_HINT_LIGHT == colors.APP_HANDLE_LIGHT
     # #52 A, 2026-10-17: the value both hold is the application's own, by the
     # map; tests/test_colors_in_sync.py holds it there.
     assert isinstance(BRAND_MAP["APP_HINT_LIGHT"], dict)

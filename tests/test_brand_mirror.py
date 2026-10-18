@@ -18,14 +18,15 @@ import pytest
 from color_values import (REGISTER_GOLD_TEXT_GROUND_FLOOR, RETIRED_MAGNIFIER_GRID_PEN,
                            RETIRED_OLD_DARK_GOLD, RETIRED_OLD_DARK_GOLD_TINT,
                            RETIRED_OLD_DARK_HOVER)
-from utils import config
+from utils import colors
+from utils.config import ThemeManager
 
 #: RNV-COLOR-SYNC, 2026-10-16. Where each color comes from, as brand_map.json
 #: says. The values are held by tests/test_colors_in_sync.py, against the
 #: register at the pin; what this file holds is the name each one takes.
 BRAND_MAP = json.loads((pathlib.Path(__file__).resolve().parents[1] / "brand_map.json").read_text(encoding="utf-8"))["colors"]
 
-TM = config.ThemeManager
+TM = ThemeManager
 PALETTES = {"DARK": TM.DARK_THEME, "LIGHT": TM.LIGHT_THEME, "IMAGE": TM.IMAGE_THEME}
 
 # Values that used to render here and must not return.
@@ -63,19 +64,19 @@ def contrast(a: str, b: str) -> float:
 # ----------------------------------------------------------------- provenance
 
 def test_provenance_covers_every_gold_constant():
-    named = {n for n in dir(config)
-             if n.startswith("BRAND_") and isinstance(getattr(config, n), str)}
-    missing = named - set(config.GOLD_PROVENANCE)
+    named = {n for n in dir(colors)
+             if n.startswith("BRAND_") and isinstance(getattr(colors, n), str)}
+    missing = named - set(colors.GOLD_PROVENANCE)
     assert not missing, f"gold constants with no provenance entry: {sorted(missing)}"
 
 
 def test_provenance_has_no_phantom_entries():
-    phantom = [n for n in config.GOLD_PROVENANCE if not hasattr(config, n)]
+    phantom = [n for n in colors.GOLD_PROVENANCE if not hasattr(colors, n)]
     assert not phantom, f"provenance names nothing: {phantom}"
 
 
 def test_provenance_groups_are_valid():
-    bad = {k: v for k, v in config.GOLD_PROVENANCE.items()
+    bad = {k: v for k, v in colors.GOLD_PROVENANCE.items()
            if v not in ("register", "derived", "alias")}
     assert not bad, f"invented provenance groups: {bad}"
 
@@ -92,41 +93,41 @@ def test_derived_constants_are_actually_derived():
     """A derivative written down as a literal is orphaned the moment the base
     moves. RETIRED_OLD_DARK_GOLD_TINT is what that looks like: a tint of a gold
     already retired, still rendering, with nothing anywhere to flag it."""
-    src = pathlib.Path(config.__file__).read_text(encoding="utf-8")
+    src = pathlib.Path(colors.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     literals = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if isinstance(node.value, ast.Constant):
                 literals.add(node.target.id)
-    for name, kind in config.GOLD_PROVENANCE.items():
+    for name, kind in colors.GOLD_PROVENANCE.items():
         if kind == "derived":
             assert name not in literals, (
                 f"{name} is classified derived but is written as a literal")
 
 
 def test_register_constants_are_literals_not_computed():
-    src = pathlib.Path(config.__file__).read_text(encoding="utf-8")
+    src = pathlib.Path(colors.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     computed = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if isinstance(node.value, ast.Call):
                 computed.add(node.target.id)
-    for name, kind in config.GOLD_PROVENANCE.items():
+    for name, kind in colors.GOLD_PROVENANCE.items():
         if kind == "register":
             assert name not in computed, f"{name} mirrors the register; do not compute it"
 
 
 def test_the_derivation_steps_are_the_published_ones():
-    assert config.BRAND_DARK_GOLD_DEEP == config.lighten(config.BRAND_DARK_GOLD, -14)
-    assert config.BRAND_GOLD_HOVER == config.lighten(config.BRAND_GOLD, 13)
+    assert colors.BRAND_DARK_GOLD_DEEP == colors.lighten(colors.BRAND_DARK_GOLD, -14)
+    assert colors.BRAND_GOLD_HOVER == colors.lighten(colors.BRAND_GOLD, 13)
 
 
 def test_lighten_holds_hue():
     """Uniform per-channel is the whole point; a non-uniform step drifts hue."""
-    base = config._to_rgb(config.BRAND_DARK_GOLD)
-    deep = config._to_rgb(config.BRAND_DARK_GOLD_DEEP)
+    base = colors._to_rgb(colors.BRAND_DARK_GOLD)
+    deep = colors._to_rgb(colors.BRAND_DARK_GOLD_DEEP)
     deltas = {b - d for b, d in zip(base, deep)}
     assert deltas == {14}, f"step is not uniform: {deltas}"
 
@@ -176,7 +177,7 @@ def test_light_text_gold_clears_every_ground_it_draws_on():
     # The grounds by name, so a brand move measures the new ones;
     # REGISTER_GOLD_TEXT_GROUND_FLOOR is the register's gold text floor, which
     # the app does not draw.
-    for ground in (config.WHITE, config.APP_WINDOW_LIGHT, config.APP_ITEM_HOVER_LIGHT,
+    for ground in (colors.WHITE, colors.APP_WINDOW_LIGHT, colors.APP_ITEM_HOVER_LIGHT,
                    REGISTER_GOLD_TEXT_GROUND_FLOOR):
         ratio = contrast(deep, ground)
         assert ratio >= 4.5, f"{deep} on {ground} = {ratio:.4f}"
@@ -189,20 +190,23 @@ def test_dark_reuses_its_accent_for_text():
 
 def test_white_on_the_light_fill_clears():
     """The inversion is deliberate and both values pass at the new gold."""
-    assert contrast(config.WHITE, PALETTES["LIGHT"]["accent"]) >= 4.5
+    assert contrast(colors.WHITE, PALETTES["LIGHT"]["accent"]) >= 4.5
 
 
 def test_black_on_the_dark_fill_clears():
-    assert contrast(config.TRUE_BLACK, PALETTES["DARK"]["accent"]) >= 4.5
+    assert contrast(colors.TRUE_BLACK, PALETTES["DARK"]["accent"]) >= 4.5
 
 
 # ------------------------------------------------------------ retired values
 
 def _tracked_sources():
     import subprocess
-    root = pathlib.Path(config.__file__).resolve().parent.parent
-    out = subprocess.run(["git", "ls-files"], cwd=root,
-                         capture_output=True, text=True).stdout.split()
+    root = pathlib.Path(colors.__file__).resolve().parent.parent
+    # --others --exclude-standard: a file a change adds is read before it is
+    # committed, as the commit will hold it: utils/colors.py, which #63 A
+    # (2026-10-18) adds, is read on the run that adds it.
+    out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                         cwd=root, capture_output=True, text=True).stdout.split()
     for rel in out:
         path = root / rel
         if path.suffix.lower() not in (".py", ".qss", ".css"):
@@ -249,7 +253,7 @@ def test_the_retired_scan_is_still_looking():
     test above would pass by reading nothing."""
     files = list(_tracked_sources())
     assert len(files) > 20, f"the source scan found only {len(files)} files"
-    assert any(rel == "utils/config.py" for rel, _ in files), \
+    assert any(rel == "utils/colors.py" for rel, _ in files), \
         "the scan is not reading the color file"
 
 

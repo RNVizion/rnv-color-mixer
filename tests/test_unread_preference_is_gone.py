@@ -4,7 +4,7 @@ RNV-RULINGS-2026-10-05, item 5. Ruled 2026-10-05: "Yes."
 
 WHAT WENT. The settings' defaults stored a color for a new slot under one
 key that nothing read and no control set. A new slot starts from
-config.DEFAULT_COLOR; the stored value only looked as if it decided that.
+colors.DEFAULT_COLOR; the stored value only looked as if it decided that.
 A settings file that already holds the key keeps it: the key is carried and
 ignored, as it always was.
 
@@ -21,7 +21,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-#: What went. A new slot's color is config.DEFAULT_COLOR.
+#: What went. A new slot's color is colors.DEFAULT_COLOR.
 PREFERENCE_GONE = "default_slot_color"
 
 MENTION_ONLY = {pathlib.Path(__file__).name}
@@ -62,7 +62,7 @@ def test_nothing_names_it():
     found = _named(_python())
     assert not found, (
         f"{PREFERENCE_GONE} is written again:\n  " + "\n  ".join(found)
-        + "\nIt was removed on 2026-10-05: nothing read it. A new slot starts from config.DEFAULT_COLOR.")
+        + "\nIt was removed on 2026-10-05: nothing read it. A new slot starts from colors.DEFAULT_COLOR.")
 
 
 def test_the_sweep_is_looking():

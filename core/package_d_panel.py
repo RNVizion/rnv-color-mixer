@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QModelIndex, QSize
 from PyQt6.QtGui import QColor, QPixmap, QPainter, QBrush, QIcon, QShortcut, QKeySequence, QResizeEvent, QShowEvent, QCloseEvent
 from utils import config
+from utils import colors
 import os
 import traceback
 from ui.debug_overlay import DebugOverlay
@@ -211,7 +212,7 @@ def _style_harmony_description(panel) -> None:
     through a helper. Qt makes 0.1 the byte 25, so the pixels are the same.
     """
     accent = _theme_colors(bool(getattr(panel, "_is_dark", True)))["accent_ink"]
-    wash = config.translucent(accent, config.HARMONY_DESCRIPTION_ALPHA)
+    wash = colors.translucent(accent, colors.HARMONY_DESCRIPTION_ALPHA)
     panel.harmony_description.setStyleSheet(
         f"color: {accent}; font-size: {config.FONT_SIZES['small']}px; "
         f"padding: 8px; background-color: {wash}; "
@@ -382,10 +383,10 @@ class PackageDPanel(QDialog):
     def _create_debug_overlays(self) -> None:
         """Create debug overlays for Package D Panel."""
         # Panel overlay - TOP-RIGHT (green)
-        self.debug_overlay_panel = DebugOverlay(self, "Package D Panel", config.DEBUG_OVERLAY_COLORS['panel'])
+        self.debug_overlay_panel = DebugOverlay(self, "Package D Panel", colors.DEBUG_OVERLAY_COLORS['panel'])
         
         # Tabs overlay - TOP-LEFT (orange) - custom position
-        self.debug_overlay_tabs = DebugOverlay(self.tabs, "Tabs Widget", config.DEBUG_OVERLAY_COLORS['tabs'])
+        self.debug_overlay_tabs = DebugOverlay(self.tabs, "Tabs Widget", colors.DEBUG_OVERLAY_COLORS['tabs'])
         
         # Override position_overlay for tabs overlay to place in TOP-LEFT
         def position_tabs_overlay() -> None:
@@ -1596,9 +1597,9 @@ class PackageDPanel(QDialog):
         # RNV-COLOR-SYNC, #56 A (2026-10-17): sample data, named in the
         # color file as the application's own.
         placeholder_colors = [
-            config.HISTORY_SAMPLE_ORANGE_RED, config.HISTORY_SAMPLE_GREEN,
-            config.HISTORY_SAMPLE_BLUE, config.HISTORY_SAMPLE_MAGENTA,
-            config.HISTORY_SAMPLE_YELLOW,
+            colors.HISTORY_SAMPLE_ORANGE_RED, colors.HISTORY_SAMPLE_GREEN,
+            colors.HISTORY_SAMPLE_BLUE, colors.HISTORY_SAMPLE_MAGENTA,
+            colors.HISTORY_SAMPLE_YELLOW,
         ]
         
         # Disable updates during batch operation

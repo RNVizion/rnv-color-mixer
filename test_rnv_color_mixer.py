@@ -103,6 +103,7 @@ from utils.settings_manager import SettingsManager
 from utils.error_handler    import ErrorHandler
 from utils.file_utils       import FileUtils
 from utils import config
+from utils import colors
 
 # RNV-COLOR-SYNC, #53 A and #55 B (2026-10-17): the color values this suite
 # needs that are not the application's colors are named once, in
@@ -840,7 +841,7 @@ class TestFileUtils(unittest.TestCase):
 # 10. CONFIG / THEME MANAGER
 # ══════════════════════════════════════════════════════════════════════════════
 class TestConfig(unittest.TestCase):
-    """config.py — ThemeManager, brand colors, constants."""
+    """config.py and colors.py — ThemeManager, brand colors, constants."""
 
     def setUp(self): self.tm = config.ThemeManager()
 
@@ -851,9 +852,9 @@ class TestConfig(unittest.TestCase):
     def test_light_keys(self):  self._keys(self.tm.LIGHT_THEME, ["window_bg","text_color","main_btn_bg","tooltip_border"])
     def test_image_keys(self):  self._keys(self.tm.IMAGE_THEME, ["window_bg","text_color","border_color","tooltip_border"])
 
-    def test_dark_brand_gold(self):   self.assertEqual(self.tm.DARK_THEME["tooltip_border"],  config.BRAND_GOLD)
-    def test_light_brand_gold(self):  self.assertEqual(self.tm.LIGHT_THEME["tooltip_border"], config.BRAND_DARK_GOLD)
-    def test_image_brand_gold(self):  self.assertEqual(self.tm.IMAGE_THEME["tooltip_border"], config.BRAND_GOLD)
+    def test_dark_brand_gold(self):   self.assertEqual(self.tm.DARK_THEME["tooltip_border"],  colors.BRAND_GOLD)
+    def test_light_brand_gold(self):  self.assertEqual(self.tm.LIGHT_THEME["tooltip_border"], colors.BRAND_DARK_GOLD)
+    def test_image_brand_gold(self):  self.assertEqual(self.tm.IMAGE_THEME["tooltip_border"], colors.BRAND_GOLD)
 
     def test_cycle_dark_to_light(self):
         self.tm.current_theme="dark"; self.tm.image_mode_available=False
@@ -879,8 +880,8 @@ class TestConfig(unittest.TestCase):
     def test_max_slots_12(self):        self.assertEqual(config.MAX_SLOTS,12)
     def test_package_d_width(self):     self.assertGreater(config.PACKAGE_D_WIDTH,0)
     def test_font_sizes(self):          [self.assertIn(k,config.FONT_SIZES) for k in ["small","normal","large"]]
-    def test_dark_ss_brand_gold(self):  self.assertIn(config.BRAND_GOLD,config.DARK_STYLESHEET)
-    def test_light_ss_brand_gold(self): self.assertIn(config.BRAND_DARK_GOLD,config.LIGHT_STYLESHEET)
+    def test_dark_ss_brand_gold(self):  self.assertIn(colors.BRAND_GOLD,config.DARK_STYLESHEET)
+    def test_light_ss_brand_gold(self): self.assertIn(colors.BRAND_DARK_GOLD,config.LIGHT_STYLESHEET)
     def test_stylesheets_nonempty(self):
         for ss in [config.DARK_STYLESHEET,config.LIGHT_STYLESHEET,config.IMAGE_STYLESHEET]:
             self.assertGreater(len(ss),100)
@@ -1615,12 +1616,12 @@ class TestConfigExtended(unittest.TestCase):
 
     # ── Corrected canvas_bg for LIGHT ────────────────────────────────────────
     def test_light_canvas_bg_is_white(self):
-        self.assertEqual(self.tm.LIGHT_THEME["canvas_bg"],config.WHITE)
+        self.assertEqual(self.tm.LIGHT_THEME["canvas_bg"],colors.WHITE)
 
     # ── Scrollbar hover split: dict=gold (dialogs), stylesheet=neutral (main) ─
     def test_light_theme_dict_scrollbar_hover_is_gold(self):
         # Dialogs use the theme dict → must stay gold
-        self.assertEqual(self.tm.LIGHT_THEME["scrollbar_hover"],config.BRAND_DARK_GOLD)
+        self.assertEqual(self.tm.LIGHT_THEME["scrollbar_hover"],colors.BRAND_DARK_GOLD)
 
     def test_light_stylesheet_scrollbar_hover_is_neutral(self):
         # Main window uses LIGHT_STYLESHEET → must NOT be gold
@@ -1641,7 +1642,7 @@ class TestConfigExtended(unittest.TestCase):
     def test_get_stylesheet_light(self):
         self.tm.current_theme="light"
         ss=config.get_stylesheet(self.tm)
-        self.assertIn(config.APP_WINDOW_LIGHT,ss)
+        self.assertIn(colors.APP_WINDOW_LIGHT,ss)
 
     def test_get_stylesheet_image(self):
         self.tm.current_theme="image"
@@ -1665,11 +1666,11 @@ class TestConfigExtended(unittest.TestCase):
         tm2=config.ThemeManager(); self.assertFalse(tm2.is_image_mode())
 
     def test_get_theme_colors_dark(self):
-        c=config.get_theme_colors(dark_mode=True)
+        c=colors.get_theme_colors(dark_mode=True)
         self.assertIsInstance(c,dict); self.assertIn("accent",c)
 
     def test_get_theme_colors_light(self):
-        c=config.get_theme_colors(dark_mode=False)
+        c=colors.get_theme_colors(dark_mode=False)
         self.assertIsInstance(c,dict); self.assertIn("window_bg",c)
 
     def test_image_theme_cycle(self):

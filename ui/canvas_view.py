@@ -47,9 +47,11 @@ except ImportError:
 
 try:
     from utils import config
+    from utils import colors
 except ImportError:
     logger.warning("Warning: config not available")
     config = None
+    colors = None
 
 
 class ImageDisplayLabel(QLabel):
@@ -165,7 +167,7 @@ class ImageDisplayLabel(QLabel):
         ask, dark's accent, as the border and the corners take.
         """
         accent = theme['accent'] if theme else config.ThemeManager.DARK_THEME['accent']
-        return config.translucent(accent, config.CANVAS_SELECTION_ALPHA)
+        return colors.translucent(accent, colors.CANVAS_SELECTION_ALPHA)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Handle mouse move - updated for drag selection"""
@@ -301,14 +303,14 @@ class ImageDisplayLabel(QLabel):
                         corner_color = QColor(theme['accent'])
                         # RNV-NAMED-AND-USED (2026-10-04): the labels this
                         # view paints took QColor() built from numbers; each
-                        # is the same color, by its name in config.
-                        text_color = QColor(config.WHITE)
+                        # is the same color, by its name in utils/colors.py.
+                        text_color = QColor(colors.WHITE)
                     else:
                         _accent = theme['accent'] if theme else config.ThemeManager.DARK_THEME['accent']
                         overlay_color = QColor(self._selection_fill(theme))
                         border_color = QColor(_accent)
                         corner_color = QColor(_accent)
-                        text_color = QColor(config.TRUE_BLACK)
+                        text_color = QColor(colors.TRUE_BLACK)
                     
                     # Draw semi-transparent overlay: the accent at
                     # CANVAS_SELECTION_ALPHA, so the area selected shows through
@@ -344,11 +346,11 @@ class ImageDisplayLabel(QLabel):
                         bg_rect = text_rect.adjusted(-4, -2, 4, 2)
                         
                         if self._draws_dark(theme):
-                            painter.fillRect(bg_rect, QColor(config.translucent(
-                                config.TRUE_BLACK, config.CANVAS_LABEL_ALPHA)))
+                            painter.fillRect(bg_rect, QColor(colors.translucent(
+                                colors.TRUE_BLACK, colors.CANVAS_LABEL_ALPHA)))
                         else:
-                            painter.fillRect(bg_rect, QColor(config.translucent(
-                                config.CANVAS_LABEL_PLATE_LIGHT, config.CANVAS_LABEL_ALPHA)))
+                            painter.fillRect(bg_rect, QColor(colors.translucent(
+                                colors.CANVAS_LABEL_PLATE_LIGHT, colors.CANVAS_LABEL_ALPHA)))
                         
                         painter.setPen(text_color)
                         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, size_text)
@@ -362,7 +364,7 @@ class ImageDisplayLabel(QLabel):
                     # is the same in every mode, and this gold shows at both ends of
                     # it: 4.17:1 on white, 3.83:1 on black. It was light's accent,
                     # read in two branches that drew this same pen.
-                    pen = QPen(QColor(config.BRAND_DARK_GOLD), 1)
+                    pen = QPen(QColor(colors.BRAND_DARK_GOLD), 1)
                     
                     painter.setPen(pen)
                     
@@ -401,11 +403,11 @@ class ImageDisplayLabel(QLabel):
             
             # Background
             if self._draws_dark(theme):
-                bg_color = QColor(config.translucent(config.TRUE_BLACK, config.CANVAS_PREVIEW_ALPHA))
-                border_color = QColor(config.CANVAS_PREVIEW_EDGE_DARK)
+                bg_color = QColor(colors.translucent(colors.TRUE_BLACK, colors.CANVAS_PREVIEW_ALPHA))
+                border_color = QColor(colors.CANVAS_PREVIEW_EDGE_DARK)
             else:
-                bg_color = QColor(config.translucent(config.WHITE, config.CANVAS_PREVIEW_ALPHA))
-                border_color = QColor(config.TRUE_BLACK)
+                bg_color = QColor(colors.translucent(colors.WHITE, colors.CANVAS_PREVIEW_ALPHA))
+                border_color = QColor(colors.TRUE_BLACK)
             
             painter.fillRect(preview_rect, bg_color)
             
@@ -432,11 +434,11 @@ class ImageDisplayLabel(QLabel):
             
             # Text shadow
             if self._draws_dark(theme):
-                shadow_pen = QPen(QColor(config.WHITE), 1)
-                text_color = QColor(config.TRUE_BLACK)
+                shadow_pen = QPen(QColor(colors.WHITE), 1)
+                text_color = QColor(colors.TRUE_BLACK)
             else:
-                shadow_pen = QPen(QColor(config.TRUE_BLACK), 1)
-                text_color = QColor(config.WHITE)
+                shadow_pen = QPen(QColor(colors.TRUE_BLACK), 1)
+                text_color = QColor(colors.WHITE)
             
             painter.setPen(shadow_pen)
             for dx in [-1, 0, 1]:
