@@ -535,26 +535,28 @@ mode, so light draws it. In dark and image the plate is TRUE_BLACK.
 App-owned."""
 
 # RNV-COLOR-SYNC (2026-10-17), #56 A: colors the application's own code
-# still wrote out, named here at the value and in the case they had, so
-# no pixel and no line of shown text moves. Each is DATA, the
-# application's own, and a brand move never touches it.
+# still wrote out, named here at the value they had, so no pixel moves.
+# #66 A (2026-10-18) wrote them in lower case, as every hex in the source
+# is. Each is DATA, the application's own, and a brand move never
+# touches it.
 
-HISTORY_SAMPLE_ORANGE_RED: Final[str] = "#FF5733"  # app-owned
+HISTORY_SAMPLE_ORANGE_RED: Final[str] = "#ff5733"  # app-owned
 """The first of five sample rows the History tab shows when the history
 module cannot be loaded (core/package_d_panel.py,
 _populate_history_placeholder). Data, not chrome: each row shows its
-color and its hex, in the upper case written here. App-owned."""
+color and its hex, in lower case, as a real History row writes its own
+(#66 A). App-owned."""
 
-HISTORY_SAMPLE_GREEN: Final[str] = "#33FF57"  # app-owned
+HISTORY_SAMPLE_GREEN: Final[str] = "#33ff57"  # app-owned
 """The second sample row of the History tab's fallback. App-owned."""
 
-HISTORY_SAMPLE_BLUE: Final[str] = "#3357FF"  # app-owned
+HISTORY_SAMPLE_BLUE: Final[str] = "#3357ff"  # app-owned
 """The third sample row of the History tab's fallback. App-owned."""
 
-HISTORY_SAMPLE_MAGENTA: Final[str] = "#FF33F5"  # app-owned
+HISTORY_SAMPLE_MAGENTA: Final[str] = "#ff33f5"  # app-owned
 """The fourth sample row of the History tab's fallback. App-owned."""
 
-HISTORY_SAMPLE_YELLOW: Final[str] = "#F5FF33"  # app-owned
+HISTORY_SAMPLE_YELLOW: Final[str] = "#f5ff33"  # app-owned
 """The fifth sample row of the History tab's fallback. App-owned."""
 
 

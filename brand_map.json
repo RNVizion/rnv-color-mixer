@@ -126,23 +126,23 @@
       "why": "The plate behind a dragged selection's size, in light."
     },
     "HISTORY_SAMPLE_ORANGE_RED": {
-      "app": "#FF5733",
+      "app": "#ff5733",
       "why": "Data, not chrome: the first sample row the History tab shows when the history module cannot be loaded (#56 A)."
     },
     "HISTORY_SAMPLE_GREEN": {
-      "app": "#33FF57",
+      "app": "#33ff57",
       "why": "Data, not chrome: the second sample row of the History tab's fallback (#56 A)."
     },
     "HISTORY_SAMPLE_BLUE": {
-      "app": "#3357FF",
+      "app": "#3357ff",
       "why": "Data, not chrome: the third sample row of the History tab's fallback (#56 A)."
     },
     "HISTORY_SAMPLE_MAGENTA": {
-      "app": "#FF33F5",
+      "app": "#ff33f5",
       "why": "Data, not chrome: the fourth sample row of the History tab's fallback (#56 A)."
     },
     "HISTORY_SAMPLE_YELLOW": {
-      "app": "#F5FF33",
+      "app": "#f5ff33",
       "why": "Data, not chrome: the fifth sample row of the History tab's fallback (#56 A)."
     }
   }
