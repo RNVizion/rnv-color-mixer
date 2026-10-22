@@ -1,3 +1,4 @@
+# Codespaces and Linux. On Windows, run .\in.ps1 instead (#82 A).
 pip install -r requirements.txt -r tests/requirements-dev.txt
 sudo apt-get update
 sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libdbus-1-3 \
