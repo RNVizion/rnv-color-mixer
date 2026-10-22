@@ -575,6 +575,7 @@ DARK_THEME = {
     'main_btn_bg': APP_SURFACE_DARK,
     'main_btn_text': APP_TEXT_DARK,
     'main_btn_hover_bg': APP_BORDER_DARK,
+    'main_btn_pressed_bg': APP_BTN_PRESSED,
     'main_btn_pressed_text': TRUE_BLACK,
     # The hover and pressed a DIALOG button takes. Added
     # 2026-09-01, holding what the three dialogs already painted.
@@ -638,6 +639,7 @@ LIGHT_THEME = {
     'main_btn_bg': WHITE,
     'main_btn_text': TRUE_BLACK,
     'main_btn_hover_bg': APP_BTN_HOVER_INVERSE,
+    'main_btn_pressed_bg': APP_BTN_PRESSED,
     'main_btn_pressed_text': WHITE,
     # The plate and pressed a DIALOG button takes. Added
     # 2026-09-01, holding what the three dialogs already painted.

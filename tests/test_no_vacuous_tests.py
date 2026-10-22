@@ -71,6 +71,15 @@ swallow it -- documented in tests/test_palette_import.py.
 That file is locked by convention, so this round reports rather than edits.
 The exclusion is a statement about ownership, not about quality: those
 tests are the ones worth fixing.
+
+WHAT IT DOES NOT SWEEP, SINCE 2026-10-22: anything that is not the
+application's. On Chris's own machine each repository keeps its virtual
+environment in `.venv/` inside the checkout (git ignores it), and the walk
+read every `test_*.py` of every installed package: third-party tests with
+`pass` bodies failed this guard, and a file that is not UTF-8 failed it
+with a decode error. In Codespaces and CI the venv lives elsewhere, so the
+guard had never met one. A folder whose name starts with a dot, or is a
+venv, a build output or a cache, is not the application's and is skipped.
 """
 from __future__ import annotations
 
@@ -78,6 +87,10 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+#: Folders that hold no test of this application's: a venv, a build, a cache.
+#: Any folder whose name starts with a dot (.git, .venv, .pytest_cache) as well.
+SKIP_DIRS = {"venv", "env", "build", "dist", "__pycache__", "site-packages", "node_modules"}
 
 #: Each application keeps its one locked suite as a `test_*.py` at the
 #: repository root. Discovered rather than named, so this file is identical
@@ -99,7 +112,8 @@ def _test_files():
     manager's snapshots/ directory gets read at all.
     """
     for path in sorted(ROOT.rglob("test_*.py")):
-        if ".git" in path.parts:
+        folders = path.relative_to(ROOT).parts[:-1]
+        if any(p in SKIP_DIRS or p.startswith(".") for p in folders):
             continue
         if path.parent == ROOT:
             continue

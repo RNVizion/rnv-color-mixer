@@ -579,7 +579,7 @@ class ColorSlot(QWidget, SignalMixin):
                     color: {theme['main_btn_hover_text']};
                 }}
                 QPushButton:pressed {{
-                    background-color: {theme['main_btn_hover_bg']};
+                    background-color: {theme['main_btn_pressed_bg']};
                     color: {theme['main_btn_pressed_text']};
                     border-color: {theme['border_color']};
                 }}
@@ -590,11 +590,14 @@ class ColorSlot(QWidget, SignalMixin):
                     border-radius: 4px;
                 }}
                 QSlider::handle:horizontal {{
-                    background: {theme['text_color']};
+                    background: {theme['slider_handle']};
                     border: 1px solid {theme['border_color']};
                     width: 18px;
                     border-radius: 9px;
                     margin: -5px 0;
+                }}
+                QSlider::handle:horizontal:hover {{
+                    background: {theme['accent']};
                 }}
             """
             self.setStyleSheet(stylesheet)

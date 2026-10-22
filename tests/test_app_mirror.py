@@ -7,7 +7,7 @@ against RNVizion/rnv-brand. APP_TEXT_DARK, APP_SURFACE_DARK and APP_BORDER_DARK
 are all REGISTERED values, and the register could move upstream while this app
 kept the old ones, silently and with a clean test run.
 
-It nearly happened: APP["text"] moved to APP_TEXT_DARK's value in rnv-brand@68d195e, and
+It nearly happened: APP["text"] moved to APP_TEXT_DARK's value in rnv-brand@989f12e, and
 nothing here would have noticed.
 
 THE INK GRID, published in the brand beside that move:

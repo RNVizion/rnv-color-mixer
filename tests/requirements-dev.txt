@@ -23,7 +23,7 @@ hypothesis>=6.90
 # written statement of which revision of the brand this app mirrors.
 # A branch ref would let the register move without a commit here.
 # Bumping it is an edit, and an edit is a diff someone can read.
-rnv-brand @ git+https://github.com/RNVizion/rnv-brand@b4fa970babbcb4141d1ea354c77e4d8d78248e82
+rnv-brand @ git+https://github.com/RNVizion/rnv-brand@070ce4e9aa5c4827a6e50676e51fb4233e6f5211
 
 # ── Test tooling (RNV-TEST-TOOLING, 2026-09-07) ────────────────────
 # The five RNV applications share one interpreter on a development

@@ -566,12 +566,12 @@ Bringing real-world paint mixing to the digital palette<br>
                     border: none;
                 }}
                 QScrollBar:vertical {{
-                    background-color: {_l['hover_color']};
+                    background-color: {_l['scrollbar_bg']};
                     width: 12px;
                     border-radius: 6px;
                 }}
                 QScrollBar::handle:vertical {{
-                    background-color: {_l['text_disabled']};
+                    background-color: {_l['scrollbar_handle']};
                     border-radius: 5px;
                     min-height: 20px;
                 }}
