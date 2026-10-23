@@ -7,6 +7,7 @@ import json
 import os
 from typing import Any
 from pathlib import Path
+from utils.atomic_write import atomic_write_json
 
 # Import logger
 try:
@@ -157,8 +158,7 @@ class SettingsManager:
             self.settings_file.parent.mkdir(parents=True, exist_ok=True)
             
             # Write settings
-            with open(self.settings_file, 'w', encoding='utf-8') as f:
-                json.dump(self.settings, f, indent=2, ensure_ascii=False)
+            atomic_write_json(self.settings_file, self.settings, indent=2, ensure_ascii=False)
             
             logger.success(f"Settings saved to {self.settings_file}") if logger else None
             return True

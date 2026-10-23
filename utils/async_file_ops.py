@@ -25,6 +25,7 @@ Usage Examples:
 from PyQt6.QtCore import QThread, pyqtSignal
 import json
 from typing import Any, Callable
+from utils.atomic_write import atomic_write_bytes, atomic_write_json, atomic_write_text
 
 # Import logger
 try:
@@ -70,23 +71,21 @@ class FileWriterThread(QThread):
         try:
             self.progress.emit(10)
             
+            # Atomic (#83 A): the file is the old one or the new one, never a mixture.
             if self.format == 'json':
-                with open(self.filepath, 'w', encoding='utf-8') as f:
-                    self.progress.emit(30)
-                    json.dump(self.data, f, indent=2, ensure_ascii=False)
-                    self.progress.emit(90)
+                self.progress.emit(30)
+                atomic_write_json(self.filepath, self.data, indent=2, ensure_ascii=False)
+                self.progress.emit(90)
             
             elif self.format == 'text':
-                with open(self.filepath, 'w', encoding='utf-8') as f:
-                    self.progress.emit(30)
-                    f.write(str(self.data))
-                    self.progress.emit(90)
+                self.progress.emit(30)
+                atomic_write_text(self.filepath, str(self.data))
+                self.progress.emit(90)
             
             elif self.format == 'binary':
-                with open(self.filepath, 'wb') as f:
-                    self.progress.emit(30)
-                    f.write(self.data)
-                    self.progress.emit(90)
+                self.progress.emit(30)
+                atomic_write_bytes(self.filepath, self.data)
+                self.progress.emit(90)
             
             else:
                 raise ValueError(f"Unsupported format: {self.format}")

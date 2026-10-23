@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from typing import Any, Callable
 from pathlib import Path
+from utils.atomic_write import atomic_write_json
 
 # Import logger
 try:
@@ -140,8 +141,7 @@ Stops the autosave timer and disconnects signals.
             }
             
             # Write to file with pretty formatting
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(session_data, f, indent=2, ensure_ascii=False)
+            atomic_write_json(filepath, session_data, indent=2, ensure_ascii=False)
             
             # Add to recent sessions
             self._add_to_recent(filepath)
@@ -269,8 +269,7 @@ Stops the autosave timer and disconnects signals.
             recent = recent[:self.MAX_RECENT_SESSIONS]
             
             # Save updated list
-            with open(self.recent_file, 'w', encoding='utf-8') as f:
-                json.dump(recent, f, indent=2)
+            atomic_write_json(self.recent_file, recent, indent=2)
                 
         except Exception as e:
             logger.error(f"Error updating recent sessions: {e}")
@@ -319,8 +318,7 @@ Stops the autosave timer and disconnects signals.
             if filepath in recent:
                 recent.remove(filepath)
             
-            with open(self.recent_file, 'w', encoding='utf-8') as f:
-                json.dump(recent, f, indent=2)
+            atomic_write_json(self.recent_file, recent, indent=2)
                 
         except Exception as e:
             logger.error(f"Error removing from recent sessions: {e}")
@@ -353,8 +351,7 @@ Stops the autosave timer and disconnects signals.
             session_data['name'] = Path(new_path).stem
             session_data['modified'] = datetime.now().isoformat()
             
-            with open(new_path, 'w', encoding='utf-8') as f:
-                json.dump(session_data, f, indent=2, ensure_ascii=False)
+            atomic_write_json(new_path, session_data, indent=2, ensure_ascii=False)
             
             # Delete old file
             os.remove(old_path)

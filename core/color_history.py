@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from core.color_math import ColorMath
 from utils import colors
+from utils.atomic_write import atomic_write_json
 
 # Import logger
 try:
@@ -156,8 +157,7 @@ class ColorHistory:
                 "entries": [entry.to_dict() for entry in self.entries]
             }
             
-            with open(self.history_file, 'w') as f:
-                json.dump(data, f, indent=2)
+            atomic_write_json(self.history_file, data, indent=2)
             
             return True
             

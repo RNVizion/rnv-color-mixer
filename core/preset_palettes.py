@@ -6,6 +6,7 @@ Contains professionally designed color palettes ready to use
 
 import json
 import os
+from utils.atomic_write import atomic_write_json
 
 # Import logger
 try:
@@ -355,8 +356,7 @@ class PresetPalettes:
                 "presets": [p.to_dict() for p in self.custom_presets]
             }
             
-            with open(self.presets_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            atomic_write_json(self.presets_file, data, indent=2, ensure_ascii=False)
             
             return True
             
