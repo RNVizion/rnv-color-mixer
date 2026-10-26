@@ -1,9 +1,10 @@
 # Internal Developer Notes
 
-This document captures implementation-level integration patterns for
-internal utility modules. These notes are for contributors who are
-extending or modifying the application's infrastructure — they are not
-required reading for end users.
+This document covers two of the internal utility modules: the signal
+connection manager and the pixmap cache. These notes are for contributors
+who are extending or modifying the application's infrastructure — they
+are not required reading for end users. The examples are taken from the
+application's own code.
 
 ---
 
@@ -14,185 +15,162 @@ they can be cleanly disconnected later, preventing memory leaks in
 long-running sessions. The `SignalMixin` class provides the same
 capability to any `QObject` subclass.
 
-### Basic widget tracking
+### Tracking connections in the main window
+
+`ColorMixerApp` makes one manager in `__init__` and tracks the signals it
+connects from the canvas, the screen picker, the Settings & Features panel,
+each color slot's remove request, and the application's
+`styleHints().colorSchemeChanged`, which the Auto (follow system) theme
+listens to. The style hints outlive every window, so a closed window must
+let go of that one:
 
 ```python
-class ColorMixerApp:
-    def __init__(self):
-        self.signal_manager = SignalConnectionManager()
-    
-    def add_color_slot(self):
-        slot = ColorSlot()
-        self.signal_manager.connect(slot, slot.color_changed, self.on_color_change)
-        self.signal_manager.connect(slot, slot.remove_requested, self.remove_slot)
-    
-    def remove_color_slot(self, slot):
-        self.signal_manager.disconnect_widget(slot)
-        slot.deleteLater()
-```
+self.signal_manager = SignalConnectionManager()
 
-### Connections with tracking labels
-
-Labels make debugging easier when inspecting active connections:
-
-```python
+# In add_color_slot():
+slot = ColorSlot(len(self.slots), self.on_slot_change)
 self.signal_manager.connect(
-    slot1, 
-    slot1.color_changed, 
-    self.on_color_change,
-    track_as=f"color_slot_{len(self.slots)}"
+    slot,
+    slot.remove_requested,
+    self.remove_color_slot,
+    track_as=f"slot_{len(self.slots)}_remove"
 )
 ```
 
+The optional `track_as` label names the connection in the debug log and in
+`list_connections()`. The other signals in the application are connected
+directly with `connect()`.
+
+When a slot is removed, `remove_color_slot()` disconnects that slot's
+`remove_requested`, `color_changed` and `weight_changed` signals directly
+and then calls `slot.deleteLater()`. `disconnect_widget(widget)` is the
+manager's call for releasing every tracked connection of one widget.
+
 ### Application cleanup
 
-Call `disconnect_all()` during the close event to release every tracked
-connection before the Qt object tree is torn down:
+The main window's `closeEvent` releases every tracked connection before
+the Qt object tree is torn down:
 
 ```python
-def closeEvent(self, event):
-    logger.debug("Cleaning up signal connections...")
-    self.signal_manager.print_stats()
-    self.signal_manager.disconnect_all()
-    self.signal_manager.verify_cleanup()
-    super().closeEvent(event)
+if hasattr(self, 'signal_manager') and self.signal_manager:
+    disconnected = self.signal_manager.disconnect_all()
+    logger.debug(f"SignalConnectionManager disconnected {disconnected} signals")
 ```
+
+For debugging, `print_stats()` writes the connection counts to the log at
+debug level, and `verify_cleanup()` returns `False` and logs each
+connection still tracked.
 
 ### Using the SignalMixin
 
-For widgets that own their own connections, inherit from `SignalMixin`
-and use `track_connection()` instead of `connect()`:
+Widgets that own their own connections inherit from `SignalMixin` and use
+`track_connection()` instead of `connect()`. `ColorSlot`, `CanvasView`,
+`ScreenColorPicker`, `DebugOverlay` and `DebugOverlayDetailed` do this.
+From `ColorSlot`:
 
 ```python
 class ColorSlot(QWidget, SignalMixin):
-    def __init__(self):
+    def __init__(self, index: int, on_change_callback: Callable | None = None):
         super().__init__()
+        ...
         self.init_signal_tracking()
-        
-        self.track_connection(
-            self.slider,
-            self.slider.valueChanged,
-            self.on_slider_change,
-            label="weight_slider"
-        )
-    
-    def closeEvent(self, event):
+        ...
+        self.track_connection(self.weight_slider, self.weight_slider.valueChanged,
+                              self._on_weight_changed, "weight_changed")
+
+    def cleanup(self):
         self.cleanup_signals()
-        super().closeEvent(event)
+        self.on_change = None
 ```
+
+`CanvasView.cleanup()` also calls `cleanup_signals()`, and
+`ScreenColorPicker` calls it when the picker closes.
 
 ---
 
 ## QPixmap Cache (`utils/pixmap_cache.py`)
 
-The `QPixmapCache` class provides an LRU cache of rendered QPixmaps
-keyed by `(image_path, zoom_level, ...)`. The specialized
-`ImagePixmapCache` subclass adds automatic invalidation when the source
-image changes.
+The `QPixmapCache` class is an LRU cache of QPixmaps keyed by a tuple such
+as `(image_path, zoom_level, image_size)`, with hit, miss and eviction
+counts. The `ImagePixmapCache` subclass adds `set_current_image(path)`,
+which clears the cache when the image changes, `get_for_zoom(...)`, and
+`invalidate_image(path)`.
 
-### Wiring the cache into ImageHandler
+### How ImageHandler uses it
 
-```python
-class ImageHandler:
-    def __init__(self):
-        super().__init__()
-        self.pixmap_cache = QPixmapCache(max_size=15)
-        # or use the specialized variant:
-        # self.pixmap_cache = ImagePixmapCache(max_size=15)
-```
-
-### Simple get-or-create pattern
+`ImageHandler` constructs an `ImagePixmapCache` and clears it, but the
+display path does not read from it. What the canvas displays comes from a
+single QImage cached for the current zoom level:
 
 ```python
-def get_display_pixmap(self, zoom_level: float) -> QPixmap:
+# ImageHandler.__init__
+self._cached_qimage = None
+self._cached_zoom = None
+if _pixmap_cache_available:
+    self.pixmap_cache = ImagePixmapCache(max_size=15)
+else:
+    self.pixmap_cache = None
+
+def clear_cache(self) -> None:
+    """Clear all image caches (QImage and QPixmap)."""
+    self._cached_qimage = None
+    self._cached_zoom = None
+    if self.pixmap_cache:
+        cleared = self.pixmap_cache.clear()
+
+def get_qimage(self) -> 'QImage | None':
     if not self.image:
         return None
-    
-    cache_key = (self.image_path, zoom_level, self.image.size)
-    
-    pixmap = self.pixmap_cache.get_or_create(
-        cache_key,
-        lambda: self._create_pixmap(zoom_level)
-    )
-    
-    return pixmap
+    if (self._cached_qimage is not None and
+        self._cached_zoom == self.zoom_level):
+        return self._cached_qimage
+    # ... resize with PIL, convert to an RGB888 QImage ...
+    self._cached_qimage = qimage
+    self._cached_zoom = self.zoom_level
+    return qimage
 ```
 
-### Explicit get/put with hit-rate logging
+`clear_cache()` runs when an image loads, when the zoom level changes, and
+when the image is cleared. `CanvasView.display_image()` calls `get_qimage()`
+and shows the result.
 
-When profiling, the `get()`/`put()` pair gives you finer control and
-exposes the cache statistics:
+### Using the cache
+
+On its own, the cache is used like this:
 
 ```python
-def get_display_pixmap(self, zoom_level: float) -> QPixmap:
-    cache_key = (self.image_path, zoom_level, self.image.size)
-    
-    # Try cache first
-    pixmap = self.pixmap_cache.get(cache_key)
-    
-    if pixmap:
-        logger.success(f"Pixmap cache hit! (zoom: {zoom_level})")
-        stats = self.pixmap_cache.get_stats()
-        logger.debug(f"  Cache: {stats['size']}/{stats['max_size']}, "
-                     f"Hit rate: {stats['hit_rate']:.1f}%")
-    else:
-        logger.error(f"Cache miss, creating pixmap (zoom: {zoom_level})")
-        pixmap = self._create_pixmap(zoom_level)
-        self.pixmap_cache.put(cache_key, pixmap)
-    
-    return pixmap
+from utils.pixmap_cache import ImagePixmapCache
+
+cache = ImagePixmapCache(max_size=10)
+cache.set_current_image(path)          # clears pixmaps of any other image
+
+pixmap = cache.get_for_zoom(
+    path,
+    zoom_level,
+    (width, height),                   # the original image size
+    lambda: make_pixmap(zoom_level)    # called only on a miss
+)
+
+# The general form, for any key:
+pixmap = cache.get_or_create((path, zoom_level, (width, height)),
+                             lambda: make_pixmap(zoom_level))
 ```
 
-### Clearing the cache when a new image loads
-
-```python
-def load_image(self, path: str) -> bool:
-    # ... load image ...
-    
-    # Clear old pixmaps
-    cleared = self.pixmap_cache.clear()
-    logger.debug(f"Cleared {cleared} cached pixmaps for new image")
-    
-    return True
-```
-
-### Using `ImagePixmapCache` (automatic invalidation)
-
-```python
-class ImageHandler:
-    def __init__(self):
-        self.pixmap_cache = ImagePixmapCache(max_size=15)
-    
-    def load_image(self, path: str):
-        # Automatically clears old image's pixmaps
-        self.pixmap_cache.set_current_image(path)
-    
-    def get_display_pixmap(self, zoom_level: float):
-        return self.pixmap_cache.get_for_zoom(
-            self.image_path,
-            zoom_level,
-            self.image.size,
-            lambda: self._create_pixmap(zoom_level)
-        )
-```
+`get()` and `put()` are there for finer control, and `get_stats()` returns
+`size`, `max_size`, `hits`, `misses`, `hit_rate` and `evictions`.
 
 ### Monitoring cache performance
 
-```python
-# After some operations:
-self.pixmap_cache.print_stats()
-```
-
-Example output:
+`print_stats()` writes the statistics to the log at debug level. After two
+misses and one hit on a cache of 10:
 
 ```
-==================================================
-QPixmap Cache Statistics:
-==================================================
-  Cache Size:     8/10
-  Cache Hits:     45
-  Cache Misses:   8
-  Hit Rate:       84.9%
-  Evictions:      2
-==================================================
+DEBUG    | PixmapCache          | QPixmap Cache Statistics:
+DEBUG    | PixmapCache          | ==================================================
+DEBUG    | PixmapCache          |   Cache Size:     2/10
+DEBUG    | PixmapCache          |   Cache Hits:     1
+DEBUG    | PixmapCache          |   Cache Misses:   2
+DEBUG    | PixmapCache          |   Hit Rate:       33.3%
+DEBUG    | PixmapCache          |   Evictions:      0
+DEBUG    | PixmapCache          | ==================================================
 ```

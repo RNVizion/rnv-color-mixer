@@ -934,7 +934,7 @@ class PackageDPanel(QDialog):
             0: "Standard digital color mixing using weighted RGB averaging. Best for screen/digital work.",
             1: "HSV-based mixing with better hue preservation. Good for maintaining color vibrancy.",
             2: "LAB color space mixing for perceptually uniform blending. Natural-looking gradients.",
-            3: "Subtractive CMY mixing like inks/dyes. Yellow + Cyan = Green, not gray.",
+            3: "Subtractive CMY mixing like inks/dyes: each color filters the light and the filters multiply. Yellow + Cyan = Green; Yellow + Blue = dark green, not gray.",
             4: "Artist's RYB color wheel mixing. Yellow + Blue = Green, Red + Blue = Purple.",
             5: "Kubelka-Munk paint theory. Most realistic paint/pigment simulation with natural darkening."
         }
@@ -974,6 +974,11 @@ class PackageDPanel(QDialog):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["Dark Mode", "Light Mode", "Image Mode", "Auto (follow system)"])
         self.theme_combo.setMinimumWidth(200)
+        self.theme_combo.setToolTip(
+            "The theme the app opens in.\n"
+            "Auto (follow system) opens in Light or Dark as the system is set,\n"
+            "and follows the system when it changes. It never picks Image Mode.\n"
+            "The theme button switches the mode at once, and ends Auto.")
         theme_layout.addWidget(self.theme_combo)
         theme_layout.addStretch()
         layout.addLayout(theme_layout)
@@ -986,6 +991,10 @@ class PackageDPanel(QDialog):
         # Auto-load last session
         self.autoload_session_check = QCheckBox("Auto-load last session on startup")
         self.autoload_session_check.setChecked(False)
+        self.autoload_session_check.setToolTip(
+            "At startup, load the session at the top of Sessions > Recent Sessions\n"
+            "(the one last saved or loaded there). When the app offers to recover\n"
+            "a run that did not close, that offer comes instead.")
         layout.addWidget(self.autoload_session_check)
         
         # Show tooltips (F11 to toggle)
@@ -1028,6 +1037,9 @@ class PackageDPanel(QDialog):
         # Enable history
         self.history_enabled_check = QCheckBox("Enable color history")
         self.history_enabled_check.setChecked(True)
+        self.history_enabled_check.setToolTip(
+            "When off, mixed colors are not added to the History tab.\n"
+            "The colors already there are kept.")
         layout.addWidget(self.history_enabled_check)
         
         # History limit
@@ -1035,6 +1047,11 @@ class PackageDPanel(QDialog):
         history_limit_layout.addWidget(QLabel("History Size Limit:"))
         self.history_limit_spin = QLineEdit("50")
         self.history_limit_spin.setMaximumWidth(60)
+        self.history_limit_spin.setToolTip(
+            f"How many mixed colors the history keeps "
+            f"({ColorHistory.MIN_LIMIT if ColorHistory else 1} to "
+            f"{ColorHistory.MAX_LIMIT if ColorHistory else 1000}).\n"
+            "Applied when you press Save: the oldest colors beyond it are removed.")
         history_limit_layout.addWidget(self.history_limit_spin)
         history_limit_layout.addWidget(QLabel("colors"))
         history_limit_layout.addStretch()
@@ -1049,6 +1066,11 @@ class PackageDPanel(QDialog):
         self.export_format_combo = QComboBox()
         self.export_format_combo.addItems(["PNG Image", "JPEG Image", "JSON Data", "Adobe Swatch (ASE)", "GIMP Palette (GPL)"])
         self.export_format_combo.setMinimumWidth(200)
+        self.export_format_combo.setToolTip(
+            "The file type a save dialog opens on.\n"
+            "PNG and JPEG: Save Color Swatch (Ctrl+S, and Quick Actions' export).\n"
+            "JSON, ASE and GPL: Export Palette.\n"
+            "Any other type can still be chosen in the dialog.")
         export_layout.addWidget(self.export_format_combo)
         export_layout.addStretch()
         layout.addLayout(export_layout)
@@ -1088,9 +1110,10 @@ class PackageDPanel(QDialog):
             "• Weighted RGB - Standard digital mixing (additive light)\n"
             "• Weighted HSV - Better hue preservation\n"
             "• LAB Perceptual - Perceptually uniform blending\n"
-            "• Subtractive CMY - Like inks/dyes (Yellow+Cyan=Green)\n"
+            "• Subtractive CMY - Inks: colors multiply (Yellow+Cyan=Green)\n"
             "• Weighted RYB - Artist's color wheel (Yellow+Blue=Green)\n"
-            "• Kubelka-Munk - Realistic paint/pigment simulation"
+            "• Kubelka-Munk - Realistic paint/pigment simulation\n\n"
+            "Applied when you press Save: the mix is made again at once."
         )
         algorithm_layout.addWidget(self.mixing_algo_combo)
         algorithm_layout.addStretch()
@@ -1312,7 +1335,7 @@ class PackageDPanel(QDialog):
             # Settings file can be outdated if user switched themes using theme button
             if self.parent() and hasattr(self.parent(), 'ui_handler') and self.parent().ui_handler:
                 current_theme = self.parent().ui_handler.theme_manager.current_theme
-                theme_index = {"dark": 0, "light": 1, "image": 2, "auto": 3}.get(current_theme, 0)
+                theme_index = self._theme_box_index(current_theme) or 0
                 self.theme_combo.setCurrentIndex(theme_index)
                 logger.debug(f"     Theme combo set to match CURRENT theme: '{current_theme}' (index {theme_index})")
             else:
@@ -1436,6 +1459,9 @@ class PackageDPanel(QDialog):
             
             try:
                 history_limit = int(self.history_limit_spin.text())
+                if ColorHistory:
+                    history_limit = ColorHistory.clamp_limit(history_limit)
+                    self.history_limit_spin.setText(str(history_limit))
                 self.settings_manager.set("preferences.history_size_limit", history_limit)
                 self.settings_changed.emit("history_size_limit", history_limit)
             except ValueError:
@@ -2933,13 +2959,25 @@ class PackageDPanel(QDialog):
         on every switch, with the panel open or hidden, so a panel shown
         again already names the mode. It reads the mode where
         _load_settings_into_ui() does: from the app's theme manager, not
-        from the settings file, which the theme button does not write.
+        from the settings file, except that a saved Auto (follow system)
+        names Auto (see _theme_box_index).
         """
         handler = getattr(self.parent(), 'ui_handler', None)
         combo = getattr(self, 'theme_combo', None)
         if handler is None or combo is None:
             return
-        index = {"dark": 0, "light": 1, "image": 2, "auto": 3}.get(
-            handler.theme_manager.current_theme)
+        index = self._theme_box_index(handler.theme_manager.current_theme)
         if index is not None:
             combo.setCurrentIndex(index)
+
+    def _theme_box_index(self, current_theme: str) -> int | None:
+        """The Default Theme box's row for the app's mode.
+
+        While Auto (follow system) is the saved choice, the box names Auto,
+        not the Light or Dark it gave: Save would otherwise file that mode
+        and end Auto. The theme button files its mode before the panel is
+        told, so after a press the box names the mode.
+        """
+        if self.settings_manager and self.settings_manager.get("preferences.theme") == "auto":
+            return 3
+        return {"dark": 0, "light": 1, "image": 2, "auto": 3}.get(current_theme)

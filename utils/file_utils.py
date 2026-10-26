@@ -49,9 +49,39 @@ class FileUtils:
         )
         return file_path if file_path else None
 
+    @staticmethod
+    def filter_for_extension(file_filters: list[str], ext: str | None) -> str | None:
+        """
+        The first filter that lists `*.ext` (e.g. ext "jpeg" finds
+        "JPEG Files (*.jpg *.jpeg)"), or None if none does or ext is empty.
+        """
+        if not ext:
+            return None
+        pattern = f"*.{ext.lower().lstrip('.')}"
+        for file_filter in file_filters:
+            start, end = file_filter.rfind("("), file_filter.rfind(")")
+            if 0 <= start < end and pattern in file_filter[start + 1:end].split():
+                return file_filter
+        return None
+
+    @staticmethod
+    def _initial_filter(file_filters: list[str], ext: str | None) -> str | None:
+        """The filter a save dialog should open on for `ext`, or None when
+        that is the first filter, where the dialog opens anyway."""
+        found = FileUtils.filter_for_extension(file_filters, ext)
+        return found if found and found != file_filters[0] else None
+
+    @staticmethod
+    def _first_extension(file_filter: str) -> str | None:
+        """The first `*.ext` a filter lists, as ".ext", or None."""
+        import re
+        match = re.search(r'\*(\.\w+)', file_filter or "")
+        return match.group(1) if match else None
+
     def select_save_location(self, title: str = "Save File", 
                            default_ext: str = ".png",
-                           file_types: list[str] | None = None) -> str | None:
+                           file_types: list[str] | None = None,
+                           preferred_ext: str | None = None) -> str | None:
         """
         Open file dialog to select save location.
         
@@ -59,33 +89,54 @@ class FileUtils:
             title: Dialog window title
             default_ext: Default file extension
             file_types: List of file type filters
+            preferred_ext: Extension whose filter the dialog opens on
+                (Settings > Default Export Format). When the dialog opens
+                on that filter, a name typed without an extension takes
+                the extension of the filter chosen in the dialog.
             
         Returns:
             Selected file path or None if cancelled
         """
         if file_types is None:
-            file_filter = "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;All Files (*)"
+            file_filters = ["PNG Files (*.png)", "JPEG Files (*.jpg *.jpeg)"]
         else:
-            file_filter = ";;".join(file_types) + ";;All Files (*)"
+            file_filters = list(file_types)
+        file_filter = ";;".join(file_filters) + ";;All Files (*)"
+        initial_filter = self._initial_filter(file_filters, preferred_ext)
         
-        file_path, _ = QFileDialog.getSaveFileName(
-            self.parent,
-            title,
-            "",
-            file_filter
-        )
+        if initial_filter:
+            file_path, selected_filter = QFileDialog.getSaveFileName(
+                self.parent,
+                title,
+                "",
+                file_filter,
+                initial_filter
+            )
+        else:
+            file_path, selected_filter = QFileDialog.getSaveFileName(
+                self.parent,
+                title,
+                "",
+                file_filter
+            )
         
         if file_path:
             # Ensure file has proper extension
             if not os.path.splitext(file_path)[1]:
-                file_path += default_ext
+                chosen_ext = self._first_extension(selected_filter) if initial_filter else None
+                file_path += chosen_ext or default_ext
         
         return file_path if file_path else None
 
-    def select_palette_export_location(self) -> str | None:
+    def select_palette_export_location(self, preferred_ext: str | None = None) -> str | None:
         """
         Open file dialog to select palette export location.
         Supports all palette formats.
+        
+        Args:
+            preferred_ext: Extension whose filter the dialog opens on
+                (Settings > Default Export Format), e.g. "gpl". If no
+                filter lists it, the dialog opens on the first filter.
         
         Returns:
             Selected file path or None if cancelled
@@ -111,12 +162,22 @@ class FileUtils:
         ]
         
         file_filter = ";;".join(file_filters)
-        file_path, selected_filter = QFileDialog.getSaveFileName(
-            self.parent,
-            "Export Palette",
-            "",
-            file_filter
-        )
+        initial_filter = self._initial_filter(file_filters, preferred_ext)
+        if initial_filter:
+            file_path, selected_filter = QFileDialog.getSaveFileName(
+                self.parent,
+                "Export Palette",
+                "",
+                file_filter,
+                initial_filter
+            )
+        else:
+            file_path, selected_filter = QFileDialog.getSaveFileName(
+                self.parent,
+                "Export Palette",
+                "",
+                file_filter
+            )
         
         if file_path:
             # Auto-add extension based on selected filter if no extension provided

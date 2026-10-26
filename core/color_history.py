@@ -105,6 +105,33 @@ class ColorHistory:
         # Auto-save asynchronously (non-blocking)
         self.save_async()
         
+    #: The range Settings > History Size Limit is held to (as
+    #: SettingsManager.validate_settings checks it).
+    MIN_LIMIT = 1
+    MAX_LIMIT = 1000
+
+    @classmethod
+    def clamp_limit(cls, limit: int) -> int:
+        """A history size limit held to MIN_LIMIT..MAX_LIMIT."""
+        return max(cls.MIN_LIMIT, min(cls.MAX_LIMIT, int(limit)))
+
+    def set_max_entries(self, limit: int) -> int:
+        """
+        Keep at most `limit` entries, dropping the oldest beyond it now.
+
+        The app calls this at startup and when Settings > History Size Limit
+        is saved, so the setting wins over the max_entries a history file
+        stored. The limit is held to MIN_LIMIT..MAX_LIMIT.
+
+        Returns:
+            The limit now in force
+        """
+        self.max_entries = self.clamp_limit(limit)
+        if len(self.entries) > self.max_entries:
+            self.entries = self.entries[:self.max_entries]
+            self.save_async()
+        return self.max_entries
+
     def get_entries(self) -> list[ColorHistoryEntry]:
         """Get all history entries (most recent first)."""
         return self.entries.copy()

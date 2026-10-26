@@ -521,6 +521,10 @@ def history_factory(real_color_history, tmp_path):
         ch = real_color_history(**kwargs)
         ch.history_file = str(tmp_path / f"history_{len(made)}.json")
         ch.entries = []
+        # load() also takes max_entries from a real history file in the home
+        # directory, if there is one; the test's own value wins.
+        if "max_entries" in kwargs:
+            ch.max_entries = kwargs["max_entries"]
         ch._save_thread = None
         made.append(ch)
         return ch

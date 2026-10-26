@@ -86,10 +86,22 @@ rnv-color-mixer = "RNV_Color_Mixer:main"
 
 # ─── Package discovery ───────────────────────────────────────────────────
 # Explicit package list prevents setuptools from accidentally picking up
-# test files, docs, or scratch directories.
+# test files, docs, or scratch directories. `resources` and its folders have
+# no __init__.py; they are listed so their files install beside core/, ui/
+# and utils/, where utils/config.py looks for them (BASE_DIR is the parent
+# of utils/). A new folder under resources/ is added here too.
 [tool.setuptools]
 py-modules = ["RNV_Color_Mixer"]
-packages = ["core", "ui", "utils"]
+packages = [
+    "core", "ui", "utils",
+    "resources",
+    "resources.background_images",
+    "resources.button_images",
+    "resources.fonts",
+    "resources.icons",
+    "resources.screenshots",
+    "resources.test",
+]
 
 
 # ─── Dynamic version resolution ──────────────────────────────────────────
@@ -104,12 +116,15 @@ version = { attr = "utils.config.VERSION" }
 
 # ─── Resource file inclusion ─────────────────────────────────────────────
 # Ensure fonts, icons, button images, and background images are packaged
-# alongside the Python modules when building a wheel.
+# alongside the Python modules when building a wheel. Package data is
+# matched inside each package, so the resources are named under their own
+# `resources` package; a `resources/**/*` pattern under "*" matched nothing.
+# tests/test_install_resources.py holds this.
 [tool.setuptools.package-data]
 "*" = [
-    "resources/**/*",
     "py.typed",
 ]
+"resources" = ["**/*"]
 
 
 # ─── mypy configuration ──────────────────────────────────────────────────

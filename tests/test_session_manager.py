@@ -234,3 +234,67 @@ class TestAutosaveControl:
 
         sm.start_autosave(_StubApp())
         sm.stop_autosave()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. Crash-recovery offer (#94 A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _launch(main_module, qtbot):
+    """Start the app as a launch does, and let its startup recovery check run
+    (it is queued 500 ms after start)."""
+    win = main_module.ColorMixerApp()
+    qtbot.addWidget(win)
+    qtbot.wait(800)
+    return win
+
+
+@pytest.fixture
+def recovery_prompts(monkeypatch):
+    """Record each recovery question the app asks, and answer No."""
+    from PyQt6.QtWidgets import QMessageBox
+    asked: list[str] = []
+
+    def question(parent, title, *args, **kwargs):
+        asked.append(title)
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(question))
+    return asked
+
+
+@pytest.mark.integration
+class TestCrashRecoveryOffer:
+    """The next launch offers to recover only when the previous run did not
+    close cleanly. Before the fix, any auto-save on disk triggered the offer,
+    so every launch after a session of 60 s or more asked."""
+
+    def test_no_offer_after_a_clean_close(self, isolated_home, qtbot,
+                                          main_module, recovery_prompts):
+        first = _launch(main_module, qtbot)
+        first.session_manager._autosave()          # what the 60 s timer does
+        first.close()                              # a normal close
+        assert first.session_manager.get_autosave_count() == 1, \
+            "the auto-save is kept after a clean close"
+
+        second = _launch(main_module, qtbot)
+        try:
+            assert recovery_prompts == []
+            assert second.session_manager.check_for_autosave() is None
+        finally:
+            second.close()
+
+    def test_offer_after_a_run_that_did_not_close(self, isolated_home, qtbot,
+                                                  main_module, recovery_prompts):
+        first = _launch(main_module, qtbot)
+        first.session_manager._autosave()
+        written = str(first.session_manager.current_autosave_path)
+        # The process dies here: no closeEvent, so the recovery flag stays.
+
+        second = _launch(main_module, qtbot)
+        try:
+            assert recovery_prompts == ["Recover Previous Session?"]
+            assert second.session_manager.check_for_autosave() == written
+        finally:
+            second.close()
+            first.close()

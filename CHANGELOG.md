@@ -7,6 +7,145 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+Everything since 2026-05-21, by theme. The version number is held at
+3.3.3; no release has been cut.
+
+### Changed
+
+- **Python 3.13 is the floor.** `pyproject.toml` requires `>=3.13` and
+  both CI workflows run 3.13. The project had declared 3.10+ while CI ran
+  only 3.11. `tests/test_fleet_floor.py` keeps the declaration and the CI
+  version in step.
+
+- **Colors come from rnv-brand.** Every color moved out of
+  `utils/config.py` into `utils/colors.py`, and none is a bare hex in a
+  palette any more. `brand_map.json` says where each one comes from: a
+  name in rnv-brand, or a value this app owns, with the reason.
+  `tools/sync_colors.py` writes the values and `COLORS.md`, the chart of
+  the app's colors; `--check` writes nothing. A daily `brand-sync`
+  workflow opens a pull request when a brand color the app uses moves.
+  Hex values are written in lower case.
+
+- **rnv-brand is pinned to a commit** in `tests/requirements-dev.txt`.
+  The tests that compare the app's colors with the brand used to skip
+  when rnv-brand was not installed; they now run against the pinned
+  revision.
+
+- **Dependencies.** The test requirements moved from
+  `requirements-test.txt` at the root to `tests/requirements-dev.txt`.
+  pytest, pytest-qt, pytest-timeout, coverage and hypothesis take the
+  ranges shared by the five RNV apps, `requirements.txt` and
+  `pyproject.toml` declare the same runtime ranges, and PyQt6 is capped
+  below 7 in both.
+
+- **State files are written atomically.** Settings, sessions, the recent
+  sessions list, the color history and saved presets go through
+  `utils/atomic_write.py`, so a crash during a save leaves the old file or
+  the new one, never half of each.
+
+- **The theme button remembers the mode** for the next launch, and the
+  Settings tab's Default Theme box follows the mode the app is in.
+
+- **Contrast.** Text and control colors were checked in all three modes
+  and adjusted where they fell short: the muted descriptions and hints,
+  gold used as text, the empty lines of the History and Presets lists,
+  the canvas's selection and color preview in light mode (a dragged
+  selection is now see-through gold), the About dialog's light
+  scrollbar, the slot's weight slider and Remove button. A status is
+  never shown by color alone.
+
+- **Smaller images.** The Image mode background is now 3840×2169 (it was
+  16000×9038), and the settings gear images, `icon.png` and
+  `special_slot.png` are 512×512.
+  `tests/test_image_budget.py` holds those sizes.
+
+- **The history keeps 50 colors by default**, the History Size Limit's
+  default, where it kept 20 whatever the setting said. Lowering the limit
+  removes the oldest colors beyond it.
+
+- **The Default Theme box shows Auto (follow system)** while Auto is the
+  saved choice, so a later Save no longer replaces Auto with the mode it
+  gave.
+
+- **Subtractive CMY mixes like inks.** Each color is a filter that passes
+  part of each channel's light, and the mix multiplies them (a weighted
+  geometric mean), so yellow and blue make a dark green. It used to
+  average the cyan, magenta and yellow values, which always gave the same
+  color as weighted RGB. The RNV Color Palette Manager uses the same
+  formula, and the two agree.
+
+- American spelling throughout, file names included.
+
+- The CI actions are at their Node 24 versions.
+
+### Added
+
+- **The Settings tab's choices take effect.** Each was saved and then
+  ignored:
+  - **Color Mixing Algorithm**: the mix uses the chosen one of six,
+    weighted RGB (still the default), HSV, LAB, subtractive CMY, RYB and
+    Kubelka-Munk, and Save mixes the slots again at once. The choice is
+    kept for the next launch.
+  - **History Size Limit** (1 to 1000) holds the history at startup and as
+    soon as it is saved.
+  - **Enable color history**: when it is off, mixed colors are not added.
+  - **Auto (follow system)** opens in Light or Dark as the operating system
+    is set (Dark when it can't tell), and follows the system when it
+    changes while the app runs. It never picks Image mode; a press of the
+    theme button ends it.
+  - **Auto-load last session** opens the session at the top of Recent
+    Sessions at startup. When the app offers to recover a run that did not
+    close, that offer comes instead.
+  - **Default Export Format**: PNG or JPEG is the type Save Color Swatch
+    opens on, and JSON, ASE or GPL the format Export Palette opens on.
+- `in.sh` (Linux and Codespaces; also installs the Qt system libraries)
+  and `in.ps1` (Windows; makes `.venv` with Python 3.13) set up a
+  checkout from `requirements.txt` and `tests/requirements-dev.txt`.
+- `tools/accent_images.py` and `ACCENT_IMAGES.md`, the list of images
+  with the gold drawn into their pixels.
+- Guard tests, among them `test_colors_in_sync`, `test_register_pin`,
+  `test_atomic_state_writes`, `test_status_carried_by_a_word`,
+  `test_accent_images`, `test_setup_scripts`, `test_readme_test_counts`
+  (the test counts in the README are floors that hold),
+  `test_locked_file_digest` (the locked suite's SHA-256 matches the one
+  CI checks) and `test_no_vacuous_tests`.
+
+### Fixed
+
+- **Loading an image over 10 MB could hang** wherever no one could
+  answer: the question was asked inside `ImageHandler.load_image`. It
+  moved to the window's own load path, with the wording unchanged.
+- **Importing a palette could block on a dialog** in the same way;
+  `FileUtils.import_palette_data` returns the problem instead of showing it.
+- **Two quick history saves could abort the app**, by destroying a writer
+  thread that was still running. A writer is now kept until it finishes.
+- **Deferred callbacks no longer run after their widget is gone.**
+- `Image.getdata()`, which Pillow 14 removes, is reached through
+  `utils/pil_compat.py`.
+- An invalid escape sequence in a test docstring, which Python reports as
+  a `SyntaxWarning`.
+- An unread settings default, a new slot's color, is no longer stored.
+- **Every launch after a normal close offered to recover the previous
+  session.** Any auto-save on disk triggered the offer, and a normal close
+  leaves the auto-saves in place. A flag, `.recovery_needed` in the sessions
+  folder, now marks a run in progress and a normal close removes it, so the
+  offer comes only after a run that did not close. The 6 newest auto-saves
+  are still kept.
+- **`pip install .` left out `resources/`**, so an installed copy had no
+  font, icons or images and no Image mode. The fonts, icons, button images
+  and background now install beside the code, where the app looks for them.
+- Every skipped and deselected test was restored. Several had been hiding
+  the defects above; both CI runners now run both suites complete (see
+  `KNOWN_ISSUES.md`).
+
+### Documentation
+
+- Documentation checked against the code and corrected throughout, and the About dialog's help text with it (#87 A).
+
+---
+
 ## [3.3.3] - 2026-05-12 to 2026-05-21
 
 Initial public release, followed by a bug-fix sweep covering Adobe

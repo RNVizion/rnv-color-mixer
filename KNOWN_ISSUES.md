@@ -1,8 +1,9 @@
 # Known Issues
 
-This document tracks known issues in RNV Color Mixer v3.3.3 — tests that
-are skipped on CI, real bugs with planned fixes, and platform-specific
-behavior worth being aware of.
+This document tracks known issues in RNV Color Mixer — open items with
+planned fixes and platform-specific behavior worth being aware of — and
+keeps the record of issues already fixed: tests that were once skipped on
+CI, and the bugs behind them.
 
 The presence of an issue here doesn't mean the app is broken. The vast
 majority of these have no observable effect on day-to-day app usage — they
@@ -12,7 +13,7 @@ surface only in specific test environments or specialized workflows.
 
 ## Confirmed bugs (real user impact)
 
-*No open user-facing bugs at this time.*
+*None recorded here at this time.*
 
 ---
 
@@ -34,14 +35,14 @@ has ever existed. `tests/test_no_vacuous_tests.py` now fails on any of these
 four shapes.
 
 **Open, and in the locked file.** `test_rnv_color_mixer.py` holds every
-remaining instance — all 13 `except Exception: pass` handlers in the
-repository, and all 3 tests that can never fail:
+remaining instance — every `except Exception: pass` inside a test, and all
+3 tests that can never fail:
 
-| test | line |
-|---|---|
-| `test_handle_exception_no_crash` | 1177 |
-| `test_set_autosave_interval_no_crash` | 1482 |
-| `test_load_settings_no_crash` | 1545 |
+| test |
+|---|
+| `test_handle_exception_no_crash` |
+| `test_set_autosave_interval_no_crash` |
+| `test_load_settings_no_crash` |
 
 Each has no assertion and wraps everything it calls in `try/except: pass`,
 so it reports success unconditionally. Two others —
@@ -58,8 +59,11 @@ about quality.
 
 ## CI-skipped tests
 
-**There are no CI-skipped tests as of 2026-09-10.** Both runners run both
-suites complete. This section is kept as the record of what was skipped and
+**There are no CI-skipped tests.** Since 2026-09-10 both runners run both
+suites complete. A few checks skip on every run by design, each with its
+reason: the guards shared by the five RNV apps skip the parts that belong
+to another app, and `tests/test_hint_text.py` skips the pairs it records
+as accepted. `python -m pytest tests/ -rs` lists them. This section is kept as the record of what was skipped and
 why each one was retired — three of the four turned out to be code defects
 that the skip was hiding, not the environment quirks they were filed as.
 
@@ -115,9 +119,15 @@ re-added to either workflow.
 left it would have passed over nothing, and its own failure message said to
 delete it in the commit that removed the last one.
 
-### `TestAsyncFileOpsErrorPaths` class (pytest)
+### `TestAsyncFileOpsErrorPaths` class (pytest) — RESTORED
 
-**Skipped on:** Linux CI only
+**Skipped on:** nothing. Restored to Linux CI on 2026-09-08; it had been
+skipped there only. See the `FileWriterThread` entry below for the cause
+and the fix, which was made in the tests rather than in
+`utils/async_file_ops.py`.
+
+The entry as it stood before then:
+
 **Reason:** Tests in this class spawn QThread workers and exercise error
 recovery paths (missing files, invalid paths). On offscreen Linux, the
 QThread lifecycle interacts with the test harness in a way that causes
@@ -135,8 +145,8 @@ behavior without spawning real threads.
 
 ### `ColorHistory` async-write tests
 
-**Skipped on:** Both CI runners (annotated inline via
-`@pytest.mark.skip` decorators).
+**Skipped on:** nothing since 2026-09-09. Before then, both CI runners
+(annotated inline via `@pytest.mark.skip` decorators).
 
 **Fixed 2026-09-09.** All six run on both runners.
 
@@ -270,6 +280,10 @@ Manager) share a substantial amount of code structure, including
 for Image Mode. As of 2026-05-21, all three projects use the same
 16000×9038 background image (~95 MB on disk).
 
+*Note, 2026-10-24: in this repository the background has been 3840×2169,
+about 10 MB, since 2026-09-09. `tests/test_image_budget.py` holds that
+size. The timings below were taken on the earlier image.*
+
 A timing diagnostic confirmed that PIL's pipeline for opening, decoding,
 resizing, and re-encoding this image takes ~2 seconds in isolation
 across all three projects. This is moderate latency — noticeable but
@@ -289,20 +303,16 @@ be valuable as a bug-finding tool.
 
 ## Coverage threshold
 
-**Status:** CI threshold set to 69%, locally measured higher after the
-2026-05-21 UIHandler refactor (the 15 newly-enabled tests added
-meaningful coverage on theme application and slot styling code paths).
+**Status:** the Linux workflow fails a run whose total coverage falls
+below the floor set in `.github/workflows/tests-linux.yml`
+(`--fail-under`). The Windows workflow does not measure coverage.
+`python run_tests.py --report` prints the current figure for every module;
+it differs a little between Windows and Linux.
 
-The CI coverage threshold was set to 69% during the period when the
-UIHandler and ColorHistory tests were skipped. With UIHandler tests
-now back in the suite, CI coverage should rise — the threshold has not
-yet been moved to reflect this; the conservative 69% gate remains in
-place pending one or two CI runs to confirm the new baseline.
-
-**Path back to 72%+ CI coverage:** Refactor the remaining skipped
-tests (decoupled QThread/file ops in `ColorHistory` and
-`AsyncFileOpsErrorPaths`). Once those land, coverage rises further and
-the threshold can move accordingly.
+The floor was set while the UIHandler and ColorHistory tests were
+skipped, and was meant to move once they came back. Every skipped test
+this section waited on has since been restored (see *CI-skipped tests*
+above); the floor has not been moved.
 
 ---
 
@@ -310,10 +320,11 @@ the threshold can move accordingly.
 
 **Status:** Acknowledged, deferred.
 
-The full test suite (`python run_tests.py`) takes 18-25 minutes on a
-typical development machine. CI runs are similar. Most of this time is
-spent in pytest fixtures that reconstruct the full `ColorMixerApp()`
-instance per test, rather than reusing one instance across tests.
+The full test suite (`python run_tests.py`) takes several minutes on a
+typical development machine, and CI runs are similar; each suite prints
+its own time when it finishes. Most of this time is spent in pytest
+fixtures that reconstruct the full `ColorMixerApp()` instance per test,
+rather than reusing one instance across tests.
 
 **User impact:** None. This affects developer workflow only.
 
@@ -632,6 +643,7 @@ from the Windows CI workflow.
 The decorators noted that constructing a `UIHandler` triggered a
 PIL-based load of the 16000×9038 background image, which took long
 enough to make repeated construction across many tests impractical.
+(*Note, 2026-10-24: the background has been 3840×2169 since 2026-09-09.*)
 
 **Root cause:** `UIHandler.__init__` called `_load_background_image()`
 unconditionally whenever `theme_manager.image_mode_available` was True.

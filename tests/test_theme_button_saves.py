@@ -76,9 +76,10 @@ def test_the_next_launch_opens_in_the_mode_the_button_set(app_window, main_modul
 
 
 def test_a_saved_auto_gives_way_to_the_mode_the_button_set(app_window):
-    """The panel can save Auto (follow system). The app starts in dark for it
-    and follows no system scheme. A press of the button files the mode the
-    app is in, as the picker's does, so the next launch opens in that mode."""
+    """The panel can save Auto (follow system). The app starts in the
+    system's Light or Dark for it (tests/test_settings_that_act.py). A press
+    of the button files the mode the app is in, as the picker's does, so the
+    next launch opens in that mode."""
     app_window.settings_manager.set("preferences.theme", "auto")
     assert app_window.settings_manager.save_settings()
     assert _on_disk(app_window)["preferences"]["theme"] == "auto"

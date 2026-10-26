@@ -16,7 +16,6 @@ omit =
     */conftest.py
     */__init__.py
     setup.py
-    verify_files.py
     run_tests.py
     audit_phase_9_1.py
     */build/*

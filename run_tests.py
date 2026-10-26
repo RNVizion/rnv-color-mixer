@@ -4,8 +4,8 @@ Unified test runner for RNV Color Mixer.
 Runs both test sources under coverage with branch analysis, then merges
 the data files into a single coverage report.
 
-  Suite 1 — test_rnv_color_mixer.py    (LOCKED, 356 unittest tests, ~18 s)
-  Suite 2 — tests/                     (Phase 1–6 pytest-qt + hypothesis tests, ~5 s)
+  Suite 1 — test_rnv_color_mixer.py    (LOCKED unittest suite)
+  Suite 2 — tests/                     (pytest-qt + hypothesis tests)
 
 Usage:
     python run_tests.py              # run everything, merge, show report
@@ -23,8 +23,12 @@ too as a safety net in case the rc file is missing or modified.
 
 Unlike the original RNV Color Picker version of this runner, the main
 `RNV_Color_Mixer.py` file IS included in coverage measurement here:
-Phase 4 landed app-level integration tests for it (currently at ~41%
-coverage).
+Phase 4 landed app-level integration tests for it. `--report` prints its
+current figure with every other module's.
+
+Coverage runs as `python -m coverage` under the interpreter running this
+script, so a venv's own coverage is used even when another one is first on
+PATH.
 """
 
 import os
@@ -33,6 +37,11 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+
+# The interpreter running this script, and its own coverage. A bare
+# coverage command would run whichever one is first on PATH.
+PYTHON = sys.executable
+COVERAGE = [PYTHON, "-m", "coverage"]
 
 # `.coveragerc` at the root specifies source=. and the omit patterns.
 # We pass --branch on the command line as a defensive duplicate so this
@@ -66,7 +75,7 @@ def run_unittest_suite():
     """
     return _run(
         "Suite 1 / 2 — unittest (test_rnv_color_mixer.py)",
-        ["coverage", "run",
+        [*COVERAGE, "run",
          f"--data-file={UNITTEST_DATA}",
          COVERAGE_BRANCH,
          "-m", "unittest", "test_rnv_color_mixer"],
@@ -80,7 +89,7 @@ def run_pytest_suite():
         return 0
     return _run(
         "Suite 2 / 2 — pytest (tests/)",
-        ["coverage", "run",
+        [*COVERAGE, "run",
          f"--data-file={PYTEST_DATA}",
          COVERAGE_BRANCH,
          "-m", "pytest", "tests/", "-v"],
@@ -97,7 +106,7 @@ def merge_data_files():
     if not parts:
         print("\n[error] no coverage data files found — cannot merge.")
         return 1
-    return subprocess.call(["coverage", "combine", *parts], cwd=ROOT)
+    return subprocess.call([*COVERAGE, "combine", *parts], cwd=ROOT)
 
 
 def print_report(summary=False):
@@ -109,14 +118,14 @@ def print_report(summary=False):
     print("=" * 72)
     print("  Coverage report" + ("  (--skip-covered)" if summary else ""))
     print("=" * 72)
-    cmd = ["coverage", "report", "-m"]
+    cmd = [*COVERAGE, "report", "-m"]
     if summary:
         cmd.append("--skip-covered")
     rc = subprocess.call(cmd, cwd=ROOT)
     with open(ROOT / "coverage_report.txt", "w", encoding="utf-8") as f:
-        subprocess.call(["coverage", "report", "-m"], cwd=ROOT, stdout=f)
+        subprocess.call([*COVERAGE, "report", "-m"], cwd=ROOT, stdout=f)
     # Also generate the browsable HTML report
-    subprocess.call(["coverage", "html"], cwd=ROOT)
+    subprocess.call([*COVERAGE, "html"], cwd=ROOT)
     return rc
 
 

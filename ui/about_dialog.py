@@ -160,12 +160,14 @@ enthusiasts create precise color combinations.</p>
 
 <h4>Core Capabilities:</h4>
 <ul>
+<li><b>Weighted Color Mixing</b> - Combine the slots' colors by weight</li>
 <li><b>Realistic Paint Mixing</b> - Kubelka-Munk theory simulation</li>
-<li><b>Multiple Color Spaces</b> - RGB, LAB, RYB, HSV support</li>
+<li><b>Multiple Color Spaces</b> - RGB, HSV, LAB, CMY and RYB support</li>
+<li><b>Color Readouts</b> - Hex, RGB and HSV values of the mix</li>
 <li><b>Image Color Sampling</b> - Pick colors from any loaded image</li>
 <li><b>Screen Color Picker</b> - Sample colors from anywhere on screen</li>
-<li><b>Palette Management</b> - 16+ professional export formats</li>
-<li><b>Color Harmonies</b> - Generate complementary, analogous, triadic palettes</li>
+<li><b>Palette Management</b> - 16 export formats, 15 import formats</li>
+<li><b>Color Harmonies</b> - Generate complementary, analogous, triadic and other palettes</li>
 <li><b>Session Management</b> - Save and restore your work</li>
 </ul>
 
@@ -218,17 +220,17 @@ enthusiasts create precise color combinations.</p>
 <h4>🎨 Color Mixing</h4>
 <ul>
 <li><b>Weighted Color Mixing</b> - Adjust individual color weights with sliders</li>
-<li><b>Up to 12 Color Slots</b> - Mix multiple colors simultaneously</li>
+<li><b>Up to 12 Color Slots</b> - By default; the limit is set in Settings</li>
 <li><b>Real-time Preview</b> - See mixed results instantly</li>
-<li><b>Multiple Algorithms</b> - RGB, LAB, RYB, Kubelka-Munk mixing modes</li>
+<li><b>Multiple Algorithms</b> - RGB (the default), HSV, LAB, CMY (mixes like inks), RYB and Kubelka-Munk mixing modes, chosen in Settings</li>
 </ul>
 
 <h4>🖼️ Image Sampling</h4>
 <ul>
-<li><b>Drag & Drop Support</b> - Load images by dropping them on the canvas</li>
-<li><b>Click to Sample</b> - Pick colors directly from loaded images</li>
-<li><b>Region Averaging</b> - Double-click to average colors in an area</li>
-<li><b>Zoom & Pan</b> - Navigate large images with scroll wheel</li>
+<li><b>Drag & Drop Support</b> - Load images by dropping them on the window</li>
+<li><b>Double-Click to Sample</b> - Pick one pixel's color from the loaded image</li>
+<li><b>Region Averaging</b> - Drag across an area to average its colors</li>
+<li><b>Zoom</b> - The scroll wheel zooms at the cursor; the scroll bars move around a large image</li>
 </ul>
 
 <h4>🌈 Color Harmonies</h4>
@@ -237,17 +239,19 @@ enthusiasts create precise color combinations.</p>
 <li><b>Analogous</b> - Adjacent colors for smooth transitions</li>
 <li><b>Triadic</b> - Three evenly spaced colors</li>
 <li><b>Split-Complementary</b> - Variation of complementary scheme</li>
-<li><b>Tetradic</b> - Four colors forming a rectangle</li>
-<li><b>Square</b> - Four evenly spaced colors</li>
+<li><b>Tetradic (Square)</b> - Four evenly spaced colors</li>
+<li><b>Compound (Rectangle)</b> - Four colors forming a rectangle</li>
+<li><b>Monochromatic</b> - One hue at several saturations and brightnesses</li>
 </ul>
 
 <h4>💾 Session & Palette Management</h4>
 <ul>
 <li><b>Auto-Save</b> - Never lose your work with automatic session saving</li>
 <li><b>Crash Recovery</b> - Restore sessions after unexpected closures</li>
-<li><b>Export Formats</b> - ASE, ACO, GPL, PAL, ACT, GIMP, CSS, SCSS, and more</li>
+<li><b>Auto-Load</b> - Optionally open the last saved or loaded session at startup</li>
+<li><b>Export Formats</b> - ASE, ACO, ACB, GPL, CSS, JSON, SVG, and 9 more</li>
 <li><b>Preset Palettes</b> - Built-in color schemes to get started quickly</li>
-<li><b>Color History</b> - Track recently used colors</li>
+<li><b>Color History</b> - Track recently mixed colors, as many as Settings allows</li>
 </ul>
 
 <h4>🎯 Screen Color Picker</h4>
@@ -255,14 +259,15 @@ enthusiasts create precise color combinations.</p>
 <li><b>Global Picking</b> - Sample colors from any application</li>
 <li><b>Multi-Monitor Support</b> - Works across all connected displays</li>
 <li><b>Magnified Preview</b> - See exact pixel under cursor</li>
-<li><b>One-Click Add</b> - Picked colors are added to slots automatically</li>
+<li><b>One-Click Add</b> - Click to pick; the color is added to a slot automatically. Esc cancels</li>
 </ul>
 
 <h4>🎭 Themes</h4>
 <ul>
 <li><b>Dark Mode</b> - Easy on the eyes for long sessions</li>
 <li><b>Light Mode</b> - High contrast for bright environments</li>
-<li><b>Image Mode</b> - Custom button graphics and backgrounds</li>
+<li><b>Image Mode</b> - Image buttons over a background picture</li>
+<li><b>Auto</b> - Light or Dark, following the system's setting (Settings)</li>
 </ul>
 """
         
@@ -300,6 +305,7 @@ enthusiasts create precise color combinations.</p>
 <tr><td width="40%"><b>Ctrl+N</b></td><td>Add New Color Slot</td></tr>
 <tr><td><b>Ctrl+C</b></td><td>Copy Hex Color to Clipboard</td></tr>
 <tr><td><b>Ctrl+Shift+C</b></td><td>Screen Color Picker</td></tr>
+<tr><td><b>Esc</b></td><td>Cancel Screen Color Picker</td></tr>
 </table>
 
 <h4>Application</h4>
@@ -317,17 +323,18 @@ enthusiasts create precise color combinations.</p>
 
 <h4>Canvas Navigation</h4>
 <table width="100%">
-<tr><td width="40%"><b>Mouse Wheel</b></td><td>Zoom In/Out</td></tr>
-<tr><td><b>Click & Drag</b></td><td>Pan Image</td></tr>
-<tr><td><b>Single Click</b></td><td>Sample Pixel Color</td></tr>
-<tr><td><b>Double Click</b></td><td>Sample Region Average</td></tr>
+<tr><td width="40%"><b>Mouse Wheel</b></td><td>Zoom In/Out at the Cursor</td></tr>
+<tr><td><b>Click & Drag</b></td><td>Sample Region Average</td></tr>
+<tr><td><b>Double Click</b></td><td>Sample Pixel Color</td></tr>
+<tr><td><b>Hover</b></td><td>Show Pixel Position and Color</td></tr>
 </table>
 
 <h4>Color Slots</h4>
 <table width="100%">
 <tr><td width="40%"><b>Slider Drag</b></td><td>Adjust Color Weight</td></tr>
 <tr><td><b>Color Well Click</b></td><td>Open Color Picker</td></tr>
-<tr><td><b>X Button</b></td><td>Remove Color Slot</td></tr>
+<tr><td><b>Remove Button</b></td><td>Remove Color Slot</td></tr>
+<tr><td><b>Right Click</b></td><td>Slot Menu: Undo, Fine-Tune, Quick Adjustments</td></tr>
 </table>
 """
         

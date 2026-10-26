@@ -168,6 +168,29 @@ def _qt_object_is_gone(obj: object) -> bool:
         return False
 
 
+# (#95 A) Settings that did nothing now act: the mixing algorithm, History Size Limit, Enable color history, Auto (follow system), Auto-load last session, Default Export Format.
+def _scheme_name(scheme: object) -> str | None:
+    """'light' or 'dark' for a Qt.ColorScheme, None for Unknown or anything else."""
+    if scheme == Qt.ColorScheme.Light:
+        return 'light'
+    if scheme == Qt.ColorScheme.Dark:
+        return 'dark'
+    return None
+
+
+def _system_color_scheme() -> str | None:
+    """The operating system's light or dark preference, as Qt reports it.
+
+    None when Qt cannot tell (Qt.ColorScheme.Unknown, as on a platform with
+    no such setting); Auto (follow system) then gives Dark, as it always did.
+    """
+    try:
+        from PyQt6.QtGui import QGuiApplication
+        return _scheme_name(QGuiApplication.styleHints().colorScheme())
+    except Exception:
+        return None
+
+
 class SafeQTimer(QObject):
     """A single-shot timer whose callback will not run against a dead object.
 
@@ -395,7 +418,11 @@ class ColorMixerApp(QMainWindow):
             
             # Package D - Color History
             if ColorHistory:
-                self.color_history = ColorHistory(max_entries=20)
+                # History Size Limit: the setting wins over the limit a history
+                # file stored, and entries beyond it are dropped, oldest first
+                history_limit = self._history_size_limit()
+                self.color_history = ColorHistory(max_entries=history_limit)
+                self.color_history.set_max_entries(history_limit)
                 logger.success(f"Color History initialized", details=f"{len(self.color_history.get_entries())} entries loaded")
             else:
                 self.color_history = None
@@ -449,6 +476,8 @@ class ColorMixerApp(QMainWindow):
             self.current_mixed_color = INITIAL_COLOR_TUPLE
             self.current_hex = INITIAL_COLOR_HEX
             self.current_rgb = INITIAL_COLOR_RGB
+            self._last_mix_algorithm: str | None = None   # the algorithm of the shown mix
+            self._theme_follows_system = False            # True while Auto (follow system) is in force
             
             # Debouncing timer for color mixing (prevents excessive calculations during slider drag)
             self._mix_debounce_timer = QTimer(self)
@@ -515,9 +544,13 @@ class ColorMixerApp(QMainWindow):
             if hasattr(self, 'session_manager') and self.session_manager:
                 self.session_manager.start_autosave(self)
                 
-                # Check for crash recovery
-                SafeQTimer.safe_single_shot(self, 500, self._check_crash_recovery)
+                # Check for crash recovery, then auto-load the last session
+                SafeQTimer.safe_single_shot(self, 500, self._restore_session_at_startup)
             # === END AUTO-SAVE ===
+
+            # Auto (follow system): follow the system's light or dark scheme
+            # while the app runs, when Qt reports a change
+            self._connect_system_color_scheme()
             
             logger.success("ColorMixerApp initialization completed successfully")
             
@@ -535,11 +568,58 @@ class ColorMixerApp(QMainWindow):
 
     # ===== AUTO-SAVE SUPPORT METHODS =====
     
-    def _check_crash_recovery(self) -> None:
-        """Check for autosave from previous crash on startup."""
+    def _restore_session_at_startup(self) -> None:
+        """The startup step that may restore a session.
+
+        The crash-recovery offer comes first. When it is made, it wins: the
+        last session is not auto-loaded, whatever the answer, so one startup
+        never restores two things. Otherwise, with Settings > Auto-load last
+        session on, the last session is loaded.
+        """
+        if self._check_crash_recovery():
+            return
+        self._auto_load_last_session()
+
+    def _auto_load_last_session(self) -> bool:
+        """Load the last session, if Auto-load last session is on.
+
+        The last session is the first in the Sessions tab's Recent Sessions:
+        the one most recently saved or loaded there (auto-saves are not in
+        that list; they are what the recovery offer restores). A file that
+        has gone is skipped, as the list skips it.
+
+        Returns:
+            True if a session was loaded
+        """
+        try:
+            if not self.settings_manager or not self.settings_manager.get(
+                    'preferences.auto_load_last_session', False):
+                return False
+            if not getattr(self, 'session_manager', None):
+                return False
+            recent = self.session_manager.get_recent_sessions()
+            if not recent:
+                logger.info("Auto-load last session: no recent session")
+                return False
+            filepath = recent[0].get('filepath')
+            if not filepath:
+                return False
+            logger.info(f"Auto-loading last session: {filepath}")
+            self._on_load_session(filepath, announce=False)
+            return True
+        except Exception as e:
+            logger.error("Error auto-loading last session", error=e)
+            return False
+
+    def _check_crash_recovery(self) -> bool:
+        """Check for autosave from previous crash on startup.
+
+        Returns:
+            True if the recovery offer was made
+        """
         try:
             if not hasattr(self, 'session_manager') or not self.session_manager:
-                return
+                return False
             
             autosave_path = self.session_manager.check_for_autosave()
             if autosave_path:
@@ -560,9 +640,12 @@ class ColorMixerApp(QMainWindow):
                 
                 # Delete autosave either way
                 self.session_manager.delete_autosave()
+                return True
+            return False
                 
         except Exception as e:
             logger.error("Error checking crash recovery", error=e)
+            return False
     
     def get_current_state(self) -> dict:
         """
@@ -859,6 +942,18 @@ class ColorMixerApp(QMainWindow):
             new_theme_name = self.ui_handler.cycle_theme(self)
             self.theme_button.setText(new_theme_name)
             self.status_updated.emit(f"Theme: {new_theme_name}")
+            # RNV-THEME-SAVE 2026-09-30: file the mode this press set, as the
+            # picker's and the transformer's theme buttons do. Until now only
+            # the control panel's Save wrote it, so a switch made here was
+            # lost at the next launch. The same key Save writes, and the
+            # same file; a saved Auto gives way to the mode the app is in.
+            # Filed before the panel is told, so its Default Theme box
+            # names this mode and not Auto (follow system).
+            self._theme_follows_system = False
+            if self.settings_manager:
+                self.settings_manager.set("preferences.theme",
+                                          self.ui_handler.theme_manager.current_theme)
+                self.settings_manager.save_settings()
             
             # Apply theme to buttons using cached images (Icon Builder pattern)
             self._apply_theme_to_buttons()
@@ -872,16 +967,6 @@ class ColorMixerApp(QMainWindow):
                 is_dark = self.ui_handler.is_dark_mode() or self.ui_handler.is_image_mode()
                 self._package_d_panel.set_theme(is_dark)
                 logger.debug(f"Theme applied to Package D panel (dark={is_dark})")
-            
-            # RNV-THEME-SAVE 2026-09-30: file the mode this press set, as the
-            # picker's and the transformer's theme buttons do. Until now only
-            # the control panel's Save wrote it, so a switch made here was
-            # lost at the next launch. The same key Save writes, and the
-            # same file; a saved Auto gives way to the mode the app is in.
-            if self.settings_manager:
-                self.settings_manager.set("preferences.theme",
-                                          self.ui_handler.theme_manager.current_theme)
-                self.settings_manager.save_settings()
         
         ErrorHandler.safe_execute(cycle_theme, "cycling theme", print)
 
@@ -1230,6 +1315,63 @@ class ColorMixerApp(QMainWindow):
         if self.settings_manager:
             default_weight = self.settings_manager.get('preferences.default_slot_weight', 50)
         return default_weight
+
+    def _mixing_algorithm(self) -> str:
+        """Settings > Color Mixing Algorithm, as its key; weighted RGB by default."""
+        if not self.settings_manager:
+            return ColorMath.DEFAULT_MIXING_ALGORITHM
+        return self.settings_manager.get('advanced.color_mixing_algorithm',
+                                         ColorMath.DEFAULT_MIXING_ALGORITHM)
+
+    def _history_size_limit(self) -> int:
+        """Settings > History Size Limit (50 by default)."""
+        limit = 50
+        if self.settings_manager:
+            limit = self.settings_manager.get('preferences.history_size_limit', 50)
+        try:
+            return int(limit)
+        except (TypeError, ValueError):
+            return 50
+
+    def _apply_history_size_limit(self, limit: Any) -> None:
+        """Hold the history to a new limit now, and show the result."""
+        if not self.color_history:
+            return
+        try:
+            kept = self.color_history.set_max_entries(int(limit))
+        except (TypeError, ValueError):
+            return
+        logger.debug(f"History size limit: {kept}")
+        panel = getattr(self, '_package_d_panel', None)
+        if panel is not None and hasattr(panel, 'refresh_history'):
+            panel.refresh_history()
+
+    def _default_export_format(self) -> str:
+        """Settings > Default Export Format (png, jpeg, json, ase or gpl)."""
+        if not self.settings_manager:
+            return "png"
+        return str(self.settings_manager.get('preferences.default_export_format', "png"))
+
+    def _connect_system_color_scheme(self) -> None:
+        """Hear the system's color-scheme changes, for Auto (follow system)."""
+        try:
+            from PyQt6.QtGui import QGuiApplication
+            hints = QGuiApplication.styleHints()
+            if self.signal_manager:
+                self.signal_manager.connect(hints, hints.colorSchemeChanged,
+                                            self._on_system_color_scheme_changed,
+                                            track_as="system_color_scheme")
+            else:
+                hints.colorSchemeChanged.connect(self._on_system_color_scheme_changed)
+            self._color_scheme_hints = hints
+        except Exception as e:
+            logger.debug(f"System color scheme not followed: {e}")
+
+    def _on_system_color_scheme_changed(self, scheme: object = None) -> None:
+        """The system switched between light and dark: follow it under Auto."""
+        if self._theme_follows_system:
+            logger.info(f"System color scheme changed: {_system_color_scheme() or 'unknown'}")
+            self._apply_theme_setting('auto')
 
     # Safe wrapper methods for button callbacks
 
@@ -1728,8 +1870,14 @@ class ColorMixerApp(QMainWindow):
         
         ErrorHandler.safe_execute(save_session, "saving session", print)
     
-    def _on_load_session(self, filepath: str) -> None:
-        """Handle loading session from file."""
+    def _on_load_session(self, filepath: str, announce: bool = True) -> None:
+        """Handle loading session from file.
+
+        Args:
+            filepath: The session file
+            announce: False skips the "Session Loaded" box (the auto-load at
+                startup); the status bar still names the session
+        """
         def load_session() -> None:
             # Import session manager
             try:
@@ -1793,9 +1941,10 @@ class ColorMixerApp(QMainWindow):
             self.status_updated.emit(f"Loaded session: {session_name} ({color_count} colors)")
             logger.success(f"Session loaded: {session_name}", details=f"{len(slots_data)} slots")
             
-            QMessageBox.information(self, "Session Loaded", 
-                f"Session '{session_name}' loaded successfully!\n\n"
-                f"{color_count} colors with {len(slots_data)} total slots.")
+            if announce:
+                QMessageBox.information(self, "Session Loaded", 
+                    f"Session '{session_name}' loaded successfully!\n\n"
+                    f"{color_count} colors with {len(slots_data)} total slots.")
         
         ErrorHandler.safe_execute(load_session, "loading session", print)
     
@@ -1844,9 +1993,18 @@ class ColorMixerApp(QMainWindow):
             
             # === HISTORY SETTINGS ===
             elif setting_key == 'history_enabled':
-                if self.color_history:
-                    # Update history enabled state
-                    logger.debug(f"History enabled: {value}")
+                # Read by auto_mix_colors(): when off, mixes are not added
+                logger.debug(f"History enabled: {value}")
+
+            elif setting_key == 'history_size_limit':
+                self._apply_history_size_limit(value)
+
+            # === MIXING ALGORITHM ===
+            elif setting_key == 'color_mixing_algorithm':
+                # Re-mix at once when the algorithm differs from the shown mix's
+                if value != self._last_mix_algorithm and any(
+                        s.get_weight() > 0 for s in self.slots):
+                    self.auto_mix_colors()
             
             elif setting_key == 'enable_animations':
                 # Could enable/disable animations here
@@ -1906,15 +2064,18 @@ class ColorMixerApp(QMainWindow):
             # DEBUG: Log what theme is being applied
             logger.debug(f"Applying theme setting: {theme}")
             
-            # Map setting to theme manager
+            # Map setting to theme manager. Auto follows the system's light or
+            # dark preference (dark when Qt cannot tell); it never picks Image
+            # Mode, which is a choice made by hand.
             theme_map = {
                 'dark': 'dark',
                 'light': 'light',
                 'image': 'image',
-                'auto': 'dark'  # Default to dark for auto
+                'auto': _system_color_scheme() or 'dark'
             }
             
             target_theme = theme_map.get(theme, 'dark')
+            self._theme_follows_system = (theme == 'auto')
             current_theme = self.ui_handler.theme_manager.current_theme
             
             # DEBUG: Log target vs current
@@ -2428,8 +2589,12 @@ class ColorMixerApp(QMainWindow):
                     self.canvas_view.hide_preview()
                 return
             
+            # Settings > Color Mixing Algorithm (weighted RGB by default)
+            algorithm = self._mixing_algorithm()
+
             # PHASE 1.4: Check cache first for performance boost
             cache_key = (
+                algorithm,
                 tuple(tuple(c) for c, _ in colors_weights),
                 tuple(w for _, w in colors_weights)
             )
@@ -2440,7 +2605,7 @@ class ColorMixerApp(QMainWindow):
                 logger.debug(f"Cache hit: {mixed_color}")
             else:
                 # Cache miss - calculate and cache
-                mixed_color = ColorMath.weighted_rgb_mix(colors_weights)
+                mixed_color = ColorMath.mix(colors_weights, algorithm)
                 
                 if mixed_color:
                     # Store in cache
@@ -2455,15 +2620,19 @@ class ColorMixerApp(QMainWindow):
                     logger.debug(f"Cached new color: {mixed_color}")
                 
             if mixed_color:
+                self._last_mix_algorithm = algorithm
                 self.current_mixed_color = mixed_color
                 self.current_hex = ColorMath.rgb_to_hex(mixed_color)
                 self.current_rgb = f"rgb{mixed_color}"
                 self._update_preview(mixed_color)
                 
-                # Track color in history (only non-black colors)
+                # Track color in history (only non-black colors), when both
+                # Enable color history and Auto-save mixed colors are on
                 should_auto_save = True
                 if self.settings_manager:
-                    should_auto_save = self.settings_manager.get('preferences.auto_save_colors', True)
+                    should_auto_save = (
+                        self.settings_manager.get('preferences.history_enabled', True)
+                        and self.settings_manager.get('preferences.auto_save_colors', True))
                 
                 if should_auto_save and self.color_history and mixed_color != (0, 0, 0):
                     self.color_history.add_color(mixed_color)
@@ -2655,7 +2824,9 @@ class ColorMixerApp(QMainWindow):
     def save_color_swatch(self) -> None:
         """Save swatch safely."""
         def save_swatch() -> None:
-            path = self.file_utils.select_save_location("Save Color Swatch")
+            # Default Export Format: PNG or JPEG opens the dialog on that type
+            path = self.file_utils.select_save_location(
+                "Save Color Swatch", preferred_ext=self._default_export_format())
             if not path:
                 return
                 
@@ -2696,7 +2867,8 @@ class ColorMixerApp(QMainWindow):
                 QMessageBox.warning(self, "No Colors", "No colors to export")
                 return
                 
-            path = self.file_utils.select_palette_export_location()
+            # Default Export Format: JSON, ASE or GPL opens the dialog on that format
+            path = self.file_utils.select_palette_export_location(self._default_export_format())
             if not path:
                 return
                 
@@ -2847,9 +3019,9 @@ class ColorMixerApp(QMainWindow):
             
             # === AUTO-SAVE CLEANUP ===
             if hasattr(self, 'session_manager') and self.session_manager:
-                # Stop auto-save timer
+                # Stop auto-save timer and clear the recovery flag (clean exit)
                 self.session_manager.stop_autosave()
-                # Delete autosave file (clean exit)
+                # Trim auto-saves beyond the newest MAX_AUTOSAVES
                 self.session_manager.delete_autosave()
             # === END AUTO-SAVE CLEANUP ===
             
@@ -2949,6 +3121,14 @@ class ColorMixerApp(QMainWindow):
                         except Exception:
                             pass
                     
+                    # Disconnect the system color-scheme signal (Auto theme)
+                    if getattr(self, '_color_scheme_hints', None) is not None:
+                        try:
+                            self._color_scheme_hints.colorSchemeChanged.disconnect(
+                                self._on_system_color_scheme_changed)
+                        except Exception:
+                            pass
+
                     # Disconnect timer signals
                     if hasattr(self, '_mix_debounce_timer') and self._mix_debounce_timer:
                         try:

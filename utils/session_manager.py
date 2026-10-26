@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 from typing import Any, Callable
 from pathlib import Path
-from utils.atomic_write import atomic_write_json
+from utils.atomic_write import atomic_write_json, atomic_write_text
 
 # Import logger
 try:
@@ -36,6 +36,8 @@ class SessionManager:
     MAX_RECENT_SESSIONS = 10
     MAX_AUTOSAVES = 6  # Keep last 6 auto-saves (separate from manual saves)
     AUTOSAVE_PREFIX = ".autosave_"  # Prefix for auto-save files
+    # (#94 A) Recovery is offered only when this flag survives a run (no clean close)
+    RECOVERY_FLAG_NAME = ".recovery_needed"  # Present while the app runs; a clean close removes it
     
     def __init__(self, sessions_dir: str | None = None):
         """
@@ -70,6 +72,12 @@ class SessionManager:
         # Each app session gets ONE auto-save file that gets overwritten during the session
         # New auto-save file is only created on new app startup
         self.current_autosave_path = None  # Set on first autosave of this session
+        # Crash detection: start_autosave() writes this flag and stop_autosave()
+        # (a clean close) removes it, so a flag found at startup means the last
+        # run did not close cleanly. Its modification time is when that run began.
+        self.recovery_flag = self.sessions_dir / self.RECOVERY_FLAG_NAME
+        self._autosave_started = False
+        self._unclean_exit_since: float | None = None  # read by start_autosave()
         # === END AUTO-SAVE SETUP ===
         
         logger.success(f"Session Manager initialized: {self.sessions_dir}") if logger else print(f"Session Manager initialized: {self.sessions_dir}")
@@ -479,6 +487,10 @@ Stops the autosave timer and disconnects signals.
         """
         self.main_app = main_app
         
+        # Read the previous run's recovery flag before this run writes its own
+        self._unclean_exit_since = self._recovery_flag_time()
+        self._autosave_started = True
+        
         # Generate a new autosave filename for THIS session
         # This file will be overwritten during the session, not create new files
         self.current_autosave_path = self._generate_autosave_filename()
@@ -488,13 +500,37 @@ Stops the autosave timer and disconnects signals.
         
         if self.autosave_enabled:
             self.autosave_timer.start(self.autosave_interval * 1000)
+            self._set_recovery_flag()
             logger.success(f"Auto-save enabled (every {self.autosave_interval}s)") if logger else print(f"Auto-save enabled")
     
     def stop_autosave(self) -> None:
-        """Stop auto-save timer (call on clean exit)."""
+        """Stop auto-save timer and clear the recovery flag (call on clean exit)."""
         if self.autosave_timer.isActive():
             self.autosave_timer.stop()
             logger.success("Auto-save stopped")
+        self._clear_recovery_flag()
+    
+    def _set_recovery_flag(self) -> None:
+        """Mark that the application is running (for crash detection next launch)."""
+        try:
+            atomic_write_text(self.recovery_flag, str(datetime.now().timestamp()))
+        except Exception as e:
+            logger.debug(f"Could not set recovery flag: {e}") if logger else None
+    
+    def _clear_recovery_flag(self) -> None:
+        """Remove the recovery flag (clean shutdown)."""
+        try:
+            if self.recovery_flag.exists():
+                self.recovery_flag.unlink()
+        except Exception as e:
+            logger.debug(f"Could not clear recovery flag: {e}") if logger else None
+    
+    def _recovery_flag_time(self) -> float | None:
+        """Modification time of the recovery flag, or None if there is none."""
+        try:
+            return self.recovery_flag.stat().st_mtime
+        except OSError:
+            return None
     
     def _generate_autosave_filename(self) -> Path:
         """Generate a timestamped auto-save filename."""
@@ -611,15 +647,24 @@ Stops the autosave timer and disconnects signals.
     
     def check_for_autosave(self) -> str | None:
         """
-        Check if any autosave exists (call on startup for crash recovery).
-        Returns the most recent auto-save if any exist.
+        Check for an auto-save to recover (call on startup for crash recovery).
+        Returns the most recent auto-save only if the previous run did not
+        close cleanly (its recovery flag is still there) and that run wrote it.
         
         Returns:
-            Path to most recent autosave file if exists, None otherwise
+            Path to the autosave to recover, None otherwise
         """
+        # Offer recovery only after a run that did not close cleanly.
+        # A clean close removes the flag; the auto-saves themselves are kept.
+        if self._autosave_started:
+            since = self._unclean_exit_since   # read before this run set its own flag
+        else:
+            since = self._recovery_flag_time()
+        if since is None:
+            return None
         autosaves = self._get_autosave_files()
-        if autosaves:
-            return str(autosaves[0])  # Return newest
+        if autosaves and autosaves[0].stat().st_mtime >= since:
+            return str(autosaves[0])  # Newest, written by the run that did not close
         return None
     
     def get_autosave_count(self) -> int:
