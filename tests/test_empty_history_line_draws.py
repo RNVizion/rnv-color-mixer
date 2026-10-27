@@ -48,6 +48,7 @@ import re
 import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QImage
+from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication, QTabWidget
 
 pytestmark = pytest.mark.integration
@@ -97,6 +98,7 @@ def _history_tab(app_window, entries=()):
     QApplication.processEvents()
     panel = app_window._package_d_panel
     assert panel is not None and panel.isVisible()
+    _startup_mix_landed(app_window)
     panel.color_history.clear()
     for color in entries:
         panel.color_history.add_color(color)
@@ -110,6 +112,25 @@ def _history_tab(app_window, entries=()):
     panel.history_list.clearFocus()
     QApplication.processEvents()
     return panel
+
+
+def _startup_mix_landed(app_window) -> None:
+    """Wait for the mix the app makes as it starts, before the history is cleared.
+
+    The app mixes its slots once at startup, through the mix debounce
+    (100 ms), and the mix goes into the history. Where the window is built
+    in under 100 ms, that mix was still pending when the history was
+    cleared here, and landed after the clear: the reopened panel showed that
+    mix, the default slots' gray, where the empty line should be. Found on
+    Chris's Windows run of 27 October; a run on a slower machine had always
+    let it land first.
+    """
+    timer = app_window._mix_debounce_timer
+    for _ in range(100):
+        if not timer.isActive():
+            return
+        QTest.qWait(20)
+    assert not timer.isActive(), "the startup mix was still pending after two seconds"
 
 
 def _reach(list_widget, row: int = 0, skip_left: int = 0) -> tuple:
@@ -193,6 +214,18 @@ def test_it_follows_a_switch_made_while_the_panel_was_closed(app_window):
         assert item.text().startswith(EMPTY)
         assert item.foreground().color().name() == QColor(_palette(panel)["text_hint"]).name(), \
             f"a switch to {mode} with the panel closed left the empty line in the old mode's color"
+
+
+def test_a_startup_mix_still_pending_lands_before_the_clear(app_window):
+    """The case Chris's Windows run met on 27 October, made on every machine.
+
+    There the window was built faster than the mix debounce (100 ms), so the
+    mix the app makes as it starts was still pending when the History tab
+    was cleared, and landed after it. Here it is held back 500 ms, past the
+    clear and into the switches that follow, and the empty line must still
+    be there: _history_tab waits for that mix before it clears."""
+    app_window._mix_debounce_timer.start(500)
+    test_it_follows_a_switch_made_while_the_panel_was_closed(app_window)
 
 
 #: The lists whose item rule sets no color: each holds a line with a color of its own.

@@ -61,7 +61,7 @@ ALPHAS = {
     "STATUS_BAR_ALPHA": 0xC8,
     "IMAGE_CHECKBOX_ALPHA": 0x64,
     "COMBO_ALPHA": 0xBF,
-    "HARMONY_DESCRIPTION_ALPHA": 0x19,
+    "HARMONY_DESCRIPTION_ALPHA": 0x10,         # ruling 102 A; 0x19 until 2026-10-26
 }
 
 #: What each template's derived values are MADE OF, by NAME: (base, alpha).
@@ -623,13 +623,14 @@ def test_the_harmony_description_derives_its_wash(qapp):
     sits on a wash of its own accent ink. It was rgba(r, g, b, 0.1) from
     channels sliced out of the hex by hand, the one derived value in the
     fleet that did not go through a helper. Now it is translucent(accent,
-    HARMONY_DESCRIPTION_ALPHA), and 0x19 is the byte Qt makes of 0.1:
-    measured on five grounds under both inks, and the panel renders pixel for
-    pixel as it did.
+    HARMONY_DESCRIPTION_ALPHA), and 0x19 was the byte Qt makes of 0.1:
+    measured on five grounds under both inks, and the panel rendered pixel
+    for pixel as it did. Ruling 102 A (2026-10-26) lowered the byte to 0x10,
+    so the light mode's text reads (tests/test_harmony_description_reads.py).
 
     Held twice: in the source, the helper by name and no rgba() built by hand
     left in the function; and in the sheet the function actually sets, in
-    both palettes, the wash taken apart to (accent_ink, 0x19)."""
+    both palettes, the wash taken apart to (accent_ink, the alpha)."""
     from types import SimpleNamespace
 
     from PyQt6.QtWidgets import QLabel

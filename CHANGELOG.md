@@ -114,6 +114,9 @@ Everything since 2026-05-21, by theme. The version number is held at
 
 ### Fixed
 
+- **The harmony description reads in Light mode.** Its text, the panel's dark gold, sat on a
+  wash of the same gold that read 4.49:1, just under the 4.5 the brand sets for text on a
+  see-through color. The wash is lighter now: 4.71:1 in Light, 8.39:1 in Dark and Image.
 - **Loading an image over 10 MB could hang** wherever no one could
   answer: the question was asked inside `ImageHandler.load_image`. It
   moved to the window's own load path, with the wording unchanged.

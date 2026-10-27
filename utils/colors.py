@@ -443,12 +443,15 @@ IMAGE_CHECKBOX_ALPHA: Final[int] = 0x64
 COMBO_ALPHA: Final[int] = 0xBF
 """191. The image-mode combo box and its drop-down list (APP_SURFACE_DARK)."""
 
-HARMONY_DESCRIPTION_ALPHA: Final[int] = 0x19
-"""25. The control panel's harmony description: a wash of its own accent ink
+HARMONY_DESCRIPTION_ALPHA: Final[int] = 0x10
+"""16. The control panel's harmony description: a wash of its own accent ink
 (accent_ink -- BRAND_GOLD in dark and image, BRAND_DARK_GOLD_DEEP in light).
-Written rgba(r, g, b, 0.1) from channels sliced by hand until 2026-09-26.
-0.1 * 255 is 25.5, and Qt's stylesheet parser gives 25 -- MEASURED on five
-grounds under both inks, not computed. The same pixels."""
+Written rgba(r, g, b, 0.1) from channels sliced by hand until 2026-09-26,
+which Qt made the byte 25 (0x19). Ruling 102 A, 2026-10-26: at 25 the light
+mode's text read 4.49:1 on the wash over panel_bg, rendered, just under the
+register's 4.5 for text on an alpha (BRAND_COLORS.md rev 47). At 16 it reads
+4.71 in light and 8.39 in dark, and image mode is styled as dark.
+tests/test_harmony_description_reads.py holds it, from a render."""
 
 SCREEN_OVERLAY_ALPHA: Final[int] = 0x32
 """50. The screen picker's dim over the whole screen (TRUE_BLACK)."""
