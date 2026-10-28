@@ -115,7 +115,9 @@ Built with Python 3.13+ and PyQt6.
   not close, the recovery offer comes instead
 - Color history of the mixed colors, 50 by default (the History Size Limit,
   1 to 1000): click one to load it into an empty slot, or export the history
-  as JSON, HTML, or text. With Enable color history off, mixes are not added
+  as JSON, HTML, or text. With Enable color history off, mixes are not added.
+  Only your mixes are added: not the mix the app makes as it starts, nor a
+  session's restored at startup, which the history holds from when it was made
 
 **Theming**
 - Three themes: Dark mode, Light mode, and Image mode (image buttons over a

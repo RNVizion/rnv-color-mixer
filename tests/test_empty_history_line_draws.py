@@ -123,7 +123,9 @@ def _startup_mix_landed(app_window) -> None:
     cleared here, and landed after the clear: the reopened panel showed that
     mix, the default slots' gray, where the empty line should be. Found on
     Chris's Windows run of 27 October; a run on a slower machine had always
-    let it land first.
+    let it land first. Ruling 103 A (the same day) stopped the history from
+    recording that mix at all (tests/test_history_records_the_users_mixes.py);
+    the wait stays, so no mix pending at the clear can land after it.
     """
     timer = app_window._mix_debounce_timer
     for _ in range(100):

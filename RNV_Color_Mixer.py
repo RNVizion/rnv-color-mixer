@@ -483,6 +483,17 @@ class ColorMixerApp(QMainWindow):
             self._mix_debounce_timer = QTimer(self)
             self._mix_debounce_timer.setSingleShot(True)
             self._mix_debounce_timer.timeout.connect(self._debounced_mix_colors)
+
+            # Ruling 103 A (2026-10-27): the history records the mixes that
+            # follow something the user did. The app mixes its slots as it
+            # starts, and again when it restores a session at startup (the
+            # crash-recovery offer, or Auto-load last session); those mixes
+            # are not the user's, and every launch added the default slots'
+            # gray. A change made while _starting or _restoring_at_startup
+            # marks the mix it schedules as quiet (on_slot_change).
+            self._starting = True
+            self._restoring_at_startup = False
+            self._quiet_mix = False
             
             # Color mix cache for performance
             self._color_cache = {}
@@ -552,6 +563,7 @@ class ColorMixerApp(QMainWindow):
             # while the app runs, when Qt reports a change
             self._connect_system_color_scheme()
             
+            self._starting = False                        # ruling 103 A: the user's changes from here
             logger.success("ColorMixerApp initialization completed successfully")
             
             # Install application-level event filter for custom themed tooltips
@@ -576,9 +588,15 @@ class ColorMixerApp(QMainWindow):
         never restores two things. Otherwise, with Settings > Auto-load last
         session on, the last session is loaded.
         """
-        if self._check_crash_recovery():
-            return
-        self._auto_load_last_session()
+        # Ruling 103 A: what this restores is not mixed by the user now. The
+        # history already holds those mixes, from when they were made.
+        self._restoring_at_startup = True
+        try:
+            if self._check_crash_recovery():
+                return
+            self._auto_load_last_session()
+        finally:
+            self._restoring_at_startup = False
 
     def _auto_load_last_session(self) -> bool:
         """Load the last session, if Auto-load last session is on.
@@ -708,8 +726,8 @@ class ColorMixerApp(QMainWindow):
                     self.slots[i].set_color(color)
                     self.slots[i].set_weight(weight)
             
-            # Update mixed color
-            self.auto_mix_colors()
+            # Update mixed color (ruling 103 A: not recorded when restored at startup)
+            self.auto_mix_colors(record=not self._restoring_at_startup)
             
             return True
             
@@ -2565,6 +2583,11 @@ class ColorMixerApp(QMainWindow):
     def on_slot_change(self) -> None:
         """Handle slot changes safely."""
         def handle_change() -> None:
+            # Ruling 103 A: a change made while the app starts or restores a
+            # session at startup schedules a mix the history does not record;
+            # a change after that, the user's, schedules one it does.
+            self._quiet_mix = bool(getattr(self, '_starting', False)
+                                   or getattr(self, '_restoring_at_startup', False))
             # Debounce color mixing - only recalculate after 100ms of no changes
             self._mix_debounce_timer.stop()
             self._mix_debounce_timer.start(100)  # 100ms delay
@@ -2573,10 +2596,17 @@ class ColorMixerApp(QMainWindow):
 
     def _debounced_mix_colors(self) -> None:
         """Debounced color mixing - called after slider stops moving."""
-        ErrorHandler.safe_execute(lambda: self.auto_mix_colors(), "debounced color mixing", print)
+        quiet, self._quiet_mix = getattr(self, '_quiet_mix', False), False
+        ErrorHandler.safe_execute(lambda: self.auto_mix_colors(record=not quiet), "debounced color mixing", print)
 
-    def auto_mix_colors(self) -> None:
-        """Mix colors safely with caching."""
+    def auto_mix_colors(self, record: bool = True) -> None:
+        """Mix colors safely with caching.
+
+        Args:
+            record: False for a mix the user did not make (ruling 103 A): the
+                one the app makes as it starts, and a session's restored at
+                startup. It is shown, and not added to the history.
+        """
         def mix_colors() -> None:
             colors_weights = [(s.get_color(), s.get_weight()) for s in self.slots if s.get_weight() > 0]
             
@@ -2634,7 +2664,7 @@ class ColorMixerApp(QMainWindow):
                         self.settings_manager.get('preferences.history_enabled', True)
                         and self.settings_manager.get('preferences.auto_save_colors', True))
                 
-                if should_auto_save and self.color_history and mixed_color != (0, 0, 0):
+                if record and should_auto_save and self.color_history and mixed_color != (0, 0, 0):
                     self.color_history.add_color(mixed_color)
                 
                 if self.canvas_view:

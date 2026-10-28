@@ -114,6 +114,11 @@ Everything since 2026-05-21, by theme. The version number is held at
 
 ### Fixed
 
+- **Launching no longer adds to the color history.** As it started, the app mixed its slots
+  and recorded the mix as if you had made it: every launch added the default slots' gray,
+  so the History tab's *No color history yet* line was never seen, and a session restored at
+  startup (recovered, or auto-loaded) was recorded a second time. Now the history records
+  only the mixes that follow something you did.
 - **The harmony description reads in Light mode.** Its text, the panel's dark gold, sat on a
   wash of the same gold that read 4.49:1, just under the 4.5 the brand sets for text on a
   see-through color. The wash is lighter now: 4.71:1 in Light, 8.39:1 in Dark and Image.
