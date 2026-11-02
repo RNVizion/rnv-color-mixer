@@ -1,0 +1,177 @@
+{
+  "about": "Written by tools/sync_fonts.py from rnv-brand at the commit pinned in tests/requirements-dev.txt: each file is the brand's woff2 files for one weight, decoded and joined, because Qt on Windows loads TrueType and OpenType only. Don't edit it by hand: move the pin and run the tool. utils/brand_fonts.py registers these files at startup.",
+  "rnv_brand": "108213b82a4f71163ddd04b56ea15c2425de45dc",
+  "roles": {
+    "body": {
+      "family": "Inter",
+      "license": "OFL-Inter.txt",
+      "files": [
+        {
+          "file": "inter-400-normal.ttf",
+          "weight": "400",
+          "style": "normal",
+          "sha256": "54c68490b224857cf9fa290dd46f531206ba8800788e0aec8f26596301f75cfe",
+          "from": [
+            {
+              "file": "inter-latin-400-normal.woff2",
+              "subset": "latin",
+              "sha256": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 17
+            },
+            {
+              "file": "inter-latin-ext-400-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "6744a7f509ebc6ab220a6cd4ea77e898adf014f03d88dcda5d45d8a9feefb4e9",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 16
+            }
+          ]
+        },
+        {
+          "file": "inter-500-normal.ttf",
+          "weight": "500",
+          "style": "normal",
+          "sha256": "e35010a4611c223430a4a3310697d53b830584119a2d075eb758ed4176c2f126",
+          "from": [
+            {
+              "file": "inter-latin-500-normal.woff2",
+              "subset": "latin",
+              "sha256": "f3779f1efccc4bdcdf9c0a02ab95bf6bd092ed09c48c08cedc725889edd1d19f",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 19
+            },
+            {
+              "file": "inter-latin-ext-500-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "2c6fbc42d315528beb06c1096df45487bf4186c4b78b8111d12c9c951f8acca2",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 18
+            }
+          ]
+        },
+        {
+          "file": "inter-600-normal.ttf",
+          "weight": "600",
+          "style": "normal",
+          "sha256": "f60cb09fa509ca14e8cba4a06076150338e5af959b5bb4400f7219c1ff29f8cd",
+          "from": [
+            {
+              "file": "inter-latin-600-normal.woff2",
+              "subset": "latin",
+              "sha256": "f9a06e79cd3a2a20951c0f0e28f66dd0e6d3fda73911d640a2125c8fcb78f21a",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 21
+            },
+            {
+              "file": "inter-latin-ext-600-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "e4bdf67b0cd15ca9e184509275be95db942195d3cc2b17f6a0452f2adf75d0bf",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 20
+            }
+          ]
+        }
+      ]
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "license": "OFL-JetBrains-Mono.txt",
+      "files": [
+        {
+          "file": "jetbrains-mono-400-normal.ttf",
+          "weight": "400",
+          "style": "normal",
+          "sha256": "add95c17ff736ca5c4fe525730e664876a49d5660c54ae7a67a5d4377445a2e5",
+          "from": [
+            {
+              "file": "jetbrains-mono-latin-400-normal.woff2",
+              "subset": "latin",
+              "sha256": "14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 9
+            },
+            {
+              "file": "jetbrains-mono-latin-ext-400-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "505dfba8ecbe77e82765f36d317ed7ef4ac42719dc5f4ae68d1c483fd22d0d14",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 8
+            }
+          ]
+        },
+        {
+          "file": "jetbrains-mono-500-normal.ttf",
+          "weight": "500",
+          "style": "normal",
+          "sha256": "e18ecde0835e82d7414e91dddba5e1a55c9adfb96c04ce19de4e3493df65cc08",
+          "from": [
+            {
+              "file": "jetbrains-mono-latin-500-normal.woff2",
+              "subset": "latin",
+              "sha256": "cb182feeed4d798ff6961d3c79f7026279448fca0676438aaecb21f3fc39553a",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 11
+            },
+            {
+              "file": "jetbrains-mono-latin-ext-500-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "879df9319f1cbf633bee1dd489e376a9e1e8c458f4abddcfe381cb83b5e6b027",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 10
+            }
+          ]
+        },
+        {
+          "file": "jetbrains-mono-600-normal.ttf",
+          "weight": "600",
+          "style": "normal",
+          "sha256": "8347add3c1dd79667d34a2251f541f91bec29c55d2cb9c7976570f788515a728",
+          "from": [
+            {
+              "file": "jetbrains-mono-latin-600-normal.woff2",
+              "subset": "latin",
+              "sha256": "400c6bfda18d5d14acad1c15d6dcb9f8e13c015e7286317e0b9a482539bef147",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 13
+            },
+            {
+              "file": "jetbrains-mono-latin-ext-600-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "90899aac1c15552c028fd205376bb537a2a5205164fe8626efabad77d7260c20",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 12
+            }
+          ]
+        },
+        {
+          "file": "jetbrains-mono-700-normal.ttf",
+          "weight": "700",
+          "style": "normal",
+          "sha256": "7dc8c1a553583113cf9e44d159d69f17bfe6cd264ea2b265996460bdba1cba18",
+          "from": [
+            {
+              "file": "jetbrains-mono-latin-700-normal.woff2",
+              "subset": "latin",
+              "sha256": "d0d4e818808f2a0ba39b2b09d1989366f63494e295f003c7ef436697378507e8",
+              "unicode_range": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+              "declared": 15
+            },
+            {
+              "file": "jetbrains-mono-latin-ext-700-normal.woff2",
+              "subset": "latin-ext",
+              "sha256": "45a606d88f72bc0afae4d1a6988e3dba3a5e77ee51aa3b550e37c31c728f4d2d",
+              "unicode_range": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+              "declared": 14
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "mark": {
+    "family": "Montserrat",
+    "license": "OFL-Montserrat.txt",
+    "file": "Montserrat-Black.ttf"
+  }
+}

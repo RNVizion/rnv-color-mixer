@@ -15,6 +15,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QModelIndex, QSize
 from PyQt6.QtGui import QColor, QPixmap, QPainter, QBrush, QIcon, QShortcut, QKeySequence, QResizeEvent, QShowEvent, QCloseEvent
 from utils import config
 from utils import colors
+from utils import brand_fonts
 import os
 import traceback
 from ui.debug_overlay import DebugOverlay
@@ -491,7 +492,7 @@ class PackageDPanel(QDialog):
         refresh_btn.setObjectName("preset_refresh_btn")
         refresh_btn.setFixedSize(46, 34)
         refresh_btn.setStyleSheet(
-            "QPushButton { font-size: 22px; font-family: Arial, 'Segoe UI', sans-serif; "
+            "QPushButton { font-size: 22px; font-family: " + brand_fonts.css("body") + "; "
             "padding-bottom: 7px; padding-left: 0px; padding-right: 0px; padding-top: 0px; border: 1px solid transparent; }"
         )
         refresh_btn.setToolTip("Refresh presets list")
@@ -571,7 +572,7 @@ class PackageDPanel(QDialog):
         self.harmony_refresh_btn.setObjectName("harmony_refresh_btn")  # For theme styling
         self.harmony_refresh_btn.setFixedSize(46, 34)
         self.harmony_refresh_btn.setStyleSheet(
-            "QPushButton { font-size: 22px; font-family: Arial, 'Segoe UI', sans-serif; "
+            "QPushButton { font-size: 22px; font-family: " + brand_fonts.css("body") + "; "
             "padding-bottom: 7px; padding-left: 0px; padding-right: 0px; padding-top: 0px; border: 1px solid transparent; }"
         )
         

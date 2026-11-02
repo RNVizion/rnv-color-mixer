@@ -161,7 +161,7 @@ def installed_commit() -> str | None:
 
 
 def load_brand(root: Path = ROOT) -> tuple[Any, str]:
-    """engine.brand, refused unless it is the pinned commit."""
+    """rnv_brand.brand, refused unless it is the pinned commit."""
     pin = pinned_commit(root)
     have = installed_commit()
     if have != pin:
@@ -170,7 +170,10 @@ def load_brand(root: Path = ROOT) -> tuple[Any, str]:
             f"{have[:7] if have else 'not one pip recorded a commit for'}, and "
             f"this repository pins {pin[:7]}. "
             f"Run: pip install -r {DEV_REQS}")
-    import engine.brand as brand
+    # rnv-brand installs the register as rnv_brand since 48.1.0 (108213b). It was
+    # engine.brand until then, a name another package's `engine` can hide:
+    # rnv-color-mcp has one, and this tool is to read the brand there too.
+    import rnv_brand.brand as brand
     return brand, pin
 
 

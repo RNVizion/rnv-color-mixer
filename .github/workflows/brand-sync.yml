@@ -83,7 +83,7 @@ jobs:
           sed -i -E "s#(rnv-brand @ git\+https://github\.com/RNVizion/rnv-brand(\.git)?@)[0-9a-f]{40}#\1$head#" tests/requirements-dev.txt
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r tests/requirements-dev.txt
-          if ! python -c "import engine.brand"; then
+          if ! python -c "import rnv_brand.brand"; then
             echo "::warning::rnv-brand at ${head:0:7} does not import; nothing was synced."
             echo "moved=no" >> "$GITHUB_OUTPUT"
             exit 0

@@ -34,6 +34,7 @@ from utils.signal_manager import SignalMixin
 # RNV-NAMED-AND-USED (2026-10-04): an overlay's tint, text and edge are
 # named in colors.DEBUG_OVERLAY_COLORS. They were written out in this file.
 from utils import colors
+from utils import brand_fonts
 
 
 class DebugOverlay(QLabel, SignalMixin):
@@ -58,7 +59,7 @@ class DebugOverlay(QLabel, SignalMixin):
                 border-radius: 6px;
                 font-weight: bold;
                 font-size: 13px;
-                font-family: "Courier New", "Consolas", monospace;
+                font-family: {brand_fonts.css('mono')};
             }}
         """)
         
@@ -144,7 +145,7 @@ class DebugOverlayDetailed(QLabel, SignalMixin):
                 border-radius: 6px;
                 font-weight: bold;
                 font-size: 12px;
-                font-family: "Courier New", "Consolas", monospace;
+                font-family: {brand_fonts.css('mono')};
             }}
         """)
         

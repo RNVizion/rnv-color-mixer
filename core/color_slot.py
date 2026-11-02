@@ -550,11 +550,11 @@ class ColorSlot(QWidget, SignalMixin):
                 QWidget {{
                     background-color: {widget_bg};
                     color: {theme['text_color']};
-                    font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                    font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                 }}
                 QLabel {{
                     color: {theme['text_color']};
-                    font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                    font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                 }}
                 QLineEdit {{
                     background-color: {theme['input_bg']};
@@ -562,7 +562,7 @@ class ColorSlot(QWidget, SignalMixin):
                     border: 1px solid {theme['border_color']};
                     padding: 2px;
                     border-radius: 3px;
-                    font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                    font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                     font-size: {config.FONT_SIZES["normal"]}px;
                 }}
                 QPushButton {{
@@ -571,7 +571,7 @@ class ColorSlot(QWidget, SignalMixin):
                     border: 1px solid {theme['border_color']};
                     padding: 4px;
                     border-radius: 3px;
-                    font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                    font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                     font-size: {config.FONT_SIZES["normal"]}px;
                 }}
                 QPushButton:hover {{

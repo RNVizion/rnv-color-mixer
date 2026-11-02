@@ -550,6 +550,8 @@ unexpected behavior.
 
 [MIT](LICENSE) — free to use, modify, and distribute.
 
+The bundled fonts are not under MIT. Montserrat Black (the mark), Inter (the interface) and JetBrains Mono (fixed-width text) are under the SIL Open Font License 1.1, and each family's license travels with it in `resources/fonts/`: [`OFL-Montserrat.txt`](resources/fonts/OFL-Montserrat.txt), [`OFL-Inter.txt`](resources/fonts/OFL-Inter.txt) and [`OFL-JetBrains-Mono.txt`](resources/fonts/OFL-JetBrains-Mono.txt). Inter and JetBrains Mono are made from rnv-brand's files at the pinned commit by `python tools/sync_fonts.py`, one TrueType file per weight; `tests/test_fonts_in_sync.py` fails when the copy and the pin disagree.
+
 ---
 
 ## Author

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 # Every color lives in utils/colors.py: ThemeManager serves its three
 # palettes from there, and the stylesheets below draw with these names.
 from utils import colors
+from utils import brand_fonts
 from utils.colors import (
     translucent_rgba, APP_BORDER_DARK, APP_BORDER_LIGHT, APP_BTN_HOVER_INVERSE,
     APP_BTN_PRESSED, APP_CHROME_DARK, APP_CONTROL_DIM, APP_HANDLE_EDGE_LIGHT, APP_HANDLE_LIGHT,
@@ -198,6 +199,10 @@ class ThemeManager:
 FONT_FAMILY = "Montserrat Black"
 FONT_FILE_NAME = "Montserrat-Black.ttf"
 FONT_PATH = os.path.join(RESOURCES_DIR, "fonts", FONT_FILE_NAME)
+# After the mark, the brand's body face (ruling 107 A; "Arial Black", "Arial"
+# until 2026-11-02). Its family is the one fonts.json names, which
+# tests/test_fonts_in_sync.py holds to the family Qt registers the files as.
+BODY_FONT_CSS = brand_fonts.css("body")
 FONT_SIZES = {
     "small": 9,
     "normal": 10,
@@ -215,14 +220,14 @@ DARK_STYLESHEET = f"""
 QMainWindow {{
     background-color: {TRUE_BLACK};
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QWidget {{
     background-color: {TRUE_BLACK};
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -233,7 +238,7 @@ QPushButton {{
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -254,7 +259,7 @@ QLineEdit {{
     border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: {BRAND_GOLD};
@@ -267,7 +272,7 @@ QLineEdit:focus {{
 
 QLabel {{
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -293,7 +298,7 @@ QSlider::handle:horizontal:hover {{
 QScrollArea {{
     background-color: {TRUE_BLACK};
     border: 1px solid {APP_BORDER_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
 }}
 
 QScrollBar:vertical {{
@@ -353,7 +358,7 @@ QStatusBar {{
     background-color: {APP_SURFACE_DARK};
     color: {APP_TEXT_DARK};
     border-top: 1px solid {APP_BORDER_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["small"]}px;
 }}
 
@@ -361,13 +366,13 @@ QStatusBar QLabel {{
     background-color: {APP_SURFACE_DARK};
     color: {APP_TEXT_DARK};
     padding: 2px 4px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -401,7 +406,7 @@ QComboBox {{
     border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -413,7 +418,7 @@ QComboBox QAbstractItemView {{
     background-color: {APP_SURFACE_DARK};
     color: {APP_TEXT_DARK};
     selection-background-color: {BRAND_GOLD};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
 }}
 
 QComboBox QAbstractItemView::item:hover {{
@@ -431,14 +436,14 @@ LIGHT_STYLESHEET = f"""
 QMainWindow {{
     background-color: {APP_WINDOW_LIGHT};
     color: {TRUE_BLACK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
 QWidget {{
     background-color: {APP_WINDOW_LIGHT};
     color: {TRUE_BLACK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -449,7 +454,7 @@ QPushButton {{
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -470,7 +475,7 @@ QLineEdit {{
     border: 1px solid {APP_BORDER_LIGHT};
     padding: 4px;
     border-radius: 3px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: {BRAND_DARK_GOLD};
@@ -483,7 +488,7 @@ QLineEdit:focus {{
 
 QLabel {{
     color: {TRUE_BLACK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -509,7 +514,7 @@ QSlider::handle:horizontal:hover {{
 QScrollArea {{
     background-color: {WHITE};
     border: 1px solid {APP_BORDER_LIGHT};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
 }}
 
 QScrollBar:vertical {{
@@ -569,7 +574,7 @@ QStatusBar {{
     background-color: {APP_WINDOW_LIGHT};
     color: {TRUE_BLACK};
     border-top: 1px solid {APP_BORDER_LIGHT};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["small"]}px;
 }}
 
@@ -577,13 +582,13 @@ QStatusBar QLabel {{
     background-color: {APP_WINDOW_LIGHT};
     color: {TRUE_BLACK};
     padding: 2px 4px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
     color: {TRUE_BLACK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -617,7 +622,7 @@ QComboBox {{
     border: 1px solid {APP_BORDER_LIGHT};
     padding: 4px;
     border-radius: 3px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -629,7 +634,7 @@ QComboBox QAbstractItemView {{
     background-color: {WHITE};
     color: {TRUE_BLACK};
     selection-background-color: {BRAND_DARK_GOLD};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
 }}
 
 QComboBox QAbstractItemView::item:hover {{
@@ -647,7 +652,7 @@ QComboBox QAbstractItemView::item:selected {{
 IMAGE_STYLESHEET = f"""
 QMainWindow {{
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -658,7 +663,7 @@ QMainWindow > QWidget {{
 QWidget {{
     background-color: transparent;
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -673,7 +678,7 @@ QPushButton {{
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -694,7 +699,7 @@ QLineEdit {{
     border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
     min-height: 16px;
     selection-background-color: {BRAND_GOLD};
@@ -708,7 +713,7 @@ QLineEdit:focus {{
 QLabel {{
     color: {APP_TEXT_DARK};
     background-color: transparent;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -734,7 +739,7 @@ QSlider::handle:horizontal:hover {{
 QScrollArea {{
     background-color: transparent;
     border: 1px solid {translucent_rgba(APP_BORDER_DARK, SCROLL_AREA_BORDER_ALPHA)};
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", {BODY_FONT_CSS};
 }}
 
 QScrollArea::viewport {{
@@ -806,7 +811,7 @@ QStatusBar {{
     background-color: {translucent_rgba(APP_SURFACE_DARK, STATUS_BAR_ALPHA)};
     color: {APP_TEXT_DARK};
     border-top: 1px solid {APP_BORDER_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["small"]}px;
 }}
 
@@ -814,13 +819,13 @@ QStatusBar QLabel {{
     background-color: transparent;
     color: {APP_TEXT_DARK};
     padding: 2px 4px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["small"]}px;
 }}
 
 QCheckBox {{
     color: {APP_TEXT_DARK};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -854,7 +859,7 @@ QComboBox {{
     border: 1px solid {APP_BORDER_DARK};
     padding: 4px;
     border-radius: 3px;
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
     font-size: {FONT_SIZES["normal"]}px;
 }}
 
@@ -866,7 +871,7 @@ QComboBox QAbstractItemView {{
     background-color: {translucent_rgba(APP_SURFACE_DARK, COMBO_ALPHA)};
     color: {APP_TEXT_DARK};
     selection-background-color: {BRAND_GOLD};
-    font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+    font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
 }}
 
 QComboBox QAbstractItemView::item:hover {{
@@ -905,30 +910,30 @@ def get_font_stylesheet() -> str:
     """Get a universal font stylesheet that can be applied to any widget."""
     return f"""
         * {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
         }}
         QWidget {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
             font-size: {FONT_SIZES["normal"]}px;
         }}
         QLabel {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
         }}
         QPushButton {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
             font-weight: bold;
         }}
         QLineEdit {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
         }}
         QComboBox {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
         }}
         QCheckBox {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
         }}
         QStatusBar {{
-            font-family: "{FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+            font-family: "{FONT_FAMILY}", {BODY_FONT_CSS};
         }}
     """
 
@@ -958,6 +963,9 @@ class FontManager:
         try:
             from PyQt6.QtGui import QFontDatabase
             from PyQt6.QtCore import QByteArray
+            
+            # The brand's interface faces, Inter and JetBrains Mono (ruling 107 A)
+            brand_fonts.register(os.path.join(RESOURCES_DIR, "fonts"))
             
             # Try embedded font first
             if EMBED_FONT and EMBEDDED_FONT_DATA:

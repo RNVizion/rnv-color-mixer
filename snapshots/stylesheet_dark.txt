@@ -2,14 +2,14 @@
 QMainWindow {
     background-color: #000000;
     color: #dddddd;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
 }
 
 QWidget {
     background-color: #000000;
     color: #dddddd;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
 }
 
@@ -20,7 +20,7 @@ QPushButton {
     padding: 2px;
     border-radius: 4px;
     font-weight: bold;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
 }
 
@@ -41,7 +41,7 @@ QLineEdit {
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
     min-height: 16px;
     selection-background-color: #d2bc93;
@@ -54,7 +54,7 @@ QLineEdit:focus {
 
 QLabel {
     color: #dddddd;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
 }
 
@@ -80,7 +80,7 @@ QSlider::handle:horizontal:hover {
 QScrollArea {
     background-color: #000000;
     border: 1px solid #333333;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
 }
 
 QScrollBar:vertical {
@@ -140,7 +140,7 @@ QStatusBar {
     background-color: #1a1a1a;
     color: #dddddd;
     border-top: 1px solid #333333;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 9px;
 }
 
@@ -148,13 +148,13 @@ QStatusBar QLabel {
     background-color: #1a1a1a;
     color: #dddddd;
     padding: 2px 4px;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 9px;
 }
 
 QCheckBox {
     color: #dddddd;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
 }
 
@@ -188,7 +188,7 @@ QComboBox {
     border: 1px solid #333333;
     padding: 4px;
     border-radius: 3px;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
     font-size: 10px;
 }
 
@@ -200,7 +200,7 @@ QComboBox QAbstractItemView {
     background-color: #1a1a1a;
     color: #dddddd;
     selection-background-color: #d2bc93;
-    font-family: "Montserrat Black", "Arial Black", "Arial", sans-serif;
+    font-family: "Montserrat Black", "Inter", sans-serif;
 }
 
 QComboBox QAbstractItemView::item:hover {

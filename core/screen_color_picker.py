@@ -30,6 +30,7 @@ except ImportError:
 
 # Import SignalMixin for signal connection tracking
 from utils.signal_manager import SignalMixin
+from utils import brand_fonts
 
 # Import ErrorHandler for consistent error handling
 try:
@@ -60,8 +61,9 @@ _PEN_GOLD_3 = QPen(_GOLD_BRAND, 3)
 _PEN_GRID = QPen(_GOLD_TRANSPARENT, 1)
 
 # Fonts - created once
-_FONT_BOLD = QFont("Arial", 9, QFont.Weight.Bold)
-_FONT_SMALL = QFont("Arial", 7)
+# The brand's body face (ruling 107 A; Arial until 2026-11-02)
+_FONT_BOLD = brand_fonts.font("body", 9, 600)
+_FONT_SMALL = brand_fonts.font("body", 7)
 
 
 class ScreenColorPicker(QWidget, SignalMixin):

@@ -333,7 +333,7 @@ class UIHandler(QObject):
                     QDialog, QWidget {{
                         background-color: {theme['window_bg']};
                         color: {theme['text_color']};
-                        font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                        font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                     }}
                     QPushButton {{
                         background-color: {theme['main_btn_bg']};
@@ -341,7 +341,7 @@ class UIHandler(QObject):
                         border: 1px solid {theme['border_color']};
                         padding: 2px 2px;
                         border-radius: 4px;
-                        font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                        font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                     }}
                     QPushButton:hover {{
                         background-color: {theme['main_btn_hover_bg']};
@@ -349,7 +349,7 @@ class UIHandler(QObject):
                     }}
                     QLabel {{
                         color: {theme['text_color']};
-                        font-family: "{config.FONT_FAMILY}", "Arial Black", "Arial", sans-serif;
+                        font-family: "{config.FONT_FAMILY}", {config.BODY_FONT_CSS};
                     }}
                 """
                 window.setStyleSheet(stylesheet)

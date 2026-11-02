@@ -37,6 +37,7 @@ except ImportError:
 
 # Import SignalMixin for signal connection tracking
 from utils.signal_manager import SignalMixin
+from utils import brand_fonts
 
 try:
     from core.color_math import ColorMath
@@ -339,7 +340,7 @@ class ImageDisplayLabel(QLabel):
                     # Draw size info
                     if rect.width() > 50 and rect.height() > 30:
                         size_text = f"{rect.width()}×{rect.height()}"
-                        font = QFont("Montserrat Black" if config else "Arial", 10)
+                        font = QFont("Montserrat Black" if config else brand_fonts.family("body"), 10)
                         painter.setFont(font)
                         
                         text_rect = painter.boundingRect(rect, Qt.AlignmentFlag.AlignCenter, size_text)
@@ -425,7 +426,7 @@ class ImageDisplayLabel(QLabel):
             # Text
             hex_color = ColorMath.rgb_to_hex(self.preview_color)
             font_size = config.FONT_SIZES["medium"] if config else 12
-            font = QFont("Montserrat Black" if config else "Arial Black", font_size)
+            font = QFont("Montserrat Black" if config else brand_fonts.family("body"), font_size)
             font.setBold(True)
             painter.setFont(font)
             
@@ -452,7 +453,7 @@ class ImageDisplayLabel(QLabel):
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, hex_color)
             
             # RGB text
-            rgb_font = QFont("Montserrat Black" if config else "Arial Black", font_size - 2)
+            rgb_font = QFont("Montserrat Black" if config else brand_fonts.family("body"), font_size - 2)
             painter.setFont(rgb_font)
             rgb_text = f"rgb{self.preview_color}"
             rgb_rect = QRect(center_x - 80, text_y + 25, 160, 20)

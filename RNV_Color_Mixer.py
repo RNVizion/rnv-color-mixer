@@ -2867,7 +2867,9 @@ class ColorMixerApp(QMainWindow):
             draw = ImageDraw.Draw(img)
             
             try:
-                font = ImageFont.truetype("arial.ttf", 48)
+                # The brand's body face (ruling 107 A), where it once was Arial
+                from utils import brand_fonts
+                font = ImageFont.truetype(str(brand_fonts.file_for("body", 600)), 48)
             except Exception:
                 font = ImageFont.load_default()
                 
