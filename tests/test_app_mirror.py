@@ -19,7 +19,7 @@ APP_SURFACE_DARK is BRAND_BLACK, at n = 1.53, a permanent that will not
 move to fit a ladder.
 
 TWO GUARDS, NOT ONE. rnv-text-transformer's mirror test guards with
-`pytest.importorskip('engine.brand')`, so where rnv-brand is not importable it
+`pytest.importorskip('rnv_brand.brand')`, so where rnv-brand is not importable it
 reports clean and drift hides. Every register value here is therefore pinned
 LOCALLY as well as mirrored UPSTREAM: the pin catches drift when the brand is
 absent, the mirror catches the brand moving. Neither alone is enough.
@@ -137,7 +137,7 @@ def test_the_ink_is_a_step_on_the_grid():
 
 def test_every_pinned_neutral_is_what_the_register_held():
     """The local half of the mirror. Runs everywhere, including where
-    engine.brand is not importable.
+    rnv_brand.brand is not importable.
 
     RNV-COLOR-SYNC, 2026-10-16. This held each value written out beside its
     name, and a brand move meant editing it by hand. Now it holds that
@@ -154,7 +154,7 @@ def test_register_values_match_rnv_brand():
     """The upstream half. Skips where rnv-brand is not importable, which is
     exactly why the pin above is not optional."""
     brand = pytest.importorskip(
-        'engine.brand',
+        'rnv_brand.brand',
         reason='rnv-brand not importable here; the local pin is doing the work')
     drift = []
     for name in NEUTRALS:

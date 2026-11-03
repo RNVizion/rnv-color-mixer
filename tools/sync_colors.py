@@ -47,8 +47,9 @@ DEV_REQS = "tests/requirements-dev.txt"
 
 #: The register's tables a map entry may name, as TABLE.key. A name with no
 #: table, such as GOLD_TEXT_GROUND_FLOOR, is one of the register's own
-#: constants.
-TABLES = ("PERMANENT", "APP", "STATUS")
+#: constants. GRAY, since rev 49 (2 November 2026, ruling 104 A here), names
+#: five steps of the register's ink grid, gray(n) = n * 0x11.
+TABLES = ("PERMANENT", "APP", "STATUS", "GRAY")
 
 #: The same pin tests/test_register_pin.py reads: a full commit, never a branch.
 PIN_RE = re.compile(

@@ -1,6 +1,6 @@
 {
   "about": "Written by tools/sync_fonts.py from rnv-brand at the commit pinned in tests/requirements-dev.txt: each file is the brand's woff2 files for one weight, decoded and joined, because Qt on Windows loads TrueType and OpenType only. Don't edit it by hand: move the pin and run the tool. utils/brand_fonts.py registers these files at startup.",
-  "rnv_brand": "108213b82a4f71163ddd04b56ea15c2425de45dc",
+  "rnv_brand": "63a023547395d73b357b6b68f318c3c63d667362",
   "roles": {
     "body": {
       "family": "Inter",

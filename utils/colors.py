@@ -262,7 +262,7 @@ each other. The ladder was complete the whole time:
 
 MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 
-APP_HINT_DARK: Final[str] = "#888888"  # app-owned
+APP_HINT_DARK: Final[str] = "#888888"  # brand: GRAY.gray-8
 """Hint text in dark and image. gray(8) on the published ink grid, and the
 same step the other four apps use for muted text."""
 
@@ -270,7 +270,7 @@ same step the other four apps use for muted text."""
 APP_WINDOW_LIGHT: Final[str] = "#f5f5f5"  # brand: APP.surface-light-3
 """Window ground in light, the status bar, and the scrollbar track."""
 
-APP_BORDER_LIGHT: Final[str] = "#cccccc"  # app-owned
+APP_BORDER_LIGHT: Final[str] = "#cccccc"  # brand: GRAY.gray-12
 """Every border in light. Also the scrollbar handle at rest and the splitter
 handle, on the same reasoning as APP_BORDER_DARK."""
 
@@ -294,10 +294,10 @@ what carries the ownership, not the spelling.
 
 MIRRORED, not app-owned -- pinned in tests/test_app_mirror.py."""
 
-APP_HANDLE_LIGHT: Final[str] = "#666666"  # app-owned
+APP_HANDLE_LIGHT: Final[str] = "#666666"  # brand: GRAY.gray-6
 """Slider handle at rest, light."""
 
-APP_HINT_LIGHT: Final[str] = "#666666"  # app-owned
+APP_HINT_LIGHT: Final[str] = "#666666"  # brand: GRAY.gray-6
 """gray(6). Hint and muted text in light -- the step the other four apps
 use for muted text in light, as APP_HINT_DARK is in dark.
 
@@ -306,7 +306,7 @@ APP_HANDLE_LIGHT, the same hex doing another job. When the control panel's
 ten descriptions joined the fine-tune hint on this key, text would have
 moved every time the slider handle did."""
 
-APP_HANDLE_EDGE_LIGHT: Final[str] = "#888888"  # app-owned
+APP_HANDLE_EDGE_LIGHT: Final[str] = "#888888"  # brand: GRAY.gray-8
 """The emphasized edge of a light handle: the slider handle's border.
 
 RNV-GOLD-HOVER, 2026-09-12: the light scrollbar handle on hover used to read
@@ -316,7 +316,7 @@ The value was #999999, a step this constant held alone in the whole fleet;
 against the white menu ground #888888 lifts disabled menu text from 2.85 to
 3.54."""
 
-APP_CONTROL_DIM: Final[str] = "#555555"  # app-owned
+APP_CONTROL_DIM: Final[str] = "#555555"  # brand: GRAY.gray-5
 """Two unrelated jobs on one step: the light slider handle when hovered, and
 the image-mode checkbox indicator border. Worth knowing that dark mode draws
 that same checkbox border with APP_BORDER_DARK while rnv-color-picker and
@@ -330,14 +330,14 @@ purpose: the scheme inverts on hover, and the label stays put. Assigned from
 APP_BORDER_DARK rather than repeating the value so the two cannot drift
 apart."""
 
-APP_BTN_PRESSED: Final[str] = "#444444"  # app-owned
+APP_BTN_PRESSED: Final[str] = "#444444"  # brand: GRAY.gray-4
 """The basic button's pressed fill, identical in all three modes. The label
 flips instead -- TRUE_BLACK on dark, WHITE on light."""
 
 # ---- RNV-MIXER-WIRING (2026-09-06): four names for values the palettes
 # ---- already carried as literals. Nothing here is a new color.
 
-APP_CHROME_DARK: Final[str] = "#444444"  # app-owned
+APP_CHROME_DARK: Final[str] = "#444444"  # brand: GRAY.gray-4
 """gray(4). The structural gray of a control in dark and image: the slider
 groove, and the border and separator of a menu -- and, from 2026-09-25, the
 image-mode scrollbar handle at SCROLLBAR_HANDLE_ALPHA. That handle was
@@ -369,7 +369,7 @@ RENAMED 2026-10-17 (#51 A) from APP_DIM_LIGHT. It colors text, and it is the
 register's text-dim, which the picker, icon builder and palette manager
 call APP_TEXT_DIM; this application adds the mode, as APP_TEXT_DARK does."""
 
-APP_MENU_DIM_DARK: Final[str] = "#666666"  # app-owned
+APP_MENU_DIM_DARK: Final[str] = "#666666"  # brand: GRAY.gray-6
 """gray(6). The disabled menu label in dark and image.
 
 SPLIT, NOT RENAMED. APP_HANDLE_LIGHT is the same hex and keeps its own job.

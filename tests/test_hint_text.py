@@ -169,10 +169,12 @@ def test_the_light_hint_has_its_own_name():
                  if isinstance(k, ast.Constant) and k.value == "text_hint")
     assert isinstance(value, ast.Name) and value.id == "APP_HINT_LIGHT", ast.unparse(value)
     assert colors.APP_HINT_LIGHT == colors.APP_HANDLE_LIGHT
-    # #52 A, 2026-10-17: the value both hold is the application's own, by the
-    # map; tests/test_colors_in_sync.py holds it there.
-    assert isinstance(BRAND_MAP["APP_HINT_LIGHT"], dict)
-    assert isinstance(BRAND_MAP["APP_HANDLE_LIGHT"], dict)
+    # #52 A, 2026-10-17: the value both hold was the application's own, by the
+    # map; tests/test_colors_in_sync.py holds it there. Ruling 104 A, 2 November
+    # 2026: the register names it since rev 49, and the map takes both from it.
+    # One step of the grid, two jobs: the names stay split.
+    assert BRAND_MAP["APP_HINT_LIGHT"] == "GRAY.gray-6"
+    assert BRAND_MAP["APP_HANDLE_LIGHT"] == "GRAY.gray-6"
 
 
 def test_no_label_is_written_in_a_css_gray():

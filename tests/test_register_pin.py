@@ -24,6 +24,11 @@ twenty-two tests quietly not running.
 
 A skipped test and a passing test look identical in a summary line. That is
 the whole failure mode this guards.
+
+THE REGISTER'S NAME IS rnv_brand.brand. rnv-brand 48.1.0 installs it under
+that name, and engine.brand is the old one, which another package's `engine`
+can hide. Every test here moved to it with the pin move to rev 49 (2 November
+2026), so rnv-brand can drop `engine` without a test here noticing.
 """
 from __future__ import annotations
 
@@ -46,7 +51,7 @@ def test_the_register_is_installed():
     """The one that matters. Everything else in this file is about keeping
     this one honest."""
     try:
-        import engine.brand  # noqa: F401
+        import rnv_brand.brand  # noqa: F401
     except ImportError as exc:  # pragma: no cover -- the failure path
         pytest.fail(
             f'rnv-brand is not importable: {exc}\n\n'
@@ -61,13 +66,13 @@ def test_the_register_is_installed():
 def test_the_register_exposes_what_the_mirrors_read():
     """Guard the guard. An importable module that has been emptied out would
     satisfy the test above and still tell the mirrors nothing."""
-    import engine.brand as brand
+    import rnv_brand.brand as brand
     assert isinstance(getattr(brand, 'APP', None), dict), \
-        'engine.brand has no APP dict'
+        'rnv_brand.brand has no APP dict'
     assert len(brand.APP) >= 10, \
-        f'engine.brand.APP has only {len(brand.APP)} entries'
+        f'rnv_brand.brand.APP has only {len(brand.APP)} entries'
     for name in ('BRAND_GOLD', 'BRAND_DARK_GOLD', 'TRUE_BLACK', 'WHITE'):
-        assert hasattr(brand, name), f'engine.brand has no {name}'
+        assert hasattr(brand, name), f'rnv_brand.brand has no {name}'
 
 
 def test_the_pin_is_declared_in_the_dev_requirements():
@@ -135,12 +140,12 @@ def test_the_installed_register_is_the_pinned_one():
     import json
     import importlib.metadata as metadata
 
-    import engine.brand  # noqa: F401 -- the register must at least import
+    import rnv_brand.brand  # noqa: F401 -- the register must at least import
 
     try:
         raw = metadata.distribution('rnv-brand').read_text('direct_url.json')
     except metadata.PackageNotFoundError:
-        pytest.skip('engine.brand imports but no rnv-brand DISTRIBUTION is '
+        pytest.skip('rnv_brand.brand imports but no rnv-brand DISTRIBUTION is '
                     'installed -- it is being resolved from sys.path, so pip '
                     'has no metadata to compare the pin against')
     if not raw:

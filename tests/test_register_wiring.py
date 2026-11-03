@@ -67,14 +67,16 @@ def test_the_names_this_file_reads_exist():
 def test_the_new_names_hold_the_values_they_were_created_for():
     """RNV-COLOR-SYNC, 2026-10-16: the three the register holds were held here
     by their hex codes. brand_map.json takes each from its APP key now, and
-    tests/test_colors_in_sync.py holds the value. APP_HINT_DARK is the
-    application's own and keeps its value."""
+    tests/test_colors_in_sync.py holds the value. APP_HINT_DARK was the
+    application's own and keeps its value; since rev 49 (ruling 104 A, 2
+    November 2026) the register names it as GRAY.gray-8."""
     assert BRAND_MAP["APP_CANVAS_DARK"] == "APP.canvas"
     assert BRAND_MAP["APP_CARD_DARK"] == "APP.card"
     assert BRAND_MAP["APP_PANEL_HOVER_DARK"] == "APP.panel-hover"
     # #52 A, 2026-10-17: by the map holding it as the application's own, where
     # it was its hex code; tests/test_colors_in_sync.py holds the value.
-    assert isinstance(BRAND_MAP["APP_HINT_DARK"], dict)
+    # Ruling 104 A, 2 November 2026: the map takes it from the register.
+    assert BRAND_MAP["APP_HINT_DARK"] == "GRAY.gray-8"
 
 
 # ------------------------------------------------------------ the substitution

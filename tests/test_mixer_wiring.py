@@ -98,10 +98,12 @@ def test_every_data_twin_is_the_application_s_own():
 #: holds the values against the map.
 APP_OWN = 'app-owned'
 ADDED = {
-    'APP_CHROME_DARK': APP_OWN,
+    # Ruling 104 A, 2 November 2026: two of these are steps the register names
+    # since rev 49, and the map takes them from it.
+    'APP_CHROME_DARK': 'GRAY.gray-4',
     'APP_CHROME_LIGHT': APP_OWN,
     'APP_TEXT_DIM_LIGHT': 'APP.text-dim',
-    'APP_MENU_DIM_DARK': APP_OWN,
+    'APP_MENU_DIM_DARK': 'GRAY.gray-6',
 }
 
 

@@ -29,7 +29,7 @@ import ast
 import re
 from pathlib import Path
 
-import engine.brand as B
+import rnv_brand.brand as B
 
 ROOT = Path(__file__).resolve().parent.parent
 

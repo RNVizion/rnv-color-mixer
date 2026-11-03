@@ -46,49 +46,22 @@
     "APP_CANVAS_DARK": "APP.canvas",
     "APP_CARD_DARK": "APP.card",
     "APP_PANEL_HOVER_DARK": "APP.panel-hover",
-    "APP_HINT_DARK": {
-      "app": "#888888",
-      "why": "gray(8) on the register's ink grid, which the register states as a rule and does not name. Hint text in dark and image."
-    },
+    "APP_HINT_DARK": "GRAY.gray-8",
     "APP_WINDOW_LIGHT": "APP.surface-light-3",
-    "APP_BORDER_LIGHT": {
-      "app": "#cccccc",
-      "why": "gray(12) on the register's ink grid, which the register states as a rule and does not name. Every border in light, the scrollbar handle at rest and the splitter."
-    },
+    "APP_BORDER_LIGHT": "GRAY.gray-12",
     "APP_ITEM_HOVER_LIGHT": "APP.hover-light",
-    "APP_HANDLE_LIGHT": {
-      "app": "#666666",
-      "why": "gray(6) on the register's ink grid, which the register states as a rule and does not name. The light slider handle at rest."
-    },
-    "APP_HINT_LIGHT": {
-      "app": "#666666",
-      "why": "gray(6) on the register's ink grid, which the register states as a rule and does not name. Hint and muted text in light."
-    },
-    "APP_HANDLE_EDGE_LIGHT": {
-      "app": "#888888",
-      "why": "gray(8) on the register's ink grid, which the register states as a rule and does not name. The light slider handle's border, and the light menu's disabled label."
-    },
-    "APP_CONTROL_DIM": {
-      "app": "#555555",
-      "why": "gray(5) on the register's ink grid, which the register states as a rule and does not name. The light slider handle when hovered, and the image-mode checkbox border."
-    },
-    "APP_BTN_PRESSED": {
-      "app": "#444444",
-      "why": "gray(4) on the register's ink grid, which the register states as a rule and does not name. The basic button's pressed fill, in all three modes."
-    },
-    "APP_CHROME_DARK": {
-      "app": "#444444",
-      "why": "gray(4) on the register's ink grid, which the register states as a rule and does not name. A control's resting chrome in dark and image: the slider groove, a menu's edge."
-    },
+    "APP_HANDLE_LIGHT": "GRAY.gray-6",
+    "APP_HINT_LIGHT": "GRAY.gray-6",
+    "APP_HANDLE_EDGE_LIGHT": "GRAY.gray-8",
+    "APP_CONTROL_DIM": "GRAY.gray-5",
+    "APP_BTN_PRESSED": "GRAY.gray-4",
+    "APP_CHROME_DARK": "GRAY.gray-4",
     "APP_CHROME_LIGHT": {
       "app": "#e0e0e0",
       "why": "gray(14) on the ramp. The light slider groove. It shares pressed-light's hex without being a pressed state."
     },
     "APP_TEXT_DIM_LIGHT": "APP.text-dim",
-    "APP_MENU_DIM_DARK": {
-      "app": "#666666",
-      "why": "gray(6) on the register's ink grid, which the register states as a rule and does not name. The disabled menu label in dark and image."
-    },
+    "APP_MENU_DIM_DARK": "GRAY.gray-6",
     "CANVAS_FAILED_BG": {
       "app": "#ffcccc",
       "why": "The placeholder shown where the canvas failed to start."

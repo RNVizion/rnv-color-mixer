@@ -14,6 +14,15 @@ Everything since 2026-05-21, by theme. The version number is held at
 
 ### Changed
 
+- **Five grays are the brand's.** rnv-brand rev 49 (`63a0235`, now the pin in
+  `tests/requirements-dev.txt`) names five steps of its ink grid, `GRAY.gray-4`,
+  `gray-5`, `gray-6`, `gray-8` and `gray-12`, and `brand_map.json` takes the app's 9
+  colors at those values from them instead of owning them. No value moved; `COLORS.md`
+  lists them under the brand. The tests read the register as `rnv_brand.brand`, the name
+  it installs under.
+- **The README's badges take the brand's colors**: each static badge has a dark label
+  and a gold message. The CI status badges keep shields.io's colors, which change with
+  the run, and say passing or failing in words.
 - **The brand register is read as `rnv_brand.brand`.** rnv-brand 48.1.0 (`108213b`)
   installs it under that name, which no other package's `engine` can hide.
   `tools/sync_colors.py` imports it so, the daily brand-sync checks that name, and

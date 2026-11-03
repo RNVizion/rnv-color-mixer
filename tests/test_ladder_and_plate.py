@@ -134,7 +134,7 @@ def test_the_reclassified_constants_match_rnv_brand():
     """The upstream half. Skips where rnv-brand is not importable, which is why
     tests/test_app_mirror.py pins the same three locally."""
     brand = pytest.importorskip(
-        'engine.brand',
+        'rnv_brand.brand',
         reason='rnv-brand not importable here; the local pin is doing the work')
     drift = []
     for name, key in NEW.items():
@@ -186,7 +186,7 @@ def test_the_canvas_is_not_the_web_ground():
     r, g, b = (int(colors.APP_CANVAS_DARK.lstrip('#')[i:i + 2], 16)
                for i in (0, 2, 4))
     assert r == g == b, f'{colors.APP_CANVAS_DARK} is not a pure gray'
-    brand = pytest.importorskip('engine.brand', reason='rnv-brand not importable')
+    brand = pytest.importorskip('rnv_brand.brand', reason='rnv-brand not importable')
     assert colors.APP_CANVAS_DARK.lower() != brand.WEB_BLACK.lower()
 
 

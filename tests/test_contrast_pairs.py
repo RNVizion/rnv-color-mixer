@@ -307,7 +307,7 @@ def test_the_gold_text_floor_is_the_register_s():
     """RNV-COLOR-SYNC, #50 A (2026-10-17). The floor above is the register's
     boundary, written as the register publishes it. This holds it to the
     register wherever rnv-brand is installed, as CI installs it."""
-    brand = pytest.importorskip("engine.brand", reason="rnv-brand not importable")
+    brand = pytest.importorskip("rnv_brand.brand", reason="rnv-brand not importable")
     assert REGISTER_GOLD_TEXT_GROUND_FLOOR == brand.GOLD_TEXT_GROUND_FLOOR.lower()
 
 # ── Escape sequences (RNV-ESCAPE-SEQUENCES, 2026-09-08) ────────────
